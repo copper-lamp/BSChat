@@ -1,7 +1,7 @@
 
 <div align="center">
-  <h1>Betterlanguagechat</h1>
-  <p><strong>Join the world. Hold a key. Start talking.</strong></p>
+  <h1>Better Language Chat</h1>
+  <p><strong>Join the world and Start talking.</strong></p>
   <p>An open-source in-game real-time voice chat mod for Minecraft Bedrock on LeviLamina — server-side mixing, client-side capture and playback, with optional live speech-to-text subtitles.</p>
   <p>
     <img src="https://img.shields.io/badge/release-v0.0.0-4c8bf5?style=flat-square" alt="Betterlanguagechat v0.0.0">
