@@ -21,11 +21,9 @@ aliases:
 [![平台](https://img.shields.io/badge/Platform-Server%20%2F%20Client-success)](https://github.com/LiteLDev/LeviLamina)
 [![状态](https://img.shields.io/badge/Status-Alpha-orange)](CHANGELOG.md)
 [![许可证 CC0-1.0](https://img.shields.io/badge/License-CC0--1.0-lightgrey)](LICENSE)
+[![English](README.md)
 
 </div>
-
-> [!NOTE]
-> **English version: [README.md](README.md).**
 
 > [!IMPORTANT]
 > Betterlanguagechat 目前处于 **alpha 阶段**，可在朋友之间的小规模服务器上试用，但功能与行为仍可能调整。体验前请务必备份你的客户端与服务端。

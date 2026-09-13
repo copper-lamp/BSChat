@@ -1,13 +1,3 @@
----
-title: Betterlanguagechat
-tags:
-  - levilamina
-  - mod
-  - voice-chat
-  - minecraft
-aliases:
-  - Betterlanguagechat
----
 
 <div align="center">
 
@@ -15,7 +5,9 @@ aliases:
 
 **Real-time, in-game voice chat for Minecraft Bedrock.**
 
-Talk to your teammates the moment you join the world — no typing, no separate apps, no
+Talk to your teammates the moment you join the world 
+
+no typing, no separate apps, no
 extra ports. Voice streams over the game's own data channel with low latency and near-zero
 bandwidth when nobody is speaking, with optional live speech-to-text subtitles.
 
@@ -23,11 +15,9 @@ bandwidth when nobody is speaking, with optional live speech-to-text subtitles.
 [![Platform](https://img.shields.io/badge/Platform-Server%20%2F%20Client-success)](https://github.com/LiteLDev/LeviLamina)
 [![Status](https://img.shields.io/badge/Status-Alpha-orange)](CHANGELOG.md)
 [![License CC0-1.0](https://img.shields.io/badge/License-CC0--1.0-lightgrey)](LICENSE)
+[![中文](README_ZH.md)
 
 </div>
-
-> [!NOTE]
-> **简体中文版见 [README_ZH.md](README_ZH.md)。**
 
 > [!IMPORTANT]
 > Betterlanguagechat is currently in **alpha**. It is stable enough to try on friendly

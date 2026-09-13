@@ -37,15 +37,32 @@ TEST(jitter_ordered_flow) {
 
     auto f1 = jb.pop(0);
     EXPECT_TRUE(f1.has_value());
-    EXPECT_EQ((*f1)[0], 1u);
+    EXPECT_EQ((*f1).data[0], 1u);
     auto f2 = jb.pop(0);
     EXPECT_TRUE(f2.has_value());
-    EXPECT_EQ((*f2)[0], 2u);
+    EXPECT_EQ((*f2).data[0], 2u);
     auto f3 = jb.pop(0);
     EXPECT_TRUE(f3.has_value());
-    EXPECT_EQ((*f3)[0], 3u);
+    EXPECT_EQ((*f3).data[0], 3u);
     EXPECT_FALSE(jb.pop(0).has_value());
     EXPECT_EQ(jb.nextExpectedSeq(), 4u);
+}
+
+TEST(jitter_flags_ride_through) {
+    JitterBuffer jb;
+    jb.push(1, makePayload(1, 2), 0, AudioFlagStart);
+    jb.push(3, makePayload(3, 2), 0); // 乱序到达
+    jb.push(2, makePayload(2, 2), 0, AudioFlagEnd);
+
+    auto f1 = jb.pop(0);
+    EXPECT_TRUE(f1.has_value());
+    EXPECT_EQ((*f1).flags, static_cast<uint8_t>(AudioFlagStart));
+    auto f2 = jb.pop(0);
+    EXPECT_TRUE(f2.has_value());
+    EXPECT_EQ((*f2).flags, static_cast<uint8_t>(AudioFlagEnd));
+    auto f3 = jb.pop(0);
+    EXPECT_TRUE(f3.has_value());
+    EXPECT_EQ((*f3).flags, static_cast<uint8_t>(AudioFlagNone));
 }
 
 TEST(jitter_out_of_order_and_late_drop) {
@@ -57,13 +74,13 @@ TEST(jitter_out_of_order_and_late_drop) {
     // 首帧定锚 1，乱序帧仍按序输出
     auto f1 = jb.pop(0);
     EXPECT_TRUE(f1.has_value());
-    EXPECT_EQ((*f1)[0], 1u);
+    EXPECT_EQ((*f1).data[0], 1u);
     auto f2 = jb.pop(0);
     EXPECT_TRUE(f2.has_value());
-    EXPECT_EQ((*f2)[0], 2u);
+    EXPECT_EQ((*f2).data[0], 2u);
     auto f3 = jb.pop(0);
     EXPECT_TRUE(f3.has_value());
-    EXPECT_EQ((*f3)[0], 3u);
+    EXPECT_EQ((*f3).data[0], 3u);
 
     // 迟到帧（seq < 期望 4）直接丢弃
     jb.push(2, makePayload(2, 4), 0);
@@ -83,7 +100,7 @@ TEST(jitter_timeout_releases_gap) {
     EXPECT_FALSE(jb.pop(1000).has_value()); // 未超时
     auto released = jb.pop(1000 + 201);     // 已超时
     EXPECT_TRUE(released.has_value());
-    EXPECT_EQ((*released)[0], 13u);
+    EXPECT_EQ((*released).data[0], 13u);
     EXPECT_EQ(jb.nextExpectedSeq(), 14u);
 }
 
@@ -98,7 +115,7 @@ TEST(jitter_depth_limited) {
     EXPECT_EQ(jb.size(), 3u);
     auto f = jb.pop(0);
     EXPECT_TRUE(f.has_value());
-    EXPECT_EQ((*f)[0], 4u);
+    EXPECT_EQ((*f).data[0], 4u);
 }
 
 TEST(jitter_clear_resets) {
@@ -110,7 +127,7 @@ TEST(jitter_clear_resets) {
     jb.push(9, makePayload(9, 2), 0);
     auto f = jb.pop(0);
     EXPECT_TRUE(f.has_value());
-    EXPECT_EQ((*f)[0], 9u);
+    EXPECT_EQ((*f).data[0], 9u);
 }
 
 // ---- GlobalMixer ----

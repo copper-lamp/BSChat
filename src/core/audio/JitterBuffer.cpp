@@ -6,7 +6,7 @@ JitterBuffer::JitterBuffer() : JitterBuffer(Options{}) {}
 
 JitterBuffer::JitterBuffer(Options options) : options_(options) {}
 
-void JitterBuffer::push(uint64_t seq, std::vector<uint8_t> payload, int64_t arrivalMs) {
+void JitterBuffer::push(uint64_t seq, std::vector<uint8_t> payload, int64_t arrivalMs, uint8_t flags) {
     if (!started_) {
         started_ = true;
         nextExpectedSeq_ = seq;
@@ -18,22 +18,22 @@ void JitterBuffer::push(uint64_t seq, std::vector<uint8_t> payload, int64_t arri
         // 被驱逐的队首即为等待目标（或更旧的缺口），直接推进期望，避免永久卡顿
         nextExpectedSeq_ = evictedSeq + 1;
     }
-    frames_.emplace(seq, Entry{std::move(payload), arrivalMs});
+    frames_.emplace(seq, Entry{std::move(payload), arrivalMs, flags});
 }
 
-std::optional<std::vector<uint8_t>> JitterBuffer::pop(int64_t nowMs) {
+std::optional<JitterBuffer::Frame> JitterBuffer::pop(int64_t nowMs) {
     if (frames_.empty()) return std::nullopt;
 
     auto firstIt = frames_.begin();
     if (firstIt->first == nextExpectedSeq_) {
-        auto out = std::move(firstIt->second.payload);
+        Frame out{std::move(firstIt->second.payload), firstIt->second.flags};
         frames_.erase(firstIt);
         ++nextExpectedSeq_;
         return out;
     }
     // 期望帧缺失：若队首等待超时则放行队首（跳过缺口）
     if (nowMs - firstIt->second.arrivalMs >= options_.maxWaitMs) {
-        auto out = std::move(firstIt->second.payload);
+        Frame out{std::move(firstIt->second.payload), firstIt->second.flags};
         uint64_t seq = firstIt->first;
         frames_.erase(firstIt);
         nextExpectedSeq_ = seq + 1;
