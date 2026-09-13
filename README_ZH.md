@@ -1,27 +1,17 @@
----
-title: Betterlanguagechat
-tags:
-  - levilamina
-  - mod
-  - voice-chat
-  - minecraft
-aliases:
-  - Betterlanguagechat
----
 
 <div align="center">
 
-# Betterlanguagechat
+# 更好的语言聊天
 
 **Minecraft 基岩版 · 游戏内实时语音聊天。**
 
-进服即聊，无需打字、无需额外软件、无需开放任何端口。语音经游戏自带数据通道传输，延迟低、无人说话时几乎不消耗带宽，可选实时语音转文字字幕。
+进服即聊、无需开放任何端口。语音经游戏自带数据通道传输，延迟低、无人说话时几乎不消耗带宽，可选实时语音转文字字幕。
 
 [![LeviLamina](https://img.shields.io/badge/LeviLamina-26.40.x-blue)](https://github.com/LiteLDev/LeviLamina)
 [![平台](https://img.shields.io/badge/Platform-Server%20%2F%20Client-success)](https://github.com/LiteLDev/LeviLamina)
 [![状态](https://img.shields.io/badge/Status-Alpha-orange)](CHANGELOG.md)
 [![许可证 CC0-1.0](https://img.shields.io/badge/License-CC0--1.0-lightgrey)](LICENSE)
-[![English](README.md)
+[![English](README.md)](README.md)
 
 </div>
 
