@@ -72,7 +72,8 @@ target("voicechat")
         add_files("src/client/**.cpp")
     end
 
--- 单元测试：host 运行，链接 core 静态库与第三方依赖，不进入默认构建
+-- 单元测试：host 运行，链接 core 静态库与第三方依赖，不进入默认构建。
+-- 额外编译 server/session（零 LeviLamina 依赖的纯逻辑层），覆盖会话切分/限速单测。
 target("voicechat-tests")
     set_default(false)
     set_kind("binary")
@@ -81,4 +82,4 @@ target("voicechat-tests")
     add_deps("voicechat-core")
     add_packages("libopus", "nlohmann_json")
     add_includedirs("src", "tests")
-    add_files("tests/**.cpp")
+    add_files("tests/**.cpp", "src/server/session/*.cpp")
