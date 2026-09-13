@@ -9,7 +9,7 @@
     <a href="LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0-blue?style=flat-square" alt="AGPL-3.0 License"></a>
   </p>
   <p>
-    <img src="https://img.shields.io/badge/LeviLamina-26.40.*-7b68ee?style=flat-square" alt="LeviLamina 26.40">
+    <img src="https://img.shields.io/badge/LeviLamina-26.10.14-7b68ee?style=flat-square" alt="LeviLamina 26.40">
   </p>
   <p>
     <a href="https://github.com/copper-lamp/BSChat/releases">Releases</a>
@@ -45,7 +45,7 @@ server plugin and a client mod, delivering a consistent experience from server t
 > Betterlanguagechat ships as two independent builds — server and client. Both must be
 > installed and running on the same LeviLamina baseline, or the handshake will fail.
 
-1. Install [LeviLamina](https://lamina.levimc.org/) on your server (baseline 26.40.x).
+1. Install [LeviLamina](https://lamina.levimc.org/) on your server (baseline 26.10.14).
 2. Install LeviLamina client on each player's Bedrock client.
 3. Install the matching build: server → `plugins/voicechat/`, client → `mods/voicechat/`.
 4. Restart, join the world, and **hold V** to talk; release to go quiet.
@@ -85,7 +85,7 @@ the [Changelog](CHANGELOG.md).
 | Server (BDS) | Server build | `plugins/voicechat/` |
 | Client (Bedrock) | Client build | `mods/voicechat/` |
 
-Both are built for **Windows x64** and run on **LeviLamina 26.40.***.
+Both are built for **Windows x64** and run on **LeviLamina 26.10.14**.
 
 > [!TIP]
 > No separate port or UDP channel is required — voice reuses the game's built-in
@@ -130,7 +130,7 @@ either side.
 Almost none. Audio is heavily compressed, so idle moments cost near-zero downstream data.
 
 ### How do I enable subtitles?
-Enable `sttEnabled` on the server and provide a Whisper model file, and keep subtitles on
+Enable `sttEnabled` on the server and provide the sherpa-onnx streaming Zipformer model files, and keep subtitles on
 in the client. If the model is missing, speech-to-text is disabled without affecting voice.
 
 ### Can I change the talk key?
@@ -170,7 +170,7 @@ Join the community on QQ group **861900673**.
 
 Special thanks to the maintainers and community of [LeviLamina](https://github.com/LiteLDev/LeviLamina) for the native
 mod development platform and tooling; and to [Opus](https://opus-codec.org/),
-[whisper.cpp](https://github.com/ggerganov/whisper.cpp), and
+[sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx), [ONNX Runtime](https://github.com/microsoft/onnxruntime), and
 [nlohmann/json](https://github.com/nlohmann/json) for providing audio codec, offline
 transcription, and JSON parsing capabilities.
 

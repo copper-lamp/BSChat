@@ -8,8 +8,8 @@ option("target_type")
     set_values("server", "client")
 option_end()
 
--- LeviLamina SDK，按 target_type 拉取服务端或客户端构建（开发基线 26.40.x，源码已移除 ATL 依赖）
-add_requires("levilamina 26.40.x", {configs = {target_type = get_config("target_type")}})
+-- LeviLamina SDK，按 target_type 拉取服务端或客户端构建（开发基线 26.10.14）
+add_requires("levilamina 26.10.14", {configs = {target_type = get_config("target_type")}})
 add_requires("levibuildscript")
 
 -- 核心引擎依赖：Opus 编解码（静态链接）、nlohmann-json（header-only，配置序列化）
@@ -65,7 +65,7 @@ target("voicechat")
     add_files("src/shared/**.cpp")
     add_headerfiles("src/shared/**.h")
     if is_config("target_type", "server") then
-        add_includedirs("src/server")
+        add_includedirs("src/server", "third_party/sherpa-onnx")
         add_files("src/server/**.cpp")
     else
         add_includedirs("src/client")
@@ -73,8 +73,8 @@ target("voicechat")
     end
 
 -- 单元测试：host 运行，链接 core 静态库与第三方依赖，不进入默认构建。
--- 额外编译 server/session 与 server/mixer（零 LeviLamina 依赖的纯逻辑层），
--- 覆盖会话切分/限速与混音 tick/待发队列单测。
+-- 额外编译 server/session、server/mixer、server/stt（零 LeviLamina 依赖的纯逻辑层），
+-- 覆盖会话切分/限速、混音 tick/待发队列、STT worker 管线单测。
 target("voicechat-tests")
     set_default(false)
     set_kind("binary")
@@ -82,5 +82,11 @@ target("voicechat-tests")
     apply_common_windows_flags()
     add_deps("voicechat-core")
     add_packages("libopus", "nlohmann_json")
-    add_includedirs("src", "tests")
-    add_files("tests/**.cpp", "src/server/session/*.cpp", "src/server/mixer/*.cpp")
+    add_includedirs("src", "tests", "third_party/sherpa-onnx")
+    add_files(
+        "tests/**.cpp",
+        "src/server/session/*.cpp",
+        "src/server/mixer/*.cpp",
+        "src/server/stt/*.cpp",
+        "src/server/entry/*.cpp"
+    )

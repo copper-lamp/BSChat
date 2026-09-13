@@ -9,7 +9,7 @@
     <a href="LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0-blue?style=flat-square" alt="AGPL-3.0 许可证"></a>
   </p>
   <p>
-    <img src="https://img.shields.io/badge/LeviLamina-26.40.*-7b68ee?style=flat-square" alt="LeviLamina 26.40">
+    <img src="https://img.shields.io/badge/LeviLamina-26.10.14-7b68ee?style=flat-square" alt="LeviLamina 26.40">
   </p>
   <p>
     <a href="../docs/getting-started.md">快速上手</a>
@@ -34,7 +34,7 @@ Betterlanguagechat 将你在游戏里的语音带到身边——按住按键说�
 > [!IMPORTANT]
 > Betterlanguagechat 以服务端和客户端两个独立构建分发，两端都必须安装且使用相同的 LeviLamina 基线，否则无法握手。
 
-1. 在服务器上安装 [LeviLamina](https://lamina.levimc.org/)（基线 26.40.x）。
+1. 在服务器上安装 [LeviLamina](https://lamina.levimc.org/)（基线 26.10.14）。
 2. 在每位玩家的基岩版客户端安装 LeviLamina 客户端。
 3. 安装对应构建：服务端 → `plugins/voicechat/`，客户端 → `mods/voicechat/`。
 4. 重启后进服，按住 **V** 说话，松开结束。
@@ -66,7 +66,7 @@ Betterlanguagechat 将你在游戏里的语音带到身边——按住按键说�
 | 服务端（BDS） | 服务端构建 | `plugins/voicechat/` |
 | 客户端（基岩版） | 客户端构建 | `mods/voicechat/` |
 
-以上均面向 **Windows x64** 平台，运行于 **LeviLamina 26.40.***。
+以上均面向 **Windows x64** 平台，运行于 **LeviLamina 26.10.14**。
 
 > [!TIP]
 > 语音无需开放独立端口，也不用配置 UDP 通道——它复用游戏自带的连接。
@@ -105,7 +105,7 @@ Betterlanguagechat 将你在游戏里的语音带到身边——按住按键说�
 几乎不占用。音频充分压缩，无人说话时下行数据趋近于零。
 
 ### 怎么开启字幕？
-在服务端开启 `sttEnabled` 并提供 Whisper 模型文件，客户端保持开启字幕即可。模型缺失时语音转文字自动停用，语音主链路不受影响。
+在服务端开启 `sttEnabled`，并按 `sttModel.libraryPath`、`encoderPath`、`decoderPath`、`joinerPath`、`tokensPath` 提供 sherpa-onnx 流式 Zipformer 模型文件，客户端保持开启字幕即可。模型缺失时语音转文字自动停用，语音主链路不受影响。
 
 ### 可以更换说话按键吗？
 可以。在客户端 `config.json` 中修改 `pttKey` 即可更改按键说话绑定。
@@ -136,7 +136,7 @@ Betterlanguagechat 将你在游戏里的语音带到身边——按住按键说�
 
 ## 致谢
 
-特别感谢 [LeviLamina](https://github.com/LiteLDev/LeviLamina) 的维护者与社区提供的原生模组开发平台与工具；感谢 [Opus](https://opus-codec.org/)、[whisper.cpp](https://github.com/ggerganov/whisper.cpp) 与 [nlohmann/json](https://github.com/nlohmann/json) 项目为语音编解码、离线转写与配置解析提供了基础能力。
+特别感谢 [LeviLamina](https://github.com/LiteLDev/LeviLamina) 的维护者与社区提供的原生模组开发平台与工具；感谢 [Opus](https://opus-codec.org/)、[sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx)、[ONNX Runtime](https://github.com/microsoft/onnxruntime) 与 [nlohmann/json](https://github.com/nlohmann/json) 项目为语音编解码、离线流式转写与配置解析提供了基础能力。
 
 ## 许可证
 

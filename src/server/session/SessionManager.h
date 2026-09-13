@@ -27,7 +27,7 @@ struct PlayerIdHash {
 //
 // 线程模型：
 //  - 主线程：addSession / removeSession（玩家加入/离开事件）；
-//  - 音频线程：snapshot() 取快照后遍历 pollFrame/pollUtterance；
+//  - 音频线程：snapshot() 取快照后遍历 pollFrame；
 //  - 网络线程：find() 查找会话后 pushAudio。
 // 会话以 shared_ptr 持有：音频线程持有快照引用期间即使被移除也不会悬垂。
 class SessionManager {

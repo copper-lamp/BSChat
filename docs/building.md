@@ -58,14 +58,18 @@ After a successful build, place the output in the correct directory:
 | `server` | `plugins/voicechat/` |
 | `client` | `mods/voicechat/` |
 
+## Configuration
+
+The server speech-to-text configuration supports `libraryPath` for the sherpa-onnx shared library.
+
 ## Dependencies
 
 | Dependency | Purpose |
 |---|---|
-| LeviLamina `26.40.*` | Mod loader SDK (server or client flavor) |
+| LeviLamina `26.10.14` | Mod loader SDK (server or client flavor) |
 | Opus (`libopus` v1.5.2) | Audio encode/decode (static link) |
 | nlohmann-json | JSON configuration parsing (header-only) |
-| whisper.cpp | Server-side speech-to-text (server build) |
+| sherpa-onnx + ONNX Runtime | Server-side streaming Zipformer speech-to-text (server build) |
 
 ## Project layout
 

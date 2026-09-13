@@ -40,29 +40,40 @@ void ServerMixer::stop() {
     if (thread_.joinable()) thread_.join();
 }
 
-void ServerMixer::setUtteranceSink(UtteranceSink sink) {
-    std::lock_guard lock(sinkMutex_);
-    utteranceSink_ = std::move(sink);
+void ServerMixer::setStt(pipeline::IStt* stt) {
+    stt_ = stt;
+    if (!stt_) return;
+    // STT 结果（worker 线程）→ SttText 广播，与混音流共用待发队列
+    stt_->setResultSink([this](const pipeline::SttResult& result) {
+        protocol::SttTextMessage msg;
+        msg.speakerId = result.speakerId;
+        msg.isFinal   = result.isFinal;
+        msg.text      = result.text;
+        enqueueToAll(msg);
+    });
 }
 
 void ServerMixer::tickOnce(int64_t nowMs) {
     ++tickCount_;
 
-    // 1) 拉各会话解码帧 → 混音器；完成话语 → STT 回调
+    // 1) 拉各会话解码帧 → 驱动流式 STT（begin/feed/end）+ 混音器
     for (auto& session : sessions_.snapshot()) {
         while (auto frame = session->pollFrame(nowMs)) {
-            if (!frame->empty()) {
-                mixer_.addFrame(session->id(), std::move(*frame));
+            if (stt_ && stt_->available()) {
+                if (frame->flags & protocol::AudioFlagStart) {
+                    stt_->beginUtterance(session->id());
+                }
+                if (!frame->pcm.empty()) {
+                    stt_->feedAudio(session->id(), frame->pcm);
+                }
+                if (frame->flags & protocol::AudioFlagEnd) {
+                    stt_->endUtterance(session->id());
+                }
             }
-            // 静音帧不喂入（无能量，混音器按无该说话者处理）
-        }
-        while (auto utterance = session->pollUtterance()) {
-            UtteranceSink sink;
-            {
-                std::lock_guard lock(sinkMutex_);
-                sink = utteranceSink_;
+            if (!frame->pcm.empty()) {
+                mixer_.addFrame(session->id(), std::move(frame->pcm));
             }
-            if (sink) sink(session->id(), std::move(*utterance));
+            // 静音帧不喂入混音器（无能量，按无该说话者处理）
         }
     }
 

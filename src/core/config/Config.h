@@ -17,13 +17,23 @@ struct AudioConfig {
     int complexity = 10;
 };
 
+// sherpa-onnx 流式 STT 模型（流式 Zipformer，四个 ONNX/token 文件）
+struct SttModelConfig {
+    std::string libraryPath;
+    std::string encoderPath; // encoder.onnx（相对服务端模组目录）
+    std::string decoderPath; // decoder.onnx
+    std::string joinerPath;  // joiner.onnx
+    std::string tokensPath;  // tokens.txt
+    int threads = 4;         // 推理线程数
+    int partialIntervalMs = 600; // 部分结果产出间隔（累积音频时长）
+};
+
 // 服务端配置
 struct ServerConfig {
     AudioConfig audio;
     bool voiceEnabled = true;
     bool sttEnabled = false;
-    std::string whisperModelPath; // 相对服务端模组目录
-    int sttMaxConcurrency = 1;
+    SttModelConfig sttModel;
     int jitterMaxDepthFrames = 6; // 6 × 60ms = 360ms
     int64_t jitterMaxWaitMs = 200;
 };

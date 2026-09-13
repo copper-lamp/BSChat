@@ -1,15 +1,13 @@
-whisper.cpp — MIT License
-==========================
+ONNX Runtime — MIT License
+===========================
 
-whisper.cpp is the server-side speech-to-text engine used by Betterlanguagechat.
-It is distributed under the MIT License. The following is reproduced from the
-upstream LICENSE file of https://github.com/ggml-org/whisper.cpp.
+ONNX Runtime is used as the inference runtime for the optional server-side
+sherpa-onnx speech-to-text integration.
+Upstream project: https://github.com/microsoft/onnxruntime
 
----
+Copyright (c) Microsoft Corporation.
 
 MIT License
-
-Copyright (c) 2023-2026 The ggml authors
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal

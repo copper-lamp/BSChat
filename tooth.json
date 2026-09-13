@@ -17,7 +17,7 @@
       "label": "",
       "platform": "win-x64",
       "dependencies": {
-        "github.com/LiteLDev/LeviLamina": "26.40.*"
+        "github.com/LiteLDev/LeviLamina": "26.10.14"
       },
       "assets": [
         {
@@ -51,7 +51,7 @@
       "label": "client",
       "platform": "win-x64",
       "dependencies": {
-        "github.com/LiteLDev/LeviLamina#client": "26.40.*"
+        "github.com/LiteLDev/LeviLamina#client": "26.10.14"
       },
       "assets": [
         {

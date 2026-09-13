@@ -72,11 +72,12 @@ TEST(session_audio_frame_decodes_for_mix) {
     session.pushAudio(makeAudio(1, AudioFlagStart, data), 1000);
     auto frame = session.pollFrame(1000);
     EXPECT_TRUE(frame.has_value());
-    EXPECT_FALSE(frame->empty());
-    EXPECT_TRUE(rms(*frame) > 0.1); // 解码出明显能量
+    EXPECT_FALSE(frame->pcm.empty());
+    EXPECT_TRUE(rms(frame->pcm) > 0.1); // 解码出明显能量
+    EXPECT_TRUE(frame->flags & AudioFlagStart); // 帧标志透传
 }
 
-TEST(session_utterance_segmentation) {
+TEST(session_flags_ride_through) {
     PlayerSession::Options opts;
     PlayerSession session(makePlayerId(1), opts);
     auto data = encodeTone();
@@ -85,20 +86,21 @@ TEST(session_utterance_segmentation) {
     session.pushAudio(makeAudio(2, AudioFlagNone, data), 1000);
     session.pushAudio(makeAudio(3, AudioFlagEnd, data), 1000);
 
-    // 逐帧拉取解码 PCM
-    EXPECT_TRUE(session.pollFrame(1000).has_value());
-    EXPECT_TRUE(session.pollFrame(1000).has_value());
-    auto last = session.pollFrame(1000);
-    EXPECT_TRUE(last.has_value());
+    // 逐帧拉取：标志按序透传，供音频线程驱动流式 STT
+    auto f1 = session.pollFrame(1000);
+    EXPECT_TRUE(f1.has_value());
+    EXPECT_TRUE(f1->flags & AudioFlagStart);
+    EXPECT_FALSE(f1->pcm.empty());
 
-    // End 帧后产生完整话语（3 帧拼接）
-    auto utterance = session.pollUtterance();
-    EXPECT_TRUE(utterance.has_value());
-    EXPECT_EQ(utterance->size(), static_cast<size_t>(3 * kFrameSamples));
-    EXPECT_TRUE(rms(*utterance) > 0.1);
+    auto f2 = session.pollFrame(1000);
+    EXPECT_TRUE(f2.has_value());
+    EXPECT_EQ(f2->flags, static_cast<uint8_t>(AudioFlagNone));
 
-    // 无更多话语
-    EXPECT_FALSE(session.pollUtterance().has_value());
+    auto f3 = session.pollFrame(1000);
+    EXPECT_TRUE(f3.has_value());
+    EXPECT_TRUE(f3->flags & AudioFlagEnd);
+
+    EXPECT_FALSE(session.pollFrame(1000).has_value());
 }
 
 TEST(session_flag_only_frames_are_silence) {
@@ -109,56 +111,14 @@ TEST(session_flag_only_frames_are_silence) {
     session.pushAudio(makeAudio(1, AudioFlagStart, {}), 1000);
     auto f1 = session.pollFrame(1000);
     EXPECT_TRUE(f1.has_value());
-    EXPECT_TRUE(f1->empty()); // 静音帧 → 空 PCM
+    EXPECT_TRUE(f1->pcm.empty()); // 静音帧 → 空 PCM
+    EXPECT_TRUE(f1->flags & AudioFlagStart);
 
     session.pushAudio(makeAudio(2, AudioFlagEnd, {}), 1000);
-    EXPECT_TRUE(session.pollFrame(1000).has_value());
-    EXPECT_FALSE(session.pollUtterance().has_value()); // 空句不入队
-}
-
-TEST(session_start_without_end_keeps_partial_until_end) {
-    PlayerSession::Options opts;
-    PlayerSession session(makePlayerId(3), opts);
-    auto data = encodeTone();
-
-    session.pushAudio(makeAudio(1, AudioFlagStart, data), 1000);
-    session.pushAudio(makeAudio(2, AudioFlagNone, data), 1000);
-    EXPECT_TRUE(session.pollFrame(1000).has_value());
-    EXPECT_TRUE(session.pollFrame(1000).has_value());
-    EXPECT_FALSE(session.pollUtterance().has_value()); // 未 End，无完整话语
-
-    // 松开发尾标志帧（无数据）→ 收尾
-    session.pushAudio(makeAudio(3, AudioFlagEnd, {}), 1000);
-    EXPECT_TRUE(session.pollFrame(1000).has_value());
-    auto utterance = session.pollUtterance();
-    EXPECT_TRUE(utterance.has_value());
-    EXPECT_EQ(utterance->size(), static_cast<size_t>(2 * kFrameSamples));
-}
-
-TEST(session_max_utterance_forced_split) {
-    PlayerSession::Options opts;
-    opts.maxUtteranceMs = 120; // 2 帧即强制切分
-    PlayerSession session(makePlayerId(4), opts);
-    auto data = encodeTone();
-
-    // 3 帧无 End：第 2 帧累积达上限 → 强制切分，第 3 帧进入新句
-    session.pushAudio(makeAudio(1, AudioFlagStart, data), 1000);
-    session.pushAudio(makeAudio(2, AudioFlagNone, data), 1000);
-    session.pushAudio(makeAudio(3, AudioFlagNone, data), 1000);
-    EXPECT_TRUE(session.pollFrame(1000).has_value());
-    EXPECT_TRUE(session.pollFrame(1000).has_value());
-    EXPECT_TRUE(session.pollFrame(1000).has_value());
-
-    auto seg1 = session.pollUtterance();
-    EXPECT_TRUE(seg1.has_value());
-    EXPECT_EQ(seg1->size(), static_cast<size_t>(2 * kFrameSamples)); // 前 2 帧
-
-    // 第 3 帧进入新句，第 4 帧（End）累积达上限并收尾
-    session.pushAudio(makeAudio(4, AudioFlagEnd, data), 1000);
-    EXPECT_TRUE(session.pollFrame(1000).has_value());
-    auto seg2 = session.pollUtterance();
-    EXPECT_TRUE(seg2.has_value());
-    EXPECT_EQ(seg2->size(), static_cast<size_t>(2 * kFrameSamples)); // 第 3、4 帧
+    auto f2 = session.pollFrame(1000);
+    EXPECT_TRUE(f2.has_value());
+    EXPECT_TRUE(f2->pcm.empty());
+    EXPECT_TRUE(f2->flags & AudioFlagEnd);
 }
 
 TEST(session_rate_limit_drops_flood) {
@@ -190,7 +150,6 @@ TEST(session_reset_clears_state) {
     session.reset();
     EXPECT_EQ(session.pendingFrames(), 0u);
     EXPECT_FALSE(session.pollFrame(1000).has_value());
-    EXPECT_FALSE(session.pollUtterance().has_value());
 }
 
 TEST(session_manager_add_find_remove) {

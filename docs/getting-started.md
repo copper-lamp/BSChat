@@ -6,7 +6,7 @@ voice to work.
 
 Common prerequisites:
 
-- [LeviLamina](https://lamina.levimc.org/) `26.40.*` on both ends.
+- [LeviLamina](https://lamina.levimc.org/) `26.10.14` on both ends.
 - Windows x64.
 
 ## 1. Install the server build
@@ -39,7 +39,7 @@ If you hear nothing, check:
 Subtitles require the server-side speech-to-text feature:
 
 1. On the server, set `sttEnabled` to `true` in `config.json`.
-2. Provide a Whisper model file (see `whisperModelPath`).
+2. Provide the streaming Zipformer files configured by `sttModel.encoderPath`, `sttModel.decoderPath`, `sttModel.joinerPath`, and `sttModel.tokensPath`.
 3. On the client, keep `subtitleEnabled` set to `true`.
 
 If the model is missing, speech-to-text is disabled without affecting voice.

@@ -6,6 +6,7 @@
 
 #include "core/audio/AudioTypes.h"
 #include "core/codec/OpusCodec.h"
+#include "core/pipeline/IStt.h"
 #include "core/protocol/Message.h"
 #include "server/mixer/ServerMixer.h"
 #include "server/session/PlayerSession.h"
@@ -15,6 +16,7 @@ using namespace vc::server;
 using namespace vc::codec;
 using namespace vc::protocol;
 using namespace vc::audio;
+using namespace vc::pipeline;
 
 namespace {
 
@@ -61,6 +63,35 @@ std::vector<std::pair<PlayerId, Message>> collect(ServerMixer& mixer) {
     return out;
 }
 
+// 记录调用的假 STT：验证混音器按 Start/End 驱动流式 begin/feed/end，并可注入结果
+class RecordStt : public vc::pipeline::IStt {
+public:
+    void beginUtterance(const PlayerId& id) override { begins.push_back(id); }
+    void feedAudio(const PlayerId& id, const std::vector<float>& pcm) override {
+        feeds.push_back(id);
+        fedSamples += pcm.size();
+    }
+    void endUtterance(const PlayerId& id) override { ends.push_back(id); }
+    void setResultSink(ResultSink sink) override { sink_ = std::move(sink); }
+    bool available() const override { return true; }
+    void shutdown() override {}
+
+    // 模拟 worker 产出结果 → 混音器应广播 SttText
+    void emit(const PlayerId& id, bool isFinal, std::string text) {
+        SttResult r;
+        r.speakerId = id;
+        r.isFinal   = isFinal;
+        r.text      = std::move(text);
+        if (sink_) sink_(r);
+    }
+
+    std::vector<PlayerId> begins;
+    std::vector<PlayerId> feeds;
+    std::vector<PlayerId> ends;
+    size_t fedSamples = 0;
+    ResultSink sink_;
+};
+
 } // namespace
 
 TEST(mixer_produces_mix_stream_when_active) {
@@ -98,29 +129,65 @@ TEST(mixer_silent_when_no_talker) {
     EXPECT_TRUE(out.empty());
 }
 
-TEST(mixer_utterance_sink_fires) {
+TEST(mixer_drives_stt_and_broadcasts_text) {
     SessionManager sessions;
     auto id = makePlayerId(3);
     sessions.addSession(id, {});
     ServerMixer mixer(sessions, {});
-
-    bool fired = false;
-    PlayerId sinkId{};
-    size_t sinkSamples = 0;
-    mixer.setUtteranceSink([&](const PlayerId& sid, std::vector<float> pcm) {
-        fired = true;
-        sinkId = sid;
-        sinkSamples = pcm.size();
-    });
+    RecordStt stt; // 声明于 mixer 之后 → 先于 mixer 析构，符合生命周期契约
+    mixer.setStt(&stt);
 
     auto data = encodeTone();
     sessions.find(id)->pushAudio(makeAudio(1, AudioFlagStart, data), 1000);
-    sessions.find(id)->pushAudio(makeAudio(2, AudioFlagEnd, data), 1000);
+    sessions.find(id)->pushAudio(makeAudio(2, AudioFlagNone, data), 1000);
+    sessions.find(id)->pushAudio(makeAudio(3, AudioFlagEnd, data), 1000);
 
     mixer.tickOnce(1000);
-    EXPECT_TRUE(fired);
-    EXPECT_EQ(sinkId, id);
-    EXPECT_EQ(sinkSamples, static_cast<size_t>(2 * kFrameSamples));
+
+    // 流式驱动：Start → begin、非空帧 → feed、End → end
+    EXPECT_EQ(stt.begins.size(), 1u);
+    EXPECT_EQ(stt.feeds.size(), 3u); // 3 帧均带数据
+    EXPECT_EQ(stt.feeds[0], id);
+    EXPECT_EQ(stt.ends.size(), 1u);
+
+    // STT 结果（部分 + 最终）→ 广播 SttText
+    stt.emit(id, false, "部分");
+    stt.emit(id, true, "最终");
+    auto out = collect(mixer);
+
+    size_t mixCount = 0, textCount = 0;
+    for (auto& [peer, msg] : out) {
+        (void)peer;
+        if (std::holds_alternative<MixStreamMessage>(msg)) ++mixCount;
+        if (auto* t = std::get_if<SttTextMessage>(&msg)) {
+            ++textCount;
+            EXPECT_EQ(t->speakerId, id);
+            if (t->isFinal) {
+                EXPECT_EQ(t->text, "最终");
+            } else {
+                EXPECT_EQ(t->text, "部分");
+            }
+        }
+    }
+    EXPECT_EQ(mixCount, 2u);  // 120ms tick = 2 × 60ms 混音帧
+    EXPECT_EQ(textCount, 2u);
+}
+
+TEST(mixer_stt_unavailable_keeps_voice_path) {
+    // STT 不可用（如引擎缺失）→ 混音链路不受影响，仅跳过 STT 驱动
+    SessionManager sessions;
+    auto id = makePlayerId(4);
+    sessions.addSession(id, {});
+    ServerMixer mixer(sessions, {});
+    RecordStt stt; // available() 恒 true，这里验证 setStt(nullptr) 分支
+    mixer.setStt(nullptr);
+
+    auto data = encodeTone();
+    sessions.find(id)->pushAudio(makeAudio(1, AudioFlagStart, data), 1000);
+
+    mixer.tickOnce(1000);
+    auto out = collect(mixer);
+    EXPECT_TRUE(out.size() >= 1u); // 混音流照常
 }
 
 TEST(mixer_backpressure_drops_oldest) {

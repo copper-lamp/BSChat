@@ -42,6 +42,32 @@ nlohmann::json audioToJson(const AudioConfig& c) {
     return j;
 }
 
+SttModelConfig sttModelFromJson(const nlohmann::json& j) {
+    SttModelConfig c;
+    if (j.is_object()) {
+        c.libraryPath = valueOr(j, "libraryPath", c.libraryPath);
+        c.encoderPath = valueOr(j, "encoderPath", c.encoderPath);
+        c.decoderPath = valueOr(j, "decoderPath", c.decoderPath);
+        c.joinerPath = valueOr(j, "joinerPath", c.joinerPath);
+        c.tokensPath = valueOr(j, "tokensPath", c.tokensPath);
+        c.threads = valueOr(j, "threads", c.threads);
+        c.partialIntervalMs = valueOr(j, "partialIntervalMs", c.partialIntervalMs);
+    }
+    return c;
+}
+
+nlohmann::json sttModelToJson(const SttModelConfig& c) {
+    nlohmann::json j;
+    j["libraryPath"] = c.libraryPath;
+    j["encoderPath"] = c.encoderPath;
+    j["decoderPath"] = c.decoderPath;
+    j["joinerPath"] = c.joinerPath;
+    j["tokensPath"] = c.tokensPath;
+    j["threads"] = c.threads;
+    j["partialIntervalMs"] = c.partialIntervalMs;
+    return j;
+}
+
 } // namespace
 
 ServerConfig serverConfigFromJson(const std::string& json) {
@@ -51,8 +77,7 @@ ServerConfig serverConfigFromJson(const std::string& json) {
         c.audio = audioFromJson(valueOr(j, "audio", nlohmann::json::object()));
         c.voiceEnabled = valueOr(j, "voiceEnabled", c.voiceEnabled);
         c.sttEnabled = valueOr(j, "sttEnabled", c.sttEnabled);
-        c.whisperModelPath = valueOr(j, "whisperModelPath", c.whisperModelPath);
-        c.sttMaxConcurrency = valueOr(j, "sttMaxConcurrency", c.sttMaxConcurrency);
+        c.sttModel = sttModelFromJson(valueOr(j, "sttModel", nlohmann::json::object()));
         c.jitterMaxDepthFrames = valueOr(j, "jitterMaxDepthFrames", c.jitterMaxDepthFrames);
         c.jitterMaxWaitMs = valueOr(j, "jitterMaxWaitMs", c.jitterMaxWaitMs);
     } catch (...) {
@@ -66,8 +91,7 @@ std::string serverConfigToJson(const ServerConfig& c) {
     j["audio"] = audioToJson(c.audio);
     j["voiceEnabled"] = c.voiceEnabled;
     j["sttEnabled"] = c.sttEnabled;
-    j["whisperModelPath"] = c.whisperModelPath;
-    j["sttMaxConcurrency"] = c.sttMaxConcurrency;
+    j["sttModel"] = sttModelToJson(c.sttModel);
     j["jitterMaxDepthFrames"] = c.jitterMaxDepthFrames;
     j["jitterMaxWaitMs"] = c.jitterMaxWaitMs;
     return j.dump(4);
