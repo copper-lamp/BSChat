@@ -13,7 +13,7 @@ add_requires("levilamina 26.40.x", {configs = {target_type = get_config("target_
 add_requires("levibuildscript")
 
 -- 核心引擎依赖：Opus 编解码（静态链接）、nlohmann-json（header-only，配置序列化）
-add_requires("libopus", {configs = {shared = false}})
+add_requires("libopus v1.5.2", {configs = {shared = false}})
 add_requires("nlohmann_json")
 
 if not has_config("vs_runtime") then
@@ -27,7 +27,6 @@ function apply_common_windows_flags()
         set_exceptions("none") -- 避免与 /EHa 冲突
         add_cxflags("/EHa", "/utf-8", "/W4", "/w44265", "/w44289", "/w44296", "/w45263", "/w44738", "/w45204")
         add_cxflags(
-            "/EHs",
             "-Wno-microsoft-cast",
             "-Wno-invalid-offsetof",
             "-Wno-c++2b-extensions",
@@ -49,7 +48,7 @@ target("voicechat-core")
     set_languages("c++20")
     apply_common_windows_flags()
     add_packages("libopus", "nlohmann_json")
-    add_includedirs("src/core", {public = true})
+    add_includedirs("src", {public = true}) -- 头文件统一以 core/... 引用
     add_files("src/core/**.cpp")
     add_headerfiles("src/core/**.h")
 
@@ -72,3 +71,14 @@ target("voicechat")
         add_includedirs("src/client")
         add_files("src/client/**.cpp")
     end
+
+-- 单元测试：host 运行，链接 core 静态库与第三方依赖，不进入默认构建
+target("voicechat-tests")
+    set_default(false)
+    set_kind("binary")
+    set_languages("c++20")
+    apply_common_windows_flags()
+    add_deps("voicechat-core")
+    add_packages("libopus", "nlohmann_json")
+    add_includedirs("src", "tests")
+    add_files("tests/**.cpp")
