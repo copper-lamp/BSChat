@@ -8,24 +8,24 @@ option("target_type")
     set_values("server", "client")
 option_end()
 
--- add_requires("levilamina x.x.x") for a specific version
--- add_requires("levilamina develop") to use develop version
--- please note that you should add bdslibrary yourself if using dev version
-add_requires("levilamina", {configs = {target_type = get_config("target_type")}})
-
+-- LeviLamina SDK，按 target_type 拉取服务端或客户端构建（开发基线 26.40.x，源码已移除 ATL 依赖）
+add_requires("levilamina 26.40.x", {configs = {target_type = get_config("target_type")}})
 add_requires("levibuildscript")
+
+-- 核心引擎依赖：Opus 编解码（静态链接）、nlohmann-json（header-only，配置序列化）
+add_requires("libopus", {configs = {shared = false}})
+add_requires("nlohmann_json")
 
 if not has_config("vs_runtime") then
     set_runtimes("MD")
 end
 
-target("my-mod") -- Change this to your mod name.
-    add_rules("@levibuildscript/linkrule")
-    add_rules("@levibuildscript/modpacker")
+-- 与 LeviLamina 模板一致的 Windows/Clang 编译标志
+function apply_common_windows_flags()
     if is_plat("windows") then
-        add_defines("NOMINMAX", "UNICODE")
-        set_exceptions("none") -- To avoid conflicts with /EHa.
-        add_cxflags( "/EHa", "/utf-8", "/W4", "/w44265", "/w44289", "/w44296", "/w45263", "/w44738", "/w45204")
+        add_defines("NOMINMAX", "UNICODE", "_UNICODE")
+        set_exceptions("none") -- 避免与 /EHa 冲突
+        add_cxflags("/EHa", "/utf-8", "/W4", "/w44265", "/w44289", "/w44296", "/w45263", "/w44738", "/w45204")
         add_cxflags(
             "/EHs",
             "-Wno-microsoft-cast",
@@ -41,17 +41,34 @@ target("my-mod") -- Change this to your mod name.
         )
         set_toolchains("clang-cl")
     end
-    add_packages("levilamina")
+end
+
+-- 核心引擎：纯 C++ 静态库，零 LeviLamina 依赖，可独立单测
+target("voicechat-core")
+    set_kind("static")
+    set_languages("c++20")
+    apply_common_windows_flags()
+    add_packages("libopus", "nlohmann_json")
+    add_includedirs("src/core", {public = true})
+    add_files("src/core/**.cpp")
+    add_headerfiles("src/core/**.h")
+
+-- 模组本体：按 target_type 编译服务端或客户端适配层
+target("voicechat")
     set_kind("shared")
     set_languages("c++20")
-    set_symbols("debug")
-    add_headerfiles("src/**.h")
-    add_files("src/**.cpp")
-    add_includedirs("src")
+    apply_common_windows_flags()
+    add_deps("voicechat-core")
+    add_rules("@levibuildscript/linkrule")
+    add_rules("@levibuildscript/modpacker")
+    add_packages("levilamina")
+    add_includedirs("src", "src/core", {public = true})
+    add_files("src/shared/**.cpp")
+    add_headerfiles("src/shared/**.h")
     if is_config("target_type", "server") then
-    --  add_includedirs("src-server")
-    --  add_files("src-server/**.cpp")
+        add_includedirs("src/server")
+        add_files("src/server/**.cpp")
     else
-    --  add_includedirs("src-client")
-    --  add_files("src-client/**.cpp")
+        add_includedirs("src/client")
+        add_files("src/client/**.cpp")
     end

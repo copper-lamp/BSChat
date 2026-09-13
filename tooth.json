@@ -1,35 +1,35 @@
 {
   "format_version": 3,
   "format_uuid": "289f771f-2c9a-4d73-9f3f-8492495a924d",
-  "tooth": "github.com/LiteLDev/levilamina-mod-template",
+  "tooth": "github.com/yourname/voicechat",
   "version": "0.0.0",
   "info": {
-    "name": "My Mod",
-    "description": "Description of my mod",
+    "name": "VoiceChat",
+    "description": "游戏内实时语音聊天：客户端采集语音上行，服务端混音并可本地语音转文字，混合音频流与字幕回传客户端",
     "tags": [
       "platform:levilamina",
       "type:mod"
     ],
-    "avatar_url": "https://example.com/my-mod/avatar.png"
+    "avatar_url": ""
   },
   "variants": [
     {
       "label": "",
       "platform": "win-x64",
       "dependencies": {
-        "github.com/LiteLDev/LeviLamina": "26.20.*"
+        "github.com/LiteLDev/LeviLamina": "26.40.*"
       },
       "assets": [
         {
           "type": "zip",
           "urls": [
-            "https://{{tooth}}/releases/download/v{{version}}/levilamina-mod-template-server-windows-x64.zip"
+            "https://{{tooth}}/releases/download/v{{version}}/voicechat-server-windows-x64.zip"
           ],
           "placements": [
             {
               "type": "dir",
-              "src": "my-mod/",
-              "dest": "plugins/my-mod/"
+              "src": "voicechat/",
+              "dest": "plugins/voicechat/"
             }
           ]
         }
@@ -51,19 +51,19 @@
       "label": "client",
       "platform": "win-x64",
       "dependencies": {
-        "github.com/LiteLDev/LeviLamina#client": "26.20.*"
+        "github.com/LiteLDev/LeviLamina#client": "26.40.*"
       },
       "assets": [
         {
           "type": "zip",
           "urls": [
-            "https://{{tooth}}/releases/download/v{{version}}/levilamina-mod-template-client-windows-x64.zip"
+            "https://{{tooth}}/releases/download/v{{version}}/voicechat-client-windows-x64.zip"
           ],
           "placements": [
             {
               "type": "dir",
-              "src": "my-mod/",
-              "dest": "mods/my-mod/"
+              "src": "voicechat/",
+              "dest": "mods/voicechat/"
             }
           ]
         }
