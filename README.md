@@ -12,8 +12,6 @@
     <img src="https://img.shields.io/badge/LeviLamina-26.40.*-7b68ee?style=flat-square" alt="LeviLamina 26.40">
   </p>
   <p>
-    <a href="../docs/getting-started.md">Getting Started</a>
-    ·
     <a href="https://github.com/copper-lamp/BSChat/releases">Releases</a>
     ·
     <a href="CHANGELOG.md">Changelog</a>
@@ -164,9 +162,7 @@ To report a reproducible issue, please [open an Issue](https://github.com/copper
 
 ## Contributing
 
-Contributions are welcome — ask questions via issues and open pull requests. Before
-submitting, please read `AGENTS.md` in the project root for the development conventions
-(English commit subject, Chinese body; no emoji; docs stay consistent with code).
+Contributions are welcome — ask questions via issues and open pull requests. 
 
 Join the community on QQ group **861900673**.
 
