@@ -6,7 +6,7 @@
   <p>
     <img src="https://img.shields.io/badge/release-v0.0.0-4c8bf5?style=flat-square" alt="Betterlanguagechat v0.0.0">
     <img src="https://img.shields.io/badge/Minecraft%20Bedrock-Windows%20x64-62b47a?style=flat-square" alt="Windows x64 Minecraft 基岩版">
-    <a href="LICENSE"><img src="https://img.shields.io/badge/license-CC0--1.0-blue?style=flat-square" alt="CC0-1.0 许可证"></a>
+    <a href="LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0-blue?style=flat-square" alt="AGPL-3.0 许可证"></a>
   </p>
   <p>
     <img src="https://img.shields.io/badge/LeviLamina-26.40.*-7b68ee?style=flat-square" alt="LeviLamina 26.40">
@@ -140,4 +140,4 @@ Betterlanguagechat 将你在游戏里的语音带到身边——按住按键说�
 
 ## 许可证
 
-Betterlanguagechat 采用 [CC0-1.0](LICENSE) 许可证发布。详见 `LICENSE`。
+Betterlanguagechat 是以 [GNU Affero 通用公共许可证 v3.0](LICENSE)（可含更高版本）发布的自由软件。详见 `LICENSE`。第三方依赖保留各自许可证，详见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) 与 [licenses/](licenses/) 目录。

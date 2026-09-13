@@ -6,7 +6,7 @@
   <p>
     <img src="https://img.shields.io/badge/release-v0.0.0-4c8bf5?style=flat-square" alt="Betterlanguagechat v0.0.0">
     <img src="https://img.shields.io/badge/Minecraft%20Bedrock-Windows%20x64-62b47a?style=flat-square" alt="Windows x64 Minecraft Bedrock">
-    <a href="LICENSE"><img src="https://img.shields.io/badge/license-CC0--1.0-blue?style=flat-square" alt="CC0-1.0 License"></a>
+    <a href="LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0-blue?style=flat-square" alt="AGPL-3.0 License"></a>
   </p>
   <p>
     <img src="https://img.shields.io/badge/LeviLamina-26.40.*-7b68ee?style=flat-square" alt="LeviLamina 26.40">
@@ -176,4 +176,8 @@ transcription, and JSON parsing capabilities.
 
 ## License
 
-Betterlanguagechat is released under the [CC0-1.0](LICENSE) license. See `LICENSE` for details.
+Betterlanguagechat is free software released under the
+[GNU Affero General Public License v3.0](LICENSE) (or any later version). See
+`LICENSE` for details. Third-party dependencies remain under their own licenses;
+see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) and the
+[licenses/](licenses/) directory.
