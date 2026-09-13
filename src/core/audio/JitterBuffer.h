@@ -21,13 +21,19 @@ public:
         int64_t maxWaitMs = 200;    // 队首等待超时后放行
     };
 
+    // 出帧结果：数据 + 随帧标志（如 AudioFlag Start/End，用于话语切分）
+    struct Frame {
+        std::vector<uint8_t> data;
+        uint8_t flags = 0;
+    };
+
     JitterBuffer();
     explicit JitterBuffer(Options options);
 
-    void push(uint64_t seq, std::vector<uint8_t> payload, int64_t arrivalMs);
+    void push(uint64_t seq, std::vector<uint8_t> payload, int64_t arrivalMs, uint8_t flags = 0);
 
     // 取下一帧；无可放行帧返回 nullopt
-    std::optional<std::vector<uint8_t>> pop(int64_t nowMs);
+    std::optional<Frame> pop(int64_t nowMs);
 
     void clear();
     size_t size() const;
@@ -37,10 +43,11 @@ private:
     Options options_;
     uint64_t nextExpectedSeq_ = 0;
     bool started_ = false; // 收到首帧后开始跟踪期望序号
-    // 帧结构：payload + 到达时间
+    // 帧结构：payload + 到达时间 + 标志
     struct Entry {
         std::vector<uint8_t> payload;
         int64_t arrivalMs = 0;
+        uint8_t flags = 0;
     };
     std::map<uint64_t, Entry> frames_;
 };
