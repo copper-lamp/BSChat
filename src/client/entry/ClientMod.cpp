@@ -7,6 +7,7 @@
 #include <utility>
 
 #include "ll/api/event/EventBus.h"
+#include "ll/api/event/EmitterBase.h"
 #include "ll/api/mod/NativeMod.h"
 #include "ll/api/mod/RegisterHelper.h"
 #include "mc/world/actor/player/Player.h"
@@ -88,6 +89,18 @@ bool ClientMod::enable() {
     }
     auto& bus = ll::event::EventBus::getInstance();
     auto mod = std::weak_ptr<ll::mod::Mod>(self);
+    // The client event hooks are owned by LeviLamina, while the event stream
+    // is created lazily by EventBus. Register a stream factory for SDK builds
+    // that do not eagerly create the stream during client startup.
+    auto ensureEventStream = [&]<typename Event>() {
+        if (!bus.hasEvent(ll::event::getEventId<Event>)) {
+            bus.setEventEmitter<Event>([] { return std::make_unique<ll::event::EmitterBase>(); }, mod);
+        }
+    };
+    ensureEventStream.operator()<ll::event::client::ClientJoinLevelEvent>();
+    ensureEventStream.operator()<ll::event::client::ClientExitLevelEvent>();
+    ensureEventStream.operator()<ll::event::world::ClientLevelTickEvent>();
+    ensureEventStream.operator()<ll::event::input::KeyInputEvent>();
     joinListener_ = bus.emplaceListener<ll::event::client::ClientJoinLevelEvent>([this](auto& event) { onJoin(event); }, ll::event::EventPriority::Normal, mod);
     if (!joinListener_ && self) self->getLogger().error("failed to register ClientJoinLevelEvent listener");
     exitListener_ = bus.emplaceListener<ll::event::client::ClientExitLevelEvent>([this](auto& event) { onExit(event); }, ll::event::EventPriority::Normal, mod);

@@ -89,7 +89,7 @@ target("voicechat")
             -- initializers in the SDK archive. Keep those archive members in
             -- the native mod; otherwise EventBus has no emitter and every
             -- client listener registration returns false.
-            add_ldflags("/WHOLEARCHIVE:LeviLamina.lib", {force = true})
+            add_links("LeviLamina", {wholearchive = true})
         end
     end
 
