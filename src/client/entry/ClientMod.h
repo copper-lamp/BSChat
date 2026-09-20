@@ -4,6 +4,7 @@
 
 #include "client/entry/ClientRuntime.h"
 #include "client/DearOreUiIntegration.h"
+#include "shared/transport/GamePacketTransport.h"
 #include "ll/api/event/Listener.h"
 #include "ll/api/event/client/ClientExitLevelEvent.h"
 #include "ll/api/event/client/ClientJoinLevelEvent.h"
@@ -11,6 +12,15 @@
 #include "ll/api/event/world/ClientLevelTickEvent.h"
 
 namespace vc::client {
+
+class PlayerState final : public IPlayerState {
+public:
+    void set(class Player* player);
+    protocol::PlayerId playerId() const override;
+    Position position() const override;
+private:
+    class Player* player_ = nullptr;
+};
 
 class ClientMod final {
 public:
@@ -29,8 +39,8 @@ private:
     void onKey(class ll::event::input::KeyInputEvent& event);
 
     std::unique_ptr<ClientRuntime> runtime_;
-    std::unique_ptr<IClientTransport> transport_;
-    std::unique_ptr<IPlayerState> playerState_;
+    std::unique_ptr<shared::GamePacketTransport> transport_;
+    std::unique_ptr<PlayerState> playerState_;
     std::unique_ptr<IClock> clock_;
     config::ClientConfig config_;
     DearOreUiIntegration dearOreUi_;

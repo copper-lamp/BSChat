@@ -14,27 +14,23 @@
 #include "shared/util/PlayerIdUtils.h"
 
 namespace vc::client {
-namespace {
 
-class PlayerState final : public IPlayerState {
-public:
-    void set(Player* player) { player_ = player; }
-    protocol::PlayerId playerId() const override {
-        return player_ ? shared::playerIdFromUuid(player_->getUuid()) : protocol::PlayerId{};
-    }
-    Position position() const override {
-        if (!player_) return {};
-        auto const& pos = player_->getPosition();
-        Position result;
-        result.x = pos.x;
-        result.y = pos.y;
-        result.z = pos.z;
-        result.dimensionId = static_cast<int32_t>(player_->getDimensionId());
-        return result;
-    }
-private:
-    Player* player_ = nullptr;
-};
+void PlayerState::set(Player* player) { player_ = player; }
+protocol::PlayerId PlayerState::playerId() const {
+    return player_ ? shared::playerIdFromUuid(player_->getUuid()) : protocol::PlayerId{};
+}
+Position PlayerState::position() const {
+    if (!player_) return {};
+    auto const& pos = player_->getPosition();
+    Position result;
+    result.x = pos.x;
+    result.y = pos.y;
+    result.z = pos.z;
+    result.dimensionId = static_cast<int32_t>(player_->getDimensionId());
+    return result;
+}
+
+namespace {
 
 class SteadyClock final : public IClock {
 public:
@@ -110,7 +106,7 @@ bool ClientMod::disable() {
 
 bool ClientMod::unload() {
     disable();
-    if (transport_) transport_->clearMessageHandler();
+    if (transport_) transport_->setMessageHandler({});
     runtime_.reset();
     clock_.reset();
     playerState_.reset();

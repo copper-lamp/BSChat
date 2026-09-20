@@ -27,6 +27,11 @@ private:
     void* module_ = nullptr;
     void* api_ = nullptr;
     uint32_t protocolVersion_ = 0;
+#ifdef _WIN32
+    dearoreui::api::ModId modId_{"voicechat"};
+    dearoreui::api::RegistrationHandle uiHandle_{};
+    bool modRegistered_ = false;
+#endif
 };
 
 } // namespace vc::client

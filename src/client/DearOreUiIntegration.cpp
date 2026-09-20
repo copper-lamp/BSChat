@@ -44,6 +44,9 @@ bool DearOreUiIntegration::initialize(std::wstring const& dllPath) {
     module_ = module;
     api_ = result.api;
     protocolVersion_ = result.protocolVersion;
+    modId_ = mod.id;
+    uiHandle_ = ui.value();
+    modRegistered_ = true;
     return true;
 #else
     (void)dllPath;
@@ -53,11 +56,15 @@ bool DearOreUiIntegration::initialize(std::wstring const& dllPath) {
 
 void DearOreUiIntegration::shutdown() {
 #ifdef _WIN32
-    if (module_) {
-        // The API owner remains loaded for the lifetime of this integration.
-        // UI registrations are intentionally left to the owner during unload.
-        FreeLibrary(static_cast<HMODULE>(module_));
+    if (api_ && modRegistered_) {
+        auto& api = *static_cast<dearoreui::api::IDearOreUIApi*>(api_);
+        static_cast<void>(api.unregisterUi(uiHandle_));
+        static_cast<void>(api.unregisterMod(modId_));
     }
+    if (module_) FreeLibrary(static_cast<HMODULE>(module_));
+    modRegistered_ = false;
+    uiHandle_ = {};
+    modId_ = dearoreui::api::ModId{"voicechat"};
 #endif
     module_ = nullptr;
     api_ = nullptr;

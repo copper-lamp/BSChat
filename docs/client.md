@@ -6,7 +6,7 @@
 ## 实际状态
 客户端入口已按 LeviLamina 26.10.14 的已确认签名接入：`ClientMod.cpp` 使用 `LL_REGISTER_MOD` 注册 load/enable/disable/unload，并监听 `ClientJoinLevelEvent`、`ClientExitLevelEvent`、`ClientLevelTickEvent` 与 `KeyInputEvent`。运行时通过 `GamePacketTransport`、本地玩家状态适配器和 steady clock 注入 `ClientRuntime`；PTT 仅依据配置虚拟键码切换 talking 状态。未加入任何 UI、ImGui 或 OreUI 假设。
 
-当前仍未完成麦克风采集、播放、字幕 UI 和设备管理，因此不能宣称客户端功能链路完整。WASAPI 当前仅完成默认设备探测，ImGui/Dear-OreUI 尚未接入。
+当前仍未完成麦克风采集、播放、字幕 UI 和设备管理，因此不能宣称客户端功能链路完整。WASAPI 当前仅完成默认设备探测。Dear-OreUI Settings 面板已完成可选动态加载和注册，并已成功完成 client target 构建；真实客户端显示效果仍待安装测试。
 
 ## 风险与 TODO
 - Ninja 锁和 ATL 头文件阻塞已排除；ATL `atls.lib` 也已确认存在，但 LeviLamina 包链接阶段仍报告 `LNK1104 atls.lib`，需修复 xmake/levibuildscript 的 LIB 传递或链接目录。
