@@ -113,7 +113,6 @@ void ServerRuntime::handleHello(const protocol::PlayerId& peerId, const protocol
 }
 
 void ServerRuntime::handleAudio(const protocol::PlayerId& peerId, const protocol::AudioDataMessage& audio) {
-    if (!running_) return;
     auto session = sessions_.find(peerId);
     if (!session || !config_.voiceEnabled) return;
     session->pushAudio(audio, steadyNowMs());
