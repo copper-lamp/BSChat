@@ -57,6 +57,10 @@ bool MixerCore::hasActiveTalker() const {
     return !frames_.empty();
 }
 
+void MixerCore::clearFrames() {
+    frames_.clear();
+}
+
 void MixerCore::reset() {
     frames_.clear();
     gains_.clear();

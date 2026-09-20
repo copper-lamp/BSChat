@@ -3,6 +3,7 @@
 #include <memory>
 
 #include "client/entry/ClientRuntime.h"
+#include "client/audio/WasapiAudio.h"
 #include "client/DearOreUiIntegration.h"
 #include "shared/transport/GamePacketTransport.h"
 #include "ll/api/event/Listener.h"
@@ -39,6 +40,7 @@ private:
     void onKey(class ll::event::input::KeyInputEvent& event);
 
     std::unique_ptr<ClientRuntime> runtime_;
+    std::unique_ptr<audio::WasapiAudioDevice> audioDevice_;
     std::unique_ptr<shared::GamePacketTransport> transport_;
     std::unique_ptr<PlayerState> playerState_;
     std::unique_ptr<IClock> clock_;

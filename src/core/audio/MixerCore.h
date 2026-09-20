@@ -41,6 +41,9 @@ public:
     // 是否有活跃说话者（存在帧数据）。
     bool hasActiveTalker() const;
 
+    // 丢弃当前 tick 的说话者帧；增益矩阵保留供下一 tick 重建。
+    void clearFrames();
+
     int frameSamples() const { return frameSamples_; }
     int sampleRate() const { return sampleRate_; }
 

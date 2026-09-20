@@ -141,7 +141,7 @@ std::optional<std::pair<EnvelopeInfo, Message>> MessageCodec::unpack(std::span<c
     if (!r.u16(magic) || magic != kMagic) return std::nullopt;
 
     EnvelopeInfo info;
-    if (!r.u8(info.version)) return std::nullopt;
+    if (!r.u8(info.version) || info.version != kProtocolVersion) return std::nullopt;
     uint8_t typeRaw = 0;
     if (!r.u8(typeRaw)) return std::nullopt;
     info.type = static_cast<MessageType>(typeRaw);

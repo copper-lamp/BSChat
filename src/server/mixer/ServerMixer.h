@@ -8,6 +8,8 @@
 #include <thread>
 #include <utility>
 #include <vector>
+#include <map>
+#include <memory>
 
 #include "core/audio/AudioTypes.h"
 #include "core/audio/MixerCore.h"
@@ -63,8 +65,8 @@ private:
     std::deque<std::pair<protocol::PlayerId, protocol::Message>> pending_;
     audio::MixerCore mixer_;
     audio::SpatialPolicy spatialPolicy_;
-    codec::OpusEncoder encoder_;
-    uint64_t mixSeq_ = 0;
+    std::map<protocol::PlayerId, std::unique_ptr<codec::OpusEncoder>> encoders_;
+    std::map<protocol::PlayerId, uint64_t> mixSeqs_;
 };
 
 } // namespace vc::server

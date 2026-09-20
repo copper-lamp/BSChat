@@ -1,6 +1,7 @@
 #include "client/entry/ClientMod.h"
 
 #include <chrono>
+#include <algorithm>
 #include <filesystem>
 #include <fstream>
 #include <sstream>
@@ -78,6 +79,7 @@ bool ClientMod::load() {
     playerState_ = std::make_unique<PlayerState>();
     clock_ = std::make_unique<SteadyClock>();
     config_ = std::move(config);
+    audioDevice_ = std::make_unique<audio::WasapiAudioDevice>();
     return true;
 }
 
@@ -123,6 +125,7 @@ bool ClientMod::enable() {
 }
 
 bool ClientMod::disable() {
+    if (audioDevice_) audioDevice_->stop();
     if (runtime_) runtime_->stop();
     auto& bus = ll::event::EventBus::getInstance();
     if (joinListener_) { bus.removeListener<ll::event::client::ClientJoinLevelEvent>(joinListener_); joinListener_.reset(); }
@@ -136,6 +139,7 @@ bool ClientMod::unload() {
     disable();
     if (transport_) transport_->setMessageHandler({});
     runtime_.reset();
+    audioDevice_.reset();
     clock_.reset();
     playerState_.reset();
     transport_.reset();
@@ -148,10 +152,28 @@ void ClientMod::onJoin(ll::event::client::ClientJoinLevelEvent& event) {
     playerState_->set(&event.player());
     runtime_.reset();
     runtime_ = std::make_unique<ClientRuntime>(*transport_, *playerState_, *clock_, config_);
+    runtime_->setRenderSink([this](const float* samples, std::size_t count) {
+        if (!audioDevice_ || !samples || count == 0) return;
+        audio::WasapiPcmFrame frame;
+        frame.sampleRate = static_cast<uint32_t>(config_.audio.sampleRate);
+        frame.channels = static_cast<uint16_t>(std::max(1, config_.audio.channels));
+        frame.samples.assign(samples, samples + count);
+        audioDevice_->enqueueRender(std::move(frame));
+    });
+    if (audioDevice_) {
+        audioDevice_->setCaptureCallback([this](const audio::WasapiPcmFrame& frame) {
+            if (runtime_ && !frame.samples.empty()) runtime_->submitPcm(frame.samples.data(), frame.samples.size());
+        });
+        if (!audioDevice_->start()) {
+            auto self = ll::mod::NativeMod::current();
+            if (self) self->getLogger().warn("WASAPI audio unavailable; voice chat will remain silent");
+        }
+    }
     runtime_->start();
 }
 
 void ClientMod::onExit(ll::event::client::ClientExitLevelEvent&) {
+    if (audioDevice_) audioDevice_->stop();
     if (runtime_) runtime_->stop();
     runtime_.reset();
     playerState_->set(nullptr);

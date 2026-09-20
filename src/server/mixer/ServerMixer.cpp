@@ -17,10 +17,7 @@ ServerMixer::ServerMixer(SessionManager& sessions, Config config)
     : sessions_(sessions),
       config_(config),
       mixer_(audio::samplesPerFrame(config_.sampleRate, config_.frameSizeMs), config_.sampleRate),
-      spatialPolicy_(config_.spatial),
-      encoder_(config_.sampleRate, config_.channels,
-               audio::samplesPerFrame(config_.sampleRate, config_.frameSizeMs),
-               config_.bitrateKbps) {}
+      spatialPolicy_(config_.spatial) {}
 
 ServerMixer::~ServerMixer() { stop(); }
 
@@ -92,18 +89,23 @@ void ServerMixer::tickOnce(int64_t nowMs) {
     const int frameSamples = audio::samplesPerFrame(config_.sampleRate, config_.frameSizeMs);
     const int framesPerTick = std::max(1, config_.tickMs / config_.frameSizeMs);
     std::vector<float> mixed(static_cast<size_t>(frameSamples));
-    std::vector<uint8_t> packet(static_cast<size_t>(encoder_.maxPacketSize()));
     for (const auto& receiver : sessions) {
+        auto& encoder = encoders_[receiver->id()];
+        if (!encoder) encoder = std::make_unique<codec::OpusEncoder>(config_.sampleRate, config_.channels, frameSamples, config_.bitrateKbps);
+        auto& sequence = mixSeqs_[receiver->id()];
+        std::vector<uint8_t> packet(static_cast<size_t>(encoder->maxPacketSize()));
         for (int i = 0; i < framesPerTick; ++i) {
             mixer_.computeMix(receiver->id(), mixed.data());
-            const int encoded = encoder_.encode(mixed.data(), packet.data(), packet.size());
+            const int encoded = encoder->encode(mixed.data(), packet.data(), packet.size());
             if (encoded <= 0) continue;
             protocol::MixStreamMessage message;
-            message.seq = ++mixSeq_;
+            message.seq = ++sequence;
             message.opusData.assign(packet.begin(), packet.begin() + encoded);
             enqueueTo(receiver->id(), message);
         }
     }
+    // 输入帧只属于本 tick；清除后没有新上行帧时不会重复发送旧语音。
+    mixer_.clearFrames();
 }
 
 void ServerMixer::drainPending(

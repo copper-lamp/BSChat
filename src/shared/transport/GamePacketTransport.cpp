@@ -113,8 +113,13 @@ void GamePacketTransport::onPacketReceived(const std::vector<uint8_t>& payload, 
 }
 
 void GamePacketTransport::dispatch(const protocol::PlayerId& peerId, const protocol::Message& message) {
-    std::lock_guard lock(handlerMutex_);
-    if (handler_) handler_(peerId, message);
+    MessageHandler handler;
+    {
+        std::lock_guard lock(handlerMutex_);
+        handler = handler_;
+    }
+    // 不持锁调用用户回调：回调可能 stop/clear handler 或重入 transport。
+    if (handler) handler(peerId, message);
 }
 
 } // namespace vc::shared

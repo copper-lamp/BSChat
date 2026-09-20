@@ -20,6 +20,10 @@ public:
 
     // 注册收包回调（实现层负责反序列化与分发）
     virtual void setMessageHandler(MessageHandler handler) = 0;
+
+    // Optional lifecycle hook. Implementations with asynchronous delivery must
+    // stop invoking the previous owner before that owner is destroyed.
+    virtual void clearMessageHandler() {}
 };
 
 } // namespace vc::pipeline

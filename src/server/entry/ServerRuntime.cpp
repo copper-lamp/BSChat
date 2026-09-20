@@ -47,19 +47,21 @@ ServerRuntime::~ServerRuntime() {
     stop();
     mixer_.setStt(nullptr);
     if (stt_) stt_->shutdown();
+    transport_.clearMessageHandler();
 }
 
 void ServerRuntime::start() {
     if (running_) return;
     running_ = true;
-    if (config_.voiceEnabled) mixer_.start();
+    // ServerMod 在主线程的 ServerLevelTick 中驱动 tickOnce；不要再启动
+    // 第二个音频线程，否则 mixer/encoder/STT 会被并发访问。
+    // mixer_.start() 保留为独立宿主的显式能力，但本运行时不启用。
 }
 
 void ServerRuntime::stop() {
     if (!running_) return;
     running_ = false;
     mixer_.stop();
-    if (stt_) stt_->shutdown();
 }
 
 void ServerRuntime::tickOnce(int64_t nowMs) {
@@ -111,6 +113,7 @@ void ServerRuntime::handleHello(const protocol::PlayerId& peerId, const protocol
 }
 
 void ServerRuntime::handleAudio(const protocol::PlayerId& peerId, const protocol::AudioDataMessage& audio) {
+    if (!running_) return;
     auto session = sessions_.find(peerId);
     if (!session || !config_.voiceEnabled) return;
     session->pushAudio(audio, steadyNowMs());
