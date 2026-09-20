@@ -73,7 +73,7 @@ bool ClientMod::load() {
 
     transport_ = std::make_unique<shared::GamePacketTransport>(shared::TransportMode::Client);
     auto dearOreUiPath = self->getConfigDir().parent_path().parent_path() / "mods" / "DearOreUI" / "DearOreUI.dll";
-    dearOreUi_.initialize(dearOreUiPath.wstring());
+    if (dearOreUi_.initialize(dearOreUiPath.wstring()) && self) self->getLogger().info("DearOreUI Settings integration initialized");
     playerState_ = std::make_unique<PlayerState>();
     clock_ = std::make_unique<SteadyClock>();
     config_ = std::move(config);
@@ -81,16 +81,25 @@ bool ClientMod::load() {
 }
 
 bool ClientMod::enable() {
-    if (!transport_ || !playerState_ || !clock_) return false;
+    auto self = ll::mod::NativeMod::current();
+    if (!transport_ || !playerState_ || !clock_) {
+        if (self) self->getLogger().error("voicechat client enable prerequisites are not ready");
+        return false;
+    }
     auto& bus = ll::event::EventBus::getInstance();
     joinListener_ = bus.emplaceListener<ll::event::client::ClientJoinLevelEvent>([this](auto& event) { onJoin(event); });
+    if (!joinListener_ && self) self->getLogger().error("failed to register ClientJoinLevelEvent listener");
     exitListener_ = bus.emplaceListener<ll::event::client::ClientExitLevelEvent>([this](auto& event) { onExit(event); });
+    if (!exitListener_ && self) self->getLogger().error("failed to register ClientExitLevelEvent listener");
     tickListener_ = bus.emplaceListener<ll::event::world::ClientLevelTickEvent>([this](auto& event) { onTick(event); });
+    if (!tickListener_ && self) self->getLogger().error("failed to register ClientLevelTickEvent listener");
     keyListener_ = bus.emplaceListener<ll::event::input::KeyInputEvent>([this](auto& event) { onKey(event); });
+    if (!keyListener_ && self) self->getLogger().error("failed to register KeyInputEvent listener");
     if (!joinListener_ || !exitListener_ || !tickListener_ || !keyListener_) {
         disable();
         return false;
     }
+    if (self) self->getLogger().info("voicechat client listeners enabled");
     return true;
 }
 
