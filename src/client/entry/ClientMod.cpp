@@ -87,13 +87,14 @@ bool ClientMod::enable() {
         return false;
     }
     auto& bus = ll::event::EventBus::getInstance();
-    joinListener_ = bus.emplaceListener<ll::event::client::ClientJoinLevelEvent>([this](auto& event) { onJoin(event); });
+    auto mod = std::weak_ptr<ll::mod::Mod>(self);
+    joinListener_ = bus.emplaceListener<ll::event::client::ClientJoinLevelEvent>([this](auto& event) { onJoin(event); }, ll::event::EventPriority::Normal, mod);
     if (!joinListener_ && self) self->getLogger().error("failed to register ClientJoinLevelEvent listener");
-    exitListener_ = bus.emplaceListener<ll::event::client::ClientExitLevelEvent>([this](auto& event) { onExit(event); });
+    exitListener_ = bus.emplaceListener<ll::event::client::ClientExitLevelEvent>([this](auto& event) { onExit(event); }, ll::event::EventPriority::Normal, mod);
     if (!exitListener_ && self) self->getLogger().error("failed to register ClientExitLevelEvent listener");
-    tickListener_ = bus.emplaceListener<ll::event::world::ClientLevelTickEvent>([this](auto& event) { onTick(event); });
+    tickListener_ = bus.emplaceListener<ll::event::world::ClientLevelTickEvent>([this](auto& event) { onTick(event); }, ll::event::EventPriority::Normal, mod);
     if (!tickListener_ && self) self->getLogger().error("failed to register ClientLevelTickEvent listener");
-    keyListener_ = bus.emplaceListener<ll::event::input::KeyInputEvent>([this](auto& event) { onKey(event); });
+    keyListener_ = bus.emplaceListener<ll::event::input::KeyInputEvent>([this](auto& event) { onKey(event); }, ll::event::EventPriority::Normal, mod);
     if (!keyListener_ && self) self->getLogger().error("failed to register KeyInputEvent listener");
     if (!joinListener_ || !exitListener_ || !tickListener_ || !keyListener_) {
         disable();
