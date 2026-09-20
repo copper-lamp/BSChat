@@ -148,3 +148,34 @@ TEST(protocol_corrupted_and_bad_magic_rejected) {
     // 空数据
     EXPECT_FALSE(MessageCodec::unpack(std::vector<uint8_t>{}).has_value());
 }
+
+TEST(protocol_pos_update_roundtrip) {
+    PosUpdateMessage m;
+    m.playerId = makePlayerId(9);
+    m.x = 123.5f;
+    m.y = -45.25f;
+    m.z = 88.0f;
+    m.dimensionId = -7;
+    m.envFlags = EnvFlagUnderwater | EnvFlagFastMove;
+    m.sendAtMs = 9876543210ull;
+
+    auto packed = MessageCodec::pack(m, 77, 1000);
+    auto unpacked = MessageCodec::unpack(packed);
+    EXPECT_TRUE(unpacked.has_value());
+    auto& [info, msg] = *unpacked;
+    EXPECT_EQ(info.type, MessageType::PosUpdate);
+    EXPECT_EQ(info.seq, 77u);
+
+    auto& out = std::get<PosUpdateMessage>(msg);
+    EXPECT_TRUE(out.playerId == m.playerId);
+    EXPECT_NEAR(out.x, m.x, 1e-4);
+    EXPECT_NEAR(out.y, m.y, 1e-4);
+    EXPECT_NEAR(out.z, m.z, 1e-4);
+    EXPECT_EQ(out.dimensionId, -7);
+    EXPECT_EQ(out.envFlags, static_cast<uint8_t>(EnvFlagUnderwater | EnvFlagFastMove));
+    EXPECT_EQ(out.sendAtMs, 9876543210ull);
+
+    // 载荷截断损坏 → 越界检查返回 nullopt
+    auto truncated = std::vector<uint8_t>(packed.begin(), packed.end() - 1);
+    EXPECT_FALSE(MessageCodec::unpack(truncated).has_value());
+}

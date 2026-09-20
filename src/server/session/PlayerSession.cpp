@@ -53,6 +53,25 @@ size_t PlayerSession::pendingFrames() const {
     return jitter_.size();
 }
 
+bool PlayerSession::updatePosition(const protocol::PosUpdateMessage& update, int64_t receivedAtMs) {
+    if (update.playerId != id_) return false;
+    std::lock_guard lock(mutex_);
+    if (spatial_.positionKnown && update.sendAtMs < static_cast<uint64_t>(spatial_.updatedAtMs)) return false;
+    spatial_.x = update.x;
+    spatial_.y = update.y;
+    spatial_.z = update.z;
+    spatial_.dimensionId = update.dimensionId;
+    spatial_.envFlags = update.envFlags;
+    spatial_.updatedAtMs = receivedAtMs;
+    spatial_.positionKnown = true;
+    return true;
+}
+
+PlayerSession::SpatialState PlayerSession::spatialState() const {
+    std::lock_guard lock(mutex_);
+    return spatial_;
+}
+
 bool PlayerSession::allowFrameLocked(int64_t nowMs) {
     arrivals_.push_back(nowMs);
     while (!arrivals_.empty() && arrivals_.front() <= nowMs - 1000) {

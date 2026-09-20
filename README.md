@@ -9,7 +9,7 @@
     <a href="LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0-blue?style=flat-square" alt="AGPL-3.0 License"></a>
   </p>
   <p>
-    <img src="https://img.shields.io/badge/LeviLamina-26.10.14-7b68ee?style=flat-square" alt="LeviLamina 26.40">
+    <img src="https://img.shields.io/badge/LeviLamina-26.10.14-7b68ee?style=flat-square" alt="LeviLamina 26.10.14">
   </p>
   <p>
     <a href="https://github.com/copper-lamp/BSChat/releases">Releases</a>

@@ -25,6 +25,7 @@ enum class MessageType : uint8_t {
     MixStream  = 4, // S→C 下行混合语音帧
     SttText    = 5, // S→C 转写文字（字幕）
     Control    = 6, // 双向控制
+    PosUpdate  = 7, // C→S 位置/环境更新（空间混音选路输入）
 };
 
 // 客户端能力位（Hello.capabilities）
@@ -89,12 +90,29 @@ struct ControlMessage {
     uint8_t value = 0;
 };
 
+// 位置/环境更新 <--> 空间混音选路输入；服务端 MixerCore 据此计算逐接收者增益。
+enum EnvFlag : uint8_t {
+    EnvFlagNone       = 0,
+    EnvFlagUnderwater = 1 << 0, // 水下：额外低沉/混响衰减
+    EnvFlagCave       = 1 << 1, // 洞穴：回声
+    EnvFlagFastMove   = 1 << 2, // 快速移动：选路时可削弱远端
+};
+
+struct PosUpdateMessage {
+    PlayerId playerId{};
+    float x = 0, y = 0, z = 0;      // 当前世界坐标（方块）
+    int32_t dimensionId = 0;        // 维度 ID（跨维度隔离判定）
+    uint8_t envFlags = 0;           // EnvFlag 位或
+    uint64_t sendAtMs = 0;          // 客户端发送时刻（服务器时钟）
+};
+
 using Message = std::variant<
     HelloMessage,
     WelcomeMessage,
     AudioDataMessage,
     MixStreamMessage,
     SttTextMessage,
-    ControlMessage>;
+    ControlMessage,
+    PosUpdateMessage>;
 
 } // namespace vc::protocol

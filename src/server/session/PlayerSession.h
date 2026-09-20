@@ -7,10 +7,11 @@
 #include <optional>
 #include <vector>
 
+#include "core/protocol/Message.h"
+
 #include "core/audio/AudioTypes.h"
 #include "core/audio/JitterBuffer.h"
 #include "core/codec/OpusCodec.h"
-#include "core/protocol/Message.h"
 
 namespace vc::server {
 
@@ -62,6 +63,20 @@ public:
     // 缓冲中待处理帧数（调试/指标）
     size_t pendingFrames() const;
 
+    struct SpatialState {
+        float x = 0.0f;
+        float y = 0.0f;
+        float z = 0.0f;
+        int32_t dimensionId = 0;
+        uint8_t envFlags = protocol::EnvFlagNone;
+        int64_t updatedAtMs = 0;
+        bool positionKnown = false;
+    };
+
+    // 网络线程更新，音频线程读取；与音频抖动状态共用同一把锁。
+    bool updatePosition(const protocol::PosUpdateMessage& update, int64_t receivedAtMs);
+    SpatialState spatialState() const;
+
 private:
     bool allowFrameLocked(int64_t nowMs);
 
@@ -72,6 +87,7 @@ private:
     std::deque<int64_t> arrivals_; // 限速滑动窗口（1s）
     audio::JitterBuffer jitter_;
     codec::OpusDecoder decoder_;
+    SpatialState spatial_;
 };
 
 } // namespace vc::server

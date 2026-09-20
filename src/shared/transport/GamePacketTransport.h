@@ -36,6 +36,7 @@ public:
     using PlayerResolver = std::function<Player*(const protocol::PlayerId&)>;
 
     explicit GamePacketTransport(TransportMode mode, PlayerResolver resolver = {});
+    ~GamePacketTransport();
 
     void send(const protocol::PlayerId& peerId, const protocol::Message& message) override;
     void setMessageHandler(MessageHandler handler) override;

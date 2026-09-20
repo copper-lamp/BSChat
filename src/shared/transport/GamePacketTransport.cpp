@@ -5,7 +5,6 @@
 #include <utility>
 
 #include "core/protocol/MessageCodec.h"
-// 26.40.1 的 PacketRegistrar.h 未自带 optional_ref，需在 Packet.h 之前引入
 #include "mc/deps/core/utility/optional_ref.h"
 #include "ll/api/network/packet/Packet.h"
 #include "ll/api/service/Bedrock.h"
@@ -110,6 +109,12 @@ public:
 GamePacketTransport::GamePacketTransport(TransportMode mode, PlayerResolver resolver)
 : mode_(mode), resolver_(std::move(resolver)) {
     g_transport = this;
+}
+
+GamePacketTransport::~GamePacketTransport() {
+    if (g_transport == this) {
+        g_transport = nullptr;
+    }
 }
 
 void GamePacketTransport::setMessageHandler(MessageHandler handler) {

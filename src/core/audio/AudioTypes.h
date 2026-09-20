@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <vector>
 
 namespace vc::audio {
 
@@ -18,5 +19,8 @@ inline constexpr int kMixTickMs           = 120;
 inline constexpr int samplesPerFrame(int sampleRate, int frameSizeMs) {
     return sampleRate * frameSizeMs / 1000;
 }
+
+// 帧 PCM（float [-1,1]，长 = frameSamples）
+using FloatVector = std::vector<float>;
 
 } // namespace vc::audio

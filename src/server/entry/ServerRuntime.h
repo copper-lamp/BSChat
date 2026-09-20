@@ -29,6 +29,7 @@ public:
     void handleMessage(const protocol::PlayerId& peerId, const protocol::Message& message);
 
     size_t sessionCount() const { return sessions_.size(); }
+    void removeSession(const protocol::PlayerId& id) { sessions_.removeSession(id); }
     const config::ServerConfig& config() const { return config_; }
 
 private:

@@ -70,6 +70,10 @@ target("voicechat")
     else
         add_includedirs("src/client")
         add_files("src/client/**.cpp")
+        add_headerfiles("src/client/**.h")
+        if is_plat("windows") then
+            add_syslinks("ole32", "uuid")
+        end
     end
 
 -- 单元测试：host 运行，链接 core 静态库与第三方依赖，不进入默认构建。
@@ -88,5 +92,8 @@ target("voicechat-tests")
         "src/server/session/*.cpp",
         "src/server/mixer/*.cpp",
         "src/server/stt/*.cpp",
-        "src/server/entry/*.cpp"
+        "src/server/entry/ServerRuntime.cpp",
+        "src/server/admin/*.cpp",
+        "src/client/**.cpp",
+        "tests/client/**.cpp"
     )

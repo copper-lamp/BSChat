@@ -48,4 +48,5 @@ If the model is missing, speech-to-text is disabled without affecting voice.
 
 - Tune options in `config.json`.
 - Build from source: see [building](building.md).
+- Review current implementation status: see [voicechat-fullscope-execution.md](voicechat-fullscope-execution.md).
 - Report issues or suggest features by opening an issue.

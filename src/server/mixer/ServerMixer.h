@@ -10,7 +10,8 @@
 #include <vector>
 
 #include "core/audio/AudioTypes.h"
-#include "core/audio/GlobalMixer.h"
+#include "core/audio/MixerCore.h"
+#include "core/audio/SpatialPolicy.h"
 #include "core/codec/OpusCodec.h"
 #include "core/pipeline/IStt.h"
 #include "core/protocol/Message.h"
@@ -18,28 +19,20 @@
 
 namespace vc::server {
 
-// 服务端混音器：独立音频线程（120ms tick），不阻塞 BDS 主线程。
-// 每 tick：拉各会话解码帧 → 流式 STT（begin/feed/end）→ 全局混音 → 低码率 Opus 编码 → 待发队列；
-// 主线程 drainPending() 排空并通过 transport 推送 MixStream / SttText。
-// 无活跃发言 → 整 tick 不推流（静默期零带宽）。
-//
-// 线程模型：
-//  - 音频线程：tickOnce()（拉帧/驱动 STT/混音/编码/入队）；
-//  - STT worker：setStt 注册的结果回调 → SttText 入待发队列；
-//  - 主线程：drainPending()、start()/stop()、setStt()。
-// 零 LeviLamina 依赖（混音器/编码器/STT 接口位于 core），tickOnce 可直接 host 单测。
-//
-// 生命周期契约：setStt() 注入的 IStt 必须存活至 mixer 析构之后
-// （stt 先于 mixer 销毁，保证回调不会访问已析构的 mixer）。
+// 独立音频线程上的逐接收者混音器。STT 回调与音频输出共用待发队列。
 class ServerMixer {
 public:
     struct Config {
         int sampleRate = audio::kDefaultSampleRate;
-        int channels = 1;
+        int channels = audio::kDefaultChannels;
         int frameSizeMs = audio::kDefaultFrameSizeMs;
         int bitrateKbps = audio::kDefaultBitrateKbps;
-        int tickMs = audio::kMixTickMs; // 120
-        size_t maxPending = 1024;       // 待发队列上限：主线程排空不及时时丢最旧
+        int tickMs = audio::kMixTickMs;
+        size_t maxPending = 1024;
+        audio::SpatialPolicyConfig spatial;
+        size_t maxTalkers = 0;
+        size_t maxChatters = 0;
+        int64_t staleMs = 2000;
     };
 
     explicit ServerMixer(SessionManager& sessions, Config config);
@@ -50,37 +43,26 @@ public:
     void start();
     void stop();
     bool running() const { return running_.load(); }
-
-    // 装配流式 STT（非拥有）：tickOnce 驱动 begin/feed/end，结果经回调广播 SttText。
     void setStt(pipeline::IStt* stt);
-
-    // 手动跑一个 tick（音频线程内部循环与 host 单测共用）
     void tickOnce(int64_t nowMs);
-
-    // 主线程：排空待发队列，逐个交给 sendFn
-    void drainPending(
-        const std::function<void(const protocol::PlayerId&, const protocol::Message&)>& sendFn
-    );
-
+    void drainPending(const std::function<void(const protocol::PlayerId&, const protocol::Message&)>& sendFn);
     uint64_t tickCount() const { return tickCount_.load(); }
 
 private:
     void threadMain();
     void enqueueToAll(const protocol::Message& message);
+    void enqueueTo(const protocol::PlayerId& peerId, const protocol::Message& message);
 
     SessionManager& sessions_;
     Config config_;
     std::thread thread_;
     std::atomic<bool> running_{false};
     std::atomic<uint64_t> tickCount_{0};
-
-    pipeline::IStt* stt_ = nullptr; // 非拥有，生命周期契约见类注释
-
+    pipeline::IStt* stt_ = nullptr;
     std::mutex pendingMutex_;
     std::deque<std::pair<protocol::PlayerId, protocol::Message>> pending_;
-
-    // 以下仅音频线程访问
-    audio::GlobalMixer mixer_;
+    audio::MixerCore mixer_;
+    audio::SpatialPolicy spatialPolicy_;
     codec::OpusEncoder encoder_;
     uint64_t mixSeq_ = 0;
 };

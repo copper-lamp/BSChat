@@ -1,11 +1,31 @@
 #include "server/entry/ServerRuntime.h"
 
 #include <chrono>
+#include <cmath>
+#include <type_traits>
 #include <utility>
 
 namespace vc::server {
 
 namespace {
+
+ServerMixer::Config mixerConfigFrom(const config::ServerConfig& config) {
+    ServerMixer::Config mixerConfig;
+    mixerConfig.sampleRate = config.audio.sampleRate;
+    mixerConfig.channels = config.audio.channels;
+    mixerConfig.frameSizeMs = config.audio.frameSizeMs;
+    mixerConfig.bitrateKbps = config.audio.bitrateKbps;
+    mixerConfig.maxPending = config.maxPending;
+    mixerConfig.spatial.mode = config.spatialMode == "proximity"
+        ? audio::MixMode::Proximity : audio::MixMode::Global;
+    mixerConfig.spatial.attenuationRadiusBlocks = config.spatialRadius;
+    mixerConfig.spatial.maxAudibleRadiusBlocks = config.spatialRadius > 0.0f
+        ? config.spatialRadius * 2.0f : 0.0f;
+    mixerConfig.maxTalkers = config.spatialMaxTalkers;
+    mixerConfig.maxChatters = config.spatialMaxChatters;
+    mixerConfig.staleMs = config.spatialStaleMs;
+    return mixerConfig;
+}
 
 int64_t steadyNowMs() {
     return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
@@ -14,7 +34,7 @@ int64_t steadyNowMs() {
 } // namespace
 
 ServerRuntime::ServerRuntime(pipeline::ITransport& transport, config::ServerConfig config)
-: transport_(transport), config_(std::move(config)), mixer_(sessions_, {}) {
+: transport_(transport), config_(std::move(config)), mixer_(sessions_, mixerConfigFrom(config_)) {
     transport_.setMessageHandler([this](const protocol::PlayerId& peerId, const protocol::Message& message) {
         handleMessage(peerId, message);
     });
@@ -63,6 +83,11 @@ void ServerRuntime::handleMessage(const protocol::PlayerId& peerId, const protoc
                 handleAudio(peerId, typedMessage);
             } else if constexpr (std::is_same_v<MessageType, protocol::ControlMessage>) {
                 handleControl(peerId, typedMessage);
+            } else if constexpr (std::is_same_v<MessageType, protocol::PosUpdateMessage>) {
+                auto session = sessions_.find(peerId);
+                if (session && typedMessage.playerId == peerId && std::isfinite(typedMessage.x) && std::isfinite(typedMessage.y) && std::isfinite(typedMessage.z)) {
+                    session->updatePosition(typedMessage, steadyNowMs());
+                }
             }
         },
         message
@@ -72,6 +97,9 @@ void ServerRuntime::handleMessage(const protocol::PlayerId& peerId, const protoc
 void ServerRuntime::handleHello(const protocol::PlayerId& peerId, const protocol::HelloMessage& hello) {
     if (hello.protocolVersion != protocol::kProtocolVersion || hello.playerId != peerId) return;
 
+    if (config_.maxSessions != 0 && sessions_.size() >= config_.maxSessions && !sessions_.find(peerId)) {
+        return;
+    }
     sessions_.addSession(peerId, makeSessionOptions());
 
     protocol::WelcomeMessage welcome;

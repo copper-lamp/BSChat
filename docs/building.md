@@ -82,5 +82,4 @@ src/client/      Client adaptation layer (client target)
 tests/           Core unit tests
 ```
 
-See the design document for details:
-[docs/voicechat-v1-design.md](voicechat-v1-design.md).
+See the current execution status in [voicechat-fullscope-execution.md](voicechat-fullscope-execution.md), and the module documents for [protocol](protocol.md), [mixer](mixer.md), [admin](admin.md), and [client](client.md).

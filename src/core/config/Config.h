@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
 #include <string>
 
@@ -36,6 +37,14 @@ struct ServerConfig {
     SttModelConfig sttModel;
     int jitterMaxDepthFrames = 6; // 6 × 60ms = 360ms
     int64_t jitterMaxWaitMs = 200;
+    std::string spatialMode = "global";
+    float spatialRadius = 24.0f;
+    size_t spatialMaxTalkers = 0;
+    size_t spatialMaxChatters = 0;
+    int64_t spatialStaleMs = 2000;
+    // 高级运行保护：0 表示不限制。由运行时接入，不能替代空间混音策略。
+    size_t maxSessions = 128;
+    size_t maxPending = 1024;
 };
 
 // 客户端配置

@@ -23,6 +23,18 @@ public:
             buf_.push_back(static_cast<uint8_t>((v >> (8 * i)) & 0xFF));
         }
     }
+    // 32 位有符号整型：先位拷贝为 uint32_t 再按小端写入。
+    void i32(int32_t v) {
+        uint32_t raw = 0;
+        std::memcpy(&raw, &v, sizeof(raw));
+        u32(raw);
+    }
+    // 单精度浮点：与 uint32_t 同宽，位拷贝后按小端写入，保证字节序一致、避免 UB。
+    void f32(float v) {
+        uint32_t raw = 0;
+        std::memcpy(&raw, &v, sizeof(raw));
+        u32(raw);
+    }
     void bytes(const uint8_t* data, size_t n) { buf_.insert(buf_.end(), data, data + n); }
     void string(std::string_view s) {
         u16(static_cast<uint16_t>(s.size()));
@@ -62,6 +74,20 @@ public:
         v = 0;
         for (int i = 0; i < 8; ++i) v |= static_cast<uint64_t>(data_[pos_ + i]) << (8 * i);
         pos_ += 8;
+        return true;
+    }
+    // 32 位有符号整型：读 uint32 后位拷贝回 int32。
+    bool i32(int32_t& v) {
+        uint32_t raw = 0;
+        if (!u32(raw)) return false;
+        std::memcpy(&v, &raw, sizeof(v));
+        return true;
+    }
+    // 单精度浮点：读 uint32 后位拷贝回 float。
+    bool f32(float& v) {
+        uint32_t raw = 0;
+        if (!u32(raw)) return false;
+        std::memcpy(&v, &raw, sizeof(v));
         return true;
     }
     bool i64(int64_t& v) {
@@ -182,6 +208,17 @@ std::pair<MessageType, std::vector<uint8_t>> MessageCodec::serializePayload(cons
                 w.u8(static_cast<uint8_t>(m.type));
                 w.u8(m.value);
                 return {MessageType::Control, std::move(w).take()};
+
+            } else if constexpr (std::is_same_v<M, PosUpdateMessage>) {
+                BufferWriter w;
+                w.bytes(m.playerId.data(), m.playerId.size());
+                w.f32(m.x);
+                w.f32(m.y);
+                w.f32(m.z);
+                w.i32(m.dimensionId);
+                w.u8(m.envFlags);
+                w.u64(m.sendAtMs);
+                return {MessageType::PosUpdate, std::move(w).take()};
             }
         },
         message
@@ -248,6 +285,17 @@ std::optional<Message> MessageCodec::deserializePayload(MessageType type, std::s
         if (!r.u8(typeRaw)) return std::nullopt;
         m.type = static_cast<ControlType>(typeRaw);
         if (!r.u8(m.value)) return std::nullopt;
+        return m;
+    }
+    case MessageType::PosUpdate: {
+        PosUpdateMessage m;
+        if (!r.bytes(m.playerId.data(), m.playerId.size())) return std::nullopt;
+        if (!r.f32(m.x)) return std::nullopt;
+        if (!r.f32(m.y)) return std::nullopt;
+        if (!r.f32(m.z)) return std::nullopt;
+        if (!r.i32(m.dimensionId)) return std::nullopt;
+        if (!r.u8(m.envFlags)) return std::nullopt;
+        if (!r.u64(m.sendAtMs)) return std::nullopt;
         return m;
     }
     default:

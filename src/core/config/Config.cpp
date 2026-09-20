@@ -80,6 +80,13 @@ ServerConfig serverConfigFromJson(const std::string& json) {
         c.sttModel = sttModelFromJson(valueOr(j, "sttModel", nlohmann::json::object()));
         c.jitterMaxDepthFrames = valueOr(j, "jitterMaxDepthFrames", c.jitterMaxDepthFrames);
         c.jitterMaxWaitMs = valueOr(j, "jitterMaxWaitMs", c.jitterMaxWaitMs);
+        c.spatialMode = valueOr(j, "mode", c.spatialMode);
+        c.spatialRadius = valueOr(j, "radius", c.spatialRadius);
+        c.spatialMaxTalkers = valueOr(j, "maxTalkers", c.spatialMaxTalkers);
+        c.spatialMaxChatters = valueOr(j, "maxChatters", c.spatialMaxChatters);
+        c.spatialStaleMs = valueOr(j, "staleMs", c.spatialStaleMs);
+        c.maxSessions = valueOr(j, "maxSessions", c.maxSessions);
+        c.maxPending = valueOr(j, "maxPending", c.maxPending);
     } catch (...) {
         // 解析失败 → 全部默认值
     }
@@ -94,6 +101,13 @@ std::string serverConfigToJson(const ServerConfig& c) {
     j["sttModel"] = sttModelToJson(c.sttModel);
     j["jitterMaxDepthFrames"] = c.jitterMaxDepthFrames;
     j["jitterMaxWaitMs"] = c.jitterMaxWaitMs;
+    j["mode"] = c.spatialMode;
+    j["radius"] = c.spatialRadius;
+    j["maxTalkers"] = c.spatialMaxTalkers;
+    j["maxChatters"] = c.spatialMaxChatters;
+    j["staleMs"] = c.spatialStaleMs;
+    j["maxSessions"] = c.maxSessions;
+    j["maxPending"] = c.maxPending;
     return j.dump(4);
 }
 
