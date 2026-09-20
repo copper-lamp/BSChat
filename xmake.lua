@@ -85,6 +85,11 @@ target("voicechat")
         add_headerfiles("src/client/**.h")
         if is_plat("windows") then
             add_syslinks("ole32", "uuid")
+            -- LeviLamina's client event emitters self-register through static
+            -- initializers in the SDK archive. Keep those archive members in
+            -- the native mod; otherwise EventBus has no emitter and every
+            -- client listener registration returns false.
+            add_ldflags("/WHOLEARCHIVE:LeviLamina.lib", {force = true})
         end
     end
 

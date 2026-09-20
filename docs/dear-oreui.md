@@ -20,6 +20,10 @@ DearOreUI_QueryApi(protocol)
 
 当前语音聊天仓库没有把 Dear-OreUI 源码复制进 `src`，也没有链接未确认版本的 DLL。这样可以避免因为缺少 Dear-OreUI mod、ABI 版本不一致或 DLL 搜索路径错误而导致客户端加载失败。
 
+## 依赖关系
+
+Dear-OreUI 是 voicechat 的可选运行时能力，不是硬依赖。voicechat 通过 `LoadLibraryW` 加载 `DearOreUI.dll`；缺失、版本不匹配或 API 查询失败时，语音模组应继续正常加载和启用。客户端 tooth 清单只声明 LeviLamina 依赖，不声明 Dear-OreUI 硬依赖。
+
 ## 备注
 
 - 已确认参考源码包含公开 C ABI、Settings page scope 以及 page/panel 注册接口。
