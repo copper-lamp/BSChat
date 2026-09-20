@@ -43,6 +43,7 @@ private:
     std::unique_ptr<PlayerState> playerState_;
     std::unique_ptr<IClock> clock_;
     config::ClientConfig config_;
+    std::wstring dearOreUiPath_;
     DearOreUiIntegration dearOreUi_;
     std::shared_ptr<ll::event::Listener<ll::event::client::ClientJoinLevelEvent>> joinListener_;
     std::shared_ptr<ll::event::Listener<ll::event::client::ClientExitLevelEvent>> exitListener_;

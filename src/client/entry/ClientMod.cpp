@@ -74,7 +74,7 @@ bool ClientMod::load() {
 
     transport_ = std::make_unique<shared::GamePacketTransport>(shared::TransportMode::Client);
     auto dearOreUiPath = self->getConfigDir().parent_path().parent_path() / "mods" / "DearOreUI" / "DearOreUI.dll";
-    if (dearOreUi_.initialize(dearOreUiPath.wstring()) && self) self->getLogger().info("DearOreUI Settings integration initialized");
+    dearOreUiPath_ = dearOreUiPath.wstring();
     playerState_ = std::make_unique<PlayerState>();
     clock_ = std::make_unique<SteadyClock>();
     config_ = std::move(config);
@@ -86,6 +86,11 @@ bool ClientMod::enable() {
     if (!transport_ || !playerState_ || !clock_) {
         if (self) self->getLogger().error("voicechat client enable prerequisites are not ready");
         return false;
+    }
+    if (!dearOreUiPath_.empty() && dearOreUi_.initialize(dearOreUiPath_)) {
+        if (self) self->getLogger().info("DearOreUI Settings integration initialized during enable");
+    } else if (self) {
+        self->getLogger().info("DearOreUI Settings integration unavailable; continuing without optional UI");
     }
     auto& bus = ll::event::EventBus::getInstance();
     auto mod = std::weak_ptr<ll::mod::Mod>(self);
@@ -135,6 +140,7 @@ bool ClientMod::unload() {
     playerState_.reset();
     transport_.reset();
     dearOreUi_.shutdown();
+    dearOreUiPath_.clear();
     return true;
 }
 
