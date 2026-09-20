@@ -94,6 +94,8 @@ target("voicechat-tests")
         "src/server/stt/*.cpp",
         "src/server/entry/ServerRuntime.cpp",
         "src/server/admin/*.cpp",
-        "src/client/**.cpp",
+        "src/client/audio/AgcProcessor.cpp",
+        "src/client/entry/ClientRuntime.cpp",
+        "src/client/input/Triggers.cpp",
         "tests/client/**.cpp"
     )

@@ -122,6 +122,11 @@ void GamePacketTransport::setMessageHandler(MessageHandler handler) {
     handler_ = std::move(handler);
 }
 
+void GamePacketTransport::clearMessageHandler() {
+    std::lock_guard lock(handlerMutex_);
+    handler_ = {};
+}
+
 void GamePacketTransport::send(const protocol::PlayerId& peerId, const protocol::Message& message) {
     auto bytes = protocol::MessageCodec::pack(message, ++sendSeq_, steadyClockMs());
     if (bytes.empty()) return;

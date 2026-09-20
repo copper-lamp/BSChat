@@ -16,7 +16,8 @@
 2. `maxPending` 目前只在 ServerRuntime 装配混音器时生效；配置热加载未实现。
 3. `maxChatters` 仅保留配置字段，尚未实现按加入时间淘汰。
 4. 管理命令、OP/白名单权限来源和审计日志仍未接入；在此之前不能视为生产级封禁系统。
-5. 客户端 SDK、ImGui、Dear-OreUI 和 BDS 生命周期缺少仓库可验证 API，必须补齐依赖后进行真实联调。
+5. LeviLamina 26.10.14 客户端生命周期、输入和世界事件头文件已从本机 SDK 缓存确认并接入；ATL 头文件和 `atls.lib` 均已确认存在，但 LeviLamina 包构建的链接器仍未解析该库，当前仍以 `LNK1104 atls.lib` 阻塞，需进一步核对 xmake/levibuildscript 的链接环境。
+6. 已取得 `D:\BSChat\lib\Dear-OreUI` 源码并核实公开 C ABI `DearOreUI_QueryApi`、`IDearOreUIApi`、`PageScope::Settings` 和 `registerPage`/`registerPanel`。当前未发现匹配 `DearOreUI.dll`/`.lib`，且 API 变更要求游戏主线程调用；本仓库尚未链接该 ABI，不能宣称已完成 Settings 运行时注入。
 
 ## 验证
-`voicechat-tests` 的测试目标已纳入配置、协议、会话、混音、STT、空间策略、管理策略和客户端核心测试；本轮未能完成 xmake clean/reconfigure/build，因为环境在 Ninja 包锁阶段失败（`cannot create filelock for package(ninja)!`）。客户端核心测试已使用本机 Clang 直接编译运行通过（3 个用例）；完整测试与真实目标构建仍待解除环境阻塞。构建命令见 [building.md](building.md)。
+`voicechat-tests` 的测试目标已纳入配置、协议、会话、混音、STT、空间策略、管理策略和客户端核心测试。由于本机 xmake 仍不能稳定复用 package lock，已使用本机依赖目录和 Clang 直接编译运行完整纯逻辑测试：共 52 项，`Total failures: 0`。xmake 模组目标仍在 LeviLamina SDK 编译阶段因缺少 `atlbase.h` 阻塞；客户端真实载具尚未完成目标构建。构建命令见 [building.md](building.md)。

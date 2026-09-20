@@ -1,4 +1,41 @@
 #pragma once
+
 #include <memory>
+
 #include "client/entry/ClientRuntime.h"
-namespace vc::client { class ClientMod final { public: ClientMod(std::unique_ptr<ClientRuntime> runtime):runtime_(std::move(runtime)){} bool load(){return bool(runtime_);} bool enable(){if(!runtime_)return false;runtime_->start();return true;} bool disable(){if(runtime_)runtime_->stop();return true;} bool unload(){return disable();} private: std::unique_ptr<ClientRuntime> runtime_; }; }
+#include "ll/api/event/Listener.h"
+#include "ll/api/event/client/ClientExitLevelEvent.h"
+#include "ll/api/event/client/ClientJoinLevelEvent.h"
+#include "ll/api/event/input/KeyInputEvent.h"
+#include "ll/api/event/world/ClientLevelTickEvent.h"
+
+namespace vc::client {
+
+class ClientMod final {
+public:
+    ClientMod() = default;
+    explicit ClientMod(std::unique_ptr<ClientRuntime> runtime) : runtime_(std::move(runtime)) {}
+
+    bool load();
+    bool enable();
+    bool disable();
+    bool unload();
+
+private:
+    void onJoin(class ll::event::client::ClientJoinLevelEvent& event);
+    void onExit(class ll::event::client::ClientExitLevelEvent& event);
+    void onTick(class ll::event::world::ClientLevelTickEvent& event);
+    void onKey(class ll::event::input::KeyInputEvent& event);
+
+    std::unique_ptr<ClientRuntime> runtime_;
+    std::unique_ptr<IClientTransport> transport_;
+    std::unique_ptr<IPlayerState> playerState_;
+    std::unique_ptr<IClock> clock_;
+    config::ClientConfig config_;
+    std::shared_ptr<ll::event::Listener<ll::event::client::ClientJoinLevelEvent>> joinListener_;
+    std::shared_ptr<ll::event::Listener<ll::event::client::ClientExitLevelEvent>> exitListener_;
+    std::shared_ptr<ll::event::Listener<ll::event::world::ClientLevelTickEvent>> tickListener_;
+    std::shared_ptr<ll::event::Listener<ll::event::input::KeyInputEvent>> keyListener_;
+};
+
+} // namespace vc::client

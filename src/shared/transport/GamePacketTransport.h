@@ -40,6 +40,7 @@ public:
 
     void send(const protocol::PlayerId& peerId, const protocol::Message& message) override;
     void setMessageHandler(MessageHandler handler) override;
+    void clearMessageHandler();
 
     TransportMode mode() const { return mode_; }
 

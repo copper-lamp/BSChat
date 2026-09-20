@@ -31,7 +31,7 @@ xmake build voicechat
 
 ## Run unit tests
 
-The core engine has zero LeviLamina dependency and runs as a host binary:
+The core engine and host-test adapters have zero LeviLamina dependency and run as a host binary:
 
 ```bash
 xmake f -y -p windows -a x64 -m release
@@ -39,7 +39,7 @@ xmake build voicechat-tests
 xmake run voicechat-tests
 ```
 
-The `voicechat-tests` target is `set_default(false)`, so it is not built by default.
+The `voicechat-tests` target is `set_default(false)`, so it is not built by default. If xmake reports a stale package lock, stop other xmake processes and remove the matching `package.lock` under `%LOCALAPPDATA%\\.xmake\\cache\\packages`; do not delete a lock held by an active build. The current machine has the ATL headers and `atls.lib`; configure through the Visual Studio Developer Command Prompt so both `INCLUDE` and `LIB` contain the `atlmfc` directories. LeviLamina's current package build reached the link step but the plain PowerShell environment failed to pass the ATL library path (`LNK1104 atls.lib`).
 
 ## Targets
 
@@ -47,7 +47,7 @@ The `voicechat-tests` target is `set_default(false)`, so it is not built by defa
 |---|---|---|
 | `voicechat-core` | static library | Pure C++ core engine (codec / protocol / audio / pipeline / config) |
 | `voicechat` | module | Main module; picks `src/server` or `src/client` by `target_type` |
-| `voicechat-tests` | binary | Core unit tests (host, no LeviLamina) |
+| `voicechat-tests` | binary | Core and host-test adapters (no LeviLamina) |
 
 ## Deployment
 
