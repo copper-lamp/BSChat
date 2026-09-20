@@ -15,3 +15,4 @@
 - 需要实现字幕数据模型、i18n 文案、图标资源与 HUD 渲染。
 - 已取得 `D:\BSChat\lib\Dear-OreUI` 参考源码，并从 GitHub Release `v0.1.2` 核对 `DearOreUI.dll` 导出 `DearOreUI_QueryApi`。客户端新增可选动态加载器：尝试加载 `mods/DearOreUI/DearOreUI.dll`，注册 `voicechat` 的 Settings 面板；缺少 Dear-OreUI 时不阻塞语音模组。真实客户端页面注入和卸载顺序仍需验收。
 - 客户端与服务端协议能力协商、位置上报及双端互聊仍需真机验收。
+- 若 enable 阶段失败，新版 DLL 会分别记录四类客户端事件监听注册结果，用于区分前置对象失败和事件发射器未就绪。

@@ -17,7 +17,7 @@
 3. `maxChatters` 仅保留配置字段，尚未实现按加入时间淘汰。
 4. 管理命令、OP/白名单权限来源和审计日志仍未接入；在此之前不能视为生产级封禁系统。
 5. LeviLamina 26.10.14 客户端生命周期、输入和世界事件头文件已从本机 SDK 缓存确认并接入；客户端 target 已成功构建，且已导出统一内存分配标记 `ll_memory_operator_overrided`，可进入真实客户端加载测试。
-6. 已取得 `D:\BSChat\lib\Dear-OreUI` 源码并核实公开 C ABI `DearOreUI_QueryApi`、`IDearOreUIApi`、`PageScope::Settings` 和 `registerPage`/`registerPanel`。当前未发现匹配 `DearOreUI.dll`/`.lib`，且 API 变更要求游戏主线程调用；本仓库尚未链接该 ABI，不能宣称已完成 Settings 运行时注入。
+6. 已取得 `D:\BSChat\lib\Dear-OreUI` 源码并核实公开 C ABI `DearOreUI_QueryApi`、`IDearOreUIApi`、`PageScope::Settings` 和 `registerPage`/`registerPanel`；已完成可选 DLL 加载和 Settings 面板注册。客户端 enable 失败时，新版构建会输出前置对象和四类事件监听注册诊断。
 
 ## 验证
 `voicechat-tests` 的测试目标已纳入配置、协议、会话、混音、STT、空间策略、管理策略和客户端核心测试。由于本机 xmake 仍不能稳定复用 package lock，已使用本机依赖目录和 Clang 直接编译运行完整纯逻辑测试：共 52 项，`Total failures: 0`。xmake 模组目标仍在 LeviLamina SDK 编译阶段因缺少 `atlbase.h` 阻塞；客户端真实载具尚未完成目标构建。构建命令见 [building.md](building.md)。
