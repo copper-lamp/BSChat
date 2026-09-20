@@ -68,6 +68,9 @@ target("voicechat")
     add_includedirs("src", "src/core", {public = true})
     add_files("src/shared/**.cpp")
     add_headerfiles("src/shared/**.h")
+    if is_plat("windows") then
+        add_files("src/shared/MemoryOperators.cpp")
+    end
     if is_config("target_type", "server") then
         add_includedirs("src/server", "third_party/sherpa-onnx")
         add_files("src/server/**.cpp")
