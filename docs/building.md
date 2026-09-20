@@ -45,7 +45,7 @@ The `voicechat-tests` target is `set_default(false)`, so it is not built by defa
 cmd /d /s /c 'call "C:\Program Files (x86)\Microsoft Visual Studio\18\BuildTools\Common7\Tools\VsDevCmd.bat" -arch=x64 -host_arch=x64 && set "LIB=C:\Program Files (x86)\Microsoft Visual Studio\18\BuildTools\VC\Tools\MSVC\14.51.36231\atlmfc\lib\x64;%LIB%" && set "INCLUDE=C:\Program Files (x86)\Microsoft Visual Studio\18\BuildTools\VC\Tools\MSVC\14.51.36231\atlmfc\include;%INCLUDE%" && xmake f -a x64 -m debug -p windows --target_type=client -y && xmake build voicechat'
 ```
 
-The deployable client artifact is generated at `bin/voicechat/voicechat.dll`. The server package still needs a separate build verification.
+The deployable client artifact is generated at `bin/voicechat/voicechat.dll`. The server target uses the same module target with `--target_type=server`; verify it separately before deployment. The current client build was verified with the Visual Studio Developer Command Prompt and produced the deployable DLL.
 
 ## Targets
 

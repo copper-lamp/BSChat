@@ -1,6 +1,7 @@
 #include "core/protocol/MessageCodec.h"
 
 #include <cstring>
+#include <limits>
 
 namespace vc::protocol {
 namespace {
@@ -122,6 +123,7 @@ private:
 
 std::vector<uint8_t> MessageCodec::pack(const Message& message, uint32_t seq, int64_t timestampMs) {
     auto [type, payload] = serializePayload(message);
+    if (payload.size() > std::numeric_limits<uint16_t>::max()) return {};
 
     BufferWriter w;
     w.u16(kMagic);
@@ -153,7 +155,7 @@ std::optional<std::pair<EnvelopeInfo, Message>> MessageCodec::unpack(std::span<c
 
     auto payload = data.subspan(r.position(), payloadLen);
     auto message = deserializePayload(info.type, payload);
-    if (!message) return std::nullopt; // 未知类型或数据损坏 → 忽略
+    if (!message || r.position() + payloadLen != data.size()) return std::nullopt; // 未知类型、尾随数据或损坏 → 忽略
 
     return std::make_pair(info, std::move(*message));
 }
@@ -185,6 +187,7 @@ std::pair<MessageType, std::vector<uint8_t>> MessageCodec::serializePayload(cons
                 BufferWriter w;
                 w.u64(m.seq);
                 w.u8(m.flags);
+                if (m.opusData.size() > std::numeric_limits<uint16_t>::max()) return {MessageType::AudioData, {}};
                 w.u16(static_cast<uint16_t>(m.opusData.size()));
                 w.bytes(m.opusData.data(), m.opusData.size());
                 return {MessageType::AudioData, std::move(w).take()};
@@ -192,6 +195,7 @@ std::pair<MessageType, std::vector<uint8_t>> MessageCodec::serializePayload(cons
             } else if constexpr (std::is_same_v<M, MixStreamMessage>) {
                 BufferWriter w;
                 w.u64(m.seq);
+                if (m.opusData.size() > std::numeric_limits<uint16_t>::max()) return {MessageType::MixStream, {}};
                 w.u16(static_cast<uint16_t>(m.opusData.size()));
                 w.bytes(m.opusData.data(), m.opusData.size());
                 return {MessageType::MixStream, std::move(w).take()};
