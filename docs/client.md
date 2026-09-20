@@ -13,5 +13,5 @@
 - 需要真实 Bedrock 客户端设备联调，确认音频线程和主线程边界。
 - 需要实现 WASAPI `IAudioClient` 采集/渲染、Opus 上下行接线、设备失败提示、热切换和资源释放。
 - 需要实现字幕数据模型、i18n 文案、图标资源与 HUD 渲染。
-- 已取得 `D:\BSChat\lib\Dear-OreUI` 参考源码。其公开接口是 `DearOreUI_QueryApi` + `IDearOreUIApi`，支持 `PageScope::Settings` 与 `registerPage`/`registerPanel`，但当前目录没有匹配的 `DearOreUI.dll` 或 `.lib`，且协议 API 变更方法必须在游戏主线程调用；因此本仓库尚未编译链接该 ABI，也不能宣称已完成原版 Settings 运行时注入。
+- 已取得 `D:\BSChat\lib\Dear-OreUI` 参考源码，并从 GitHub Release `v0.1.2` 核对 `DearOreUI.dll` 导出 `DearOreUI_QueryApi`。客户端新增可选动态加载器：尝试加载 `mods/DearOreUI/DearOreUI.dll`，注册 `voicechat` 的 Settings 面板；缺少 Dear-OreUI 时不阻塞语音模组。真实客户端页面注入和卸载顺序仍需验收。
 - 客户端与服务端协议能力协商、位置上报及双端互聊仍需真机验收。

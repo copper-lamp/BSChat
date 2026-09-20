@@ -76,6 +76,8 @@ bool ClientMod::load() {
     }
 
     transport_ = std::make_unique<shared::GamePacketTransport>(shared::TransportMode::Client);
+    auto dearOreUiPath = self->getConfigDir().parent_path().parent_path() / "mods" / "DearOreUI" / "DearOreUI.dll";
+    dearOreUi_.initialize(dearOreUiPath.wstring());
     playerState_ = std::make_unique<PlayerState>();
     clock_ = std::make_unique<SteadyClock>();
     config_ = std::move(config);
@@ -113,6 +115,7 @@ bool ClientMod::unload() {
     clock_.reset();
     playerState_.reset();
     transport_.reset();
+    dearOreUi_.shutdown();
     return true;
 }
 

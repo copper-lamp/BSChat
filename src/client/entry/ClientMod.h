@@ -3,6 +3,7 @@
 #include <memory>
 
 #include "client/entry/ClientRuntime.h"
+#include "client/DearOreUiIntegration.h"
 #include "ll/api/event/Listener.h"
 #include "ll/api/event/client/ClientExitLevelEvent.h"
 #include "ll/api/event/client/ClientJoinLevelEvent.h"
@@ -32,6 +33,7 @@ private:
     std::unique_ptr<IPlayerState> playerState_;
     std::unique_ptr<IClock> clock_;
     config::ClientConfig config_;
+    DearOreUiIntegration dearOreUi_;
     std::shared_ptr<ll::event::Listener<ll::event::client::ClientJoinLevelEvent>> joinListener_;
     std::shared_ptr<ll::event::Listener<ll::event::client::ClientExitLevelEvent>> exitListener_;
     std::shared_ptr<ll::event::Listener<ll::event::world::ClientLevelTickEvent>> tickListener_;

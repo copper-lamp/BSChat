@@ -23,6 +23,10 @@ end
 -- 与 LeviLamina 模板一致的 Windows/Clang 编译标志
 function apply_common_windows_flags()
     if is_plat("windows") then
+        local vc_tools = os.getenv("VCToolsInstallDir")
+        if vc_tools then
+            add_linkdirs(path.join(vc_tools, "atlmfc", "lib", "x64"))
+        end
         add_defines("NOMINMAX", "UNICODE", "_UNICODE")
         set_exceptions("none") -- 避免与 /EHa 冲突
         add_cxflags("/EHa", "/utf-8", "/W4", "/w44265", "/w44289", "/w44296", "/w45263", "/w44738", "/w45204")
@@ -69,6 +73,10 @@ target("voicechat")
         add_files("src/server/**.cpp")
     else
         add_includedirs("src/client")
+        if os.isdir("$(projectdir)/../lib/Dear-OreUI/src") then
+            add_includedirs("$(projectdir)/../lib/Dear-OreUI/src")
+            add_defines("VOICECHAT_HAS_DEAR_OREUI=1")
+        end
         add_files("src/client/**.cpp")
         add_headerfiles("src/client/**.h")
         if is_plat("windows") then

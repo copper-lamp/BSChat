@@ -23,7 +23,8 @@ DearOreUI_QueryApi(protocol)
 ## 备注
 
 - 已确认参考源码包含公开 C ABI、Settings page scope 以及 page/panel 注册接口。
-- `D:\BSChat\lib\Dear-OreUI` 当前未提供可供本项目直接链接的匹配 `DearOreUI.dll`/`.lib`；参考项目自身的 xmake target 负责生成其 native mod。
-- 完整实现仍需要确定 Dear-OreUI release/commit、协议版本、匹配 DLL 部署位置，以及客户端真实测试环境。
+- 已从 GitHub Release `v0.1.2` 下载并核对 `DearOreUI-windows-x64.zip`；其中的 `DearOreUI.dll` 导出 `DearOreUI_QueryApi`。下载物未提交到 Git，构建时应由部署环境提供。
+- 客户端新增可选动态加载器：从 `mods/DearOreUI/DearOreUI.dll` 加载 ABI，协商 protocol 1，注册 `voicechat` 模组并注册 `PageScope::Settings` 面板。Dear-OreUI 不存在或 API 未就绪时加载器返回 false，不阻塞语音模组。
+- 完整实现仍需要真实客户端验证 DLL 加载、页面注入和卸载顺序；API 变更方法必须在游戏主线程调用。
 - 在获得这些材料前，不能宣称已完成原版 Settings 运行时注入。
 - 该模块与 `ClientRuntime`、配置和 i18n/UI 数据模型关联；Dear-OreUI 只负责页面承载，语音设备和网络状态仍由客户端核心负责。
