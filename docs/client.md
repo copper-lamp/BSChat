@@ -9,7 +9,7 @@
 当前仍未完成麦克风采集、播放、字幕 UI 和设备管理，因此不能宣称客户端功能链路完整。WASAPI 当前仅完成默认设备探测。Dear-OreUI Settings 面板已完成可选动态加载和注册，并已成功完成 client target 构建；真实客户端显示效果仍待安装测试。
 
 ## 风险与 TODO
-- Ninja 锁和 ATL 头文件阻塞已排除；ATL `atls.lib` 也已确认存在，但 LeviLamina 包链接阶段仍报告 `LNK1104 atls.lib`，需修复 xmake/levibuildscript 的 LIB 传递或链接目录。
+- Ninja 锁和 ATL 头文件阻塞已排除；客户端 DLL 已加入 LeviLamina `MemoryOperators.h` 的统一内存分配操作符，并导出 `ll_memory_operator_overrided`，已用 `dumpbin` 验证。
 - 需要真实 Bedrock 客户端设备联调，确认音频线程和主线程边界。
 - 需要实现 WASAPI `IAudioClient` 采集/渲染、Opus 上下行接线、设备失败提示、热切换和资源释放。
 - 需要实现字幕数据模型、i18n 文案、图标资源与 HUD 渲染。
