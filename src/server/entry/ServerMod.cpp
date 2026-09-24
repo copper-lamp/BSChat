@@ -6,6 +6,7 @@
 #include <utility>
 
 #include "ll/api/event/EventBus.h"
+#include "ll/api/event/EmitterBase.h"
 #include "ll/api/event/player/PlayerDisconnectEvent.h"
 #include "ll/api/event/player/PlayerJoinEvent.h"
 #include "ll/api/event/world/ServerLevelTickEvent.h"
@@ -58,24 +59,57 @@ bool ServerMod::load() {
 }
 
 bool ServerMod::enable() {
-    if (!runtime_ || !transport_) return false;
+    auto self = ll::mod::NativeMod::current();
+    if (!runtime_ || !transport_) {
+        if (self) self->getLogger().error("voicechat server enable aborted: runtime or transport is not loaded");
+        return false;
+    }
 
     auto& bus = ll::event::EventBus::getInstance();
+
+    // LeviLamina only creates an event's stream when something registers it first.
+    // Register a stream factory for any stream this SDK build did not create
+    // eagerly, otherwise every listener below silently returns null.
+    auto ensureEventStream = [&]<typename Event>() {
+        if (!bus.hasEvent(ll::event::getEventId<Event>)) {
+            bus.setEventEmitter<Event>([] { return std::make_unique<ll::event::EmitterBase>(); }, self);
+        }
+    };
+    ensureEventStream.operator()<ll::event::player::PlayerJoinEvent>();
+    ensureEventStream.operator()<ll::event::player::PlayerDisconnectEvent>();
+    ensureEventStream.operator()<ll::event::world::ServerLevelTickEvent>();
+
     joinListener_ = bus.emplaceListener<ll::event::player::PlayerJoinEvent>(
-        [this](auto& event) { onJoin(event); }
+        [this](auto& event) { onJoin(event); },
+        ll::event::EventPriority::Normal,
+        self
     );
     disconnectListener_ = bus.emplaceListener<ll::event::player::PlayerDisconnectEvent>(
-        [this](auto& event) { onDisconnect(event); }
+        [this](auto& event) { onDisconnect(event); },
+        ll::event::EventPriority::Normal,
+        self
     );
     tickListener_ = bus.emplaceListener<ll::event::world::ServerLevelTickEvent>(
-        [this](auto& event) { onTick(event); }
+        [this](auto& event) { onTick(event); },
+        ll::event::EventPriority::Normal,
+        self
     );
+
     if (!joinListener_ || !disconnectListener_ || !tickListener_) {
+        if (self) {
+            self->getLogger().error(
+                "voicechat server listener registration failed: join={} disconnect={} tick={}",
+                static_cast<bool>(joinListener_),
+                static_cast<bool>(disconnectListener_),
+                static_cast<bool>(tickListener_)
+            );
+        }
         disable();
         return false;
     }
 
     runtime_->start();
+    if (self) self->getLogger().info("voicechat server listeners enabled");
     return true;
 }
 
