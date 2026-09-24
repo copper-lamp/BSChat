@@ -1,5 +1,6 @@
 #pragma once
 
+#include <filesystem>
 #include <memory>
 
 #include "client/entry/ClientRuntime.h"
@@ -40,6 +41,7 @@ private:
     void onTick(class ll::event::world::ClientLevelTickEvent& event);
     void onKey(class ll::event::input::KeyInputEvent& event);
 
+    std::filesystem::path logPath_;
     std::unique_ptr<ClientRuntime> runtime_;
     std::unique_ptr<SmokeTest> smokeTest_;
     std::unique_ptr<audio::WasapiAudioDevice> audioDevice_;

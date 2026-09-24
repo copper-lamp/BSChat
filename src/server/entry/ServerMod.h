@@ -34,6 +34,7 @@ private:
     protocol::PlayerId playerId(const Player& player) const;
 
     std::filesystem::path configPath_;
+    std::filesystem::path logPath_;
     config::ServerConfig config_;
     std::unique_ptr<shared::GamePacketTransport> transport_;
     std::unique_ptr<ServerRuntime> runtime_;

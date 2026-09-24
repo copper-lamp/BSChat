@@ -44,10 +44,20 @@ pwsh -File scripts/Invoke-VoiceChatSmokeTest.ps1 `
 2. 运行脚本完成备份和安装。
 3. 启动 BDS，确认日志中出现 `voicechat` 加载成功以及 `voicechat server listeners`/等价启用日志。
 4. 启动客户端并连接本机 BDS 地址。
-5. 确认客户端日志出现 `voicechat 已加载` 和 `voicechat client listeners enabled`。
-6. 在客户端按住 PTT 键（默认 `V`），持续说话后释放；观察 BDS 与客户端日志是否出现握手、音频设备和异常信息。
-7. 由于只有一个真实客户端，无法验证“另一名玩家听到声音”。可以先使用已有 host/loopback 测试验证协议和服务端混音，再进行单客户端设备采集/播放检查。
-8. 检查 `smoke-results/<timestamp>/result.json`、`bds.stdout.log`、`bds.stderr.log`、`client.stdout.log` 和 `client.stderr.log`。
+5. 确认客户端加载并启用；由于 GUI 客户端通常没有可见控制台，可直接查看客户端纯文本日志（见下文）。
+6. 客户端连接 BDS 后，确认双方的日志均出现 `onJoin`/玩家加入记录及 `[smoke]` 阶段结果。
+7. 在客户端按住 PTT 键（默认 `V`），持续说话后释放；观察日志中的音频设备状态和异常信息。
+8. 由于只有一个真实客户端，无法验证“另一名玩家听到声音”。可以先使用已有 host/loopback 测试验证协议和服务端混音，再进行单客户端设备采集/播放检查。
+9. 检查 `smoke-results/<timestamp>/result.json`、`bds.stdout.log`、`bds.stderr.log`、`client.stdout.log` 和 `client.stderr.log`；模组本身的诊断日志请查看对应的 `voicechat-*.log` 文件。
+
+## 模组纯文本日志
+
+客户端与服务端模组都会在自己的 LeviLamina 配置目录下创建纯文本日志，并在进程启动时清空旧文件：
+
+- 客户端：`<客户端实例>/mods/voicechat/config/voicechat-client.log`（实际位置以模组配置目录为准）。
+- BDS 服务端：`<BDS>/plugins/voicechat/config/voicechat-server.log`（实际位置以模组配置目录为准）。
+
+日志采用 UTF-8 文本，每行格式为 `[Unix毫秒时间戳] [级别] 消息`。每条消息立即 flush，以便崩溃后保留已写入的诊断；即使没有控制台，也能读取加载、事件监听器、玩家加入、WASAPI、自检结果及卸载记录。路径无法写入时日志功能静默停用，不影响语音模组运行。
 
 ## 模组内置自检（进入服务器后自动跑）
 

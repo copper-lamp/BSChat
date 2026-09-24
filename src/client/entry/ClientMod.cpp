@@ -13,6 +13,7 @@
 #include "ll/api/mod/RegisterHelper.h"
 #include "mc/world/actor/player/Player.h"
 #include "shared/transport/GamePacketTransport.h"
+#include "shared/util/FileLog.h"
 #include "shared/util/PlayerIdUtils.h"
 
 namespace vc::client {
@@ -63,6 +64,11 @@ bool ClientMod::load() {
     auto self = ll::mod::NativeMod::current();
     if (!self) return false;
 
+    // 纯文本日志与宿主日志并行输出，方便在没有控制台的场景下取证。
+    logPath_ = self->getConfigDir() / "voicechat-client.log";
+    shared::FileLog::reset(logPath_.string(), "voicechat client log started");
+    shared::FileLog::info("load: client mod loading, config dir = " + self->getConfigDir().string());
+
     auto path = self->getConfigDir() / "voicechat.json";
     auto text = readText(path);
     config::ClientConfig config{};
@@ -80,6 +86,7 @@ bool ClientMod::load() {
     clock_ = std::make_unique<SteadyClock>();
     config_ = std::move(config);
     audioDevice_ = std::make_unique<audio::WasapiAudioDevice>();
+    shared::FileLog::info("load: complete");
     return true;
 }
 
@@ -87,12 +94,16 @@ bool ClientMod::enable() {
     auto self = ll::mod::NativeMod::current();
     if (!transport_ || !playerState_ || !clock_) {
         if (self) self->getLogger().error("voicechat client enable prerequisites are not ready");
+        shared::FileLog::error("enable: prerequisites are not ready (transport/playerState/clock)");
         return false;
     }
+    shared::FileLog::info("enable: registering client event listeners");
     if (!dearOreUiPath_.empty() && dearOreUi_.initialize(dearOreUiPath_)) {
         if (self) self->getLogger().info("DearOreUI Settings integration initialized during enable");
-    } else if (self) {
-        self->getLogger().info("DearOreUI Settings integration unavailable; continuing without optional UI");
+        shared::FileLog::info("enable: DearOreUI Settings integration initialized");
+    } else {
+        if (self) self->getLogger().info("DearOreUI Settings integration unavailable; continuing without optional UI");
+        shared::FileLog::info("enable: DearOreUI Settings integration unavailable; continuing without optional UI");
     }
     auto& bus = ll::event::EventBus::getInstance();
     auto mod = std::weak_ptr<ll::mod::Mod>(self);
@@ -109,18 +120,27 @@ bool ClientMod::enable() {
     ensureEventStream.operator()<ll::event::world::ClientLevelTickEvent>();
     ensureEventStream.operator()<ll::event::input::KeyInputEvent>();
     joinListener_ = bus.emplaceListener<ll::event::client::ClientJoinLevelEvent>([this](auto& event) { onJoin(event); }, ll::event::EventPriority::Normal, mod);
-    if (!joinListener_ && self) self->getLogger().error("failed to register ClientJoinLevelEvent listener");
+    if (!joinListener_) self->getLogger().error("failed to register ClientJoinLevelEvent listener");
     exitListener_ = bus.emplaceListener<ll::event::client::ClientExitLevelEvent>([this](auto& event) { onExit(event); }, ll::event::EventPriority::Normal, mod);
-    if (!exitListener_ && self) self->getLogger().error("failed to register ClientExitLevelEvent listener");
+    if (!exitListener_) self->getLogger().error("failed to register ClientExitLevelEvent listener");
     tickListener_ = bus.emplaceListener<ll::event::world::ClientLevelTickEvent>([this](auto& event) { onTick(event); }, ll::event::EventPriority::Normal, mod);
-    if (!tickListener_ && self) self->getLogger().error("failed to register ClientLevelTickEvent listener");
+    if (!tickListener_) self->getLogger().error("failed to register ClientLevelTickEvent listener");
     keyListener_ = bus.emplaceListener<ll::event::input::KeyInputEvent>([this](auto& event) { onKey(event); }, ll::event::EventPriority::Normal, mod);
-    if (!keyListener_ && self) self->getLogger().error("failed to register KeyInputEvent listener");
+    if (!keyListener_) self->getLogger().error("failed to register KeyInputEvent listener");
     if (!joinListener_ || !exitListener_ || !tickListener_ || !keyListener_) {
+        self->getLogger().error(
+            "voicechat client listener registration failed: join={} exit={} tick={} key={}",
+            static_cast<bool>(joinListener_),
+            static_cast<bool>(exitListener_),
+            static_cast<bool>(tickListener_),
+            static_cast<bool>(keyListener_)
+        );
+        shared::FileLog::error("enable: listener registration failed");
         disable();
         return false;
     }
     if (self) self->getLogger().info("voicechat client listeners enabled");
+    shared::FileLog::info("enable: client listeners enabled");
     return true;
 }
 
@@ -145,10 +165,12 @@ bool ClientMod::unload() {
     transport_.reset();
     dearOreUi_.shutdown();
     dearOreUiPath_.clear();
+    shared::FileLog::info("unload: client mod unloaded");
     return true;
 }
 
 void ClientMod::onJoin(ll::event::client::ClientJoinLevelEvent& event) {
+    shared::FileLog::info("onJoin: ClientJoinLevelEvent received, starting client runtime");
     playerState_->set(&event.player());
     runtime_.reset();
     runtime_ = std::make_unique<ClientRuntime>(*transport_, *playerState_, *clock_, config_);
@@ -168,23 +190,31 @@ void ClientMod::onJoin(ll::event::client::ClientJoinLevelEvent& event) {
         if (!audioDevice_->start()) {
             auto self = ll::mod::NativeMod::current();
             if (self) self->getLogger().warn("WASAPI audio unavailable; voice chat will remain silent");
+            shared::FileLog::warn("onJoin: WASAPI audio unavailable; voice chat will remain silent");
+        } else {
+            shared::FileLog::info("onJoin: WASAPI capture/render started");
         }
     }
     runtime_->start();
+    shared::FileLog::info("onJoin: client runtime started, beginning smoke test");
 
     // Automatic end-to-end smoke test: exercises the real uplink codec path and
     // reports each stage to the log so a single client can validate the link.
     smokeTest_ = std::make_unique<SmokeTest>(*runtime_);
     smokeTest_->setLogSink([](bool isError, std::string const& message) {
         auto self = ll::mod::NativeMod::current();
-        if (!self) return;
-        if (isError) self->getLogger().warn("{}", message);
-        else self->getLogger().info("{}", message);
+        if (self) {
+            if (isError) self->getLogger().warn("{}", message);
+            else self->getLogger().info("{}", message);
+        }
+        if (isError) shared::FileLog::warn(message);
+        else shared::FileLog::info(message);
     });
     smokeTest_->begin();
 }
 
 void ClientMod::onExit(ll::event::client::ClientExitLevelEvent&) {
+    shared::FileLog::info("onExit: ClientExitLevelEvent received, stopping client runtime");
     smokeTest_.reset();
     if (audioDevice_) audioDevice_->stop();
     if (runtime_) runtime_->stop();

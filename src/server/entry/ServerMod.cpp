@@ -14,6 +14,7 @@
 #include "ll/api/mod/RegisterHelper.h"
 #include "mc/server/ServerPlayer.h"
 #include "ll/api/service/Bedrock.h"
+#include "shared/util/FileLog.h"
 #include "shared/util/PlayerIdUtils.h"
 
 namespace vc::server {
@@ -47,8 +48,16 @@ bool ServerMod::load() {
     auto self = ll::mod::NativeMod::current();
     if (!self) return false;
 
+    // 纯文本日志与宿主日志并行输出，方便在没有控制台的场景下取证。
+    logPath_ = self->getConfigDir() / "voicechat-server.log";
+    shared::FileLog::reset(logPath_.string(), "voicechat server log started");
+    shared::FileLog::info("load: server mod loading, config dir = " + self->getConfigDir().string());
+
     configPath_ = self->getConfigDir() / "voicechat.json";
-    if (!loadConfig()) return false;
+    if (!loadConfig()) {
+        shared::FileLog::error("load: config load failed at " + configPath_.string());
+        return false;
+    }
 
     transport_ = std::make_unique<shared::GamePacketTransport>(
         shared::TransportMode::Server,
@@ -57,10 +66,14 @@ bool ServerMod::load() {
     runtime_ = std::make_unique<ServerRuntime>(*transport_, config_);
     runtime_->setLogSink([](bool isError, std::string const& message) {
         auto self = ll::mod::NativeMod::current();
-        if (!self) return;
-        if (isError) self->getLogger().warn("{}", message);
-        else self->getLogger().info("{}", message);
+        if (self) {
+            if (isError) self->getLogger().warn("{}", message);
+            else self->getLogger().info("{}", message);
+        }
+        if (isError) shared::FileLog::warn(message);
+        else shared::FileLog::info(message);
     });
+    shared::FileLog::info("load: complete");
     return true;
 }
 
@@ -68,8 +81,10 @@ bool ServerMod::enable() {
     auto self = ll::mod::NativeMod::current();
     if (!runtime_ || !transport_) {
         if (self) self->getLogger().error("voicechat server enable aborted: runtime or transport is not loaded");
+        shared::FileLog::error("enable: runtime or transport is not loaded");
         return false;
     }
+    shared::FileLog::info("enable: registering server event listeners");
 
     auto& bus = ll::event::EventBus::getInstance();
 
@@ -110,12 +125,14 @@ bool ServerMod::enable() {
                 static_cast<bool>(tickListener_)
             );
         }
+        shared::FileLog::error("enable: listener registration failed");
         disable();
         return false;
     }
 
     runtime_->start();
     if (self) self->getLogger().info("voicechat server listeners enabled");
+    shared::FileLog::info("enable: server listeners enabled");
     return true;
 }
 
@@ -141,6 +158,7 @@ bool ServerMod::unload() {
     disable();
     runtime_.reset();
     transport_.reset();
+    shared::FileLog::info("unload: server mod unloaded");
     return true;
 }
 
@@ -158,13 +176,16 @@ bool ServerMod::loadConfig() {
 
 void ServerMod::onJoin(ll::event::player::PlayerJoinEvent& event) {
     auto& player = event.self();
-    players_[playerId(player)] = &player;
+    auto const id = playerId(player);
+    players_[id] = &player;
+    shared::FileLog::info("onJoin: player joined, active players = " + std::to_string(players_.size()));
 }
 
 void ServerMod::onDisconnect(ll::event::player::PlayerDisconnectEvent& event) {
     auto id = playerId(event.self());
     players_.erase(id);
     if (runtime_) runtime_->removeSession(id);
+    shared::FileLog::info("onDisconnect: player left, active players = " + std::to_string(players_.size()));
 }
 
 void ServerMod::onTick(ll::event::world::ServerLevelTickEvent&) {
