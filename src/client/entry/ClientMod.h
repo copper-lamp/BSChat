@@ -5,6 +5,7 @@
 #include "client/entry/ClientRuntime.h"
 #include "client/audio/WasapiAudio.h"
 #include "client/DearOreUiIntegration.h"
+#include "client/entry/SmokeTest.h"
 #include "shared/transport/GamePacketTransport.h"
 #include "ll/api/event/Listener.h"
 #include "ll/api/event/client/ClientExitLevelEvent.h"
@@ -40,6 +41,7 @@ private:
     void onKey(class ll::event::input::KeyInputEvent& event);
 
     std::unique_ptr<ClientRuntime> runtime_;
+    std::unique_ptr<SmokeTest> smokeTest_;
     std::unique_ptr<audio::WasapiAudioDevice> audioDevice_;
     std::unique_ptr<shared::GamePacketTransport> transport_;
     std::unique_ptr<PlayerState> playerState_;

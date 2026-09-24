@@ -153,7 +153,8 @@ void ClientMod::onJoin(ll::event::client::ClientJoinLevelEvent& event) {
     runtime_.reset();
     runtime_ = std::make_unique<ClientRuntime>(*transport_, *playerState_, *clock_, config_);
     runtime_->setRenderSink([this](const float* samples, std::size_t count) {
-        if (!audioDevice_ || !samples || count == 0) return;
+        if (!samples || count == 0) return;
+        if (!audioDevice_) return;
         audio::WasapiPcmFrame frame;
         frame.sampleRate = static_cast<uint32_t>(config_.audio.sampleRate);
         frame.channels = static_cast<uint16_t>(std::max(1, config_.audio.channels));
@@ -170,9 +171,21 @@ void ClientMod::onJoin(ll::event::client::ClientJoinLevelEvent& event) {
         }
     }
     runtime_->start();
+
+    // Automatic end-to-end smoke test: exercises the real uplink codec path and
+    // reports each stage to the log so a single client can validate the link.
+    smokeTest_ = std::make_unique<SmokeTest>(*runtime_);
+    smokeTest_->setLogSink([](bool isError, std::string const& message) {
+        auto self = ll::mod::NativeMod::current();
+        if (!self) return;
+        if (isError) self->getLogger().warn("{}", message);
+        else self->getLogger().info("{}", message);
+    });
+    smokeTest_->begin();
 }
 
 void ClientMod::onExit(ll::event::client::ClientExitLevelEvent&) {
+    smokeTest_.reset();
     if (audioDevice_) audioDevice_->stop();
     if (runtime_) runtime_->stop();
     runtime_.reset();
@@ -180,7 +193,9 @@ void ClientMod::onExit(ll::event::client::ClientExitLevelEvent&) {
 }
 
 void ClientMod::onTick(ll::event::world::ClientLevelTickEvent&) {
-    if (runtime_) runtime_->tick();
+    if (!runtime_) return;
+    runtime_->tick();
+    if (smokeTest_) smokeTest_->tick(clock_->nowMs());
 }
 
 void ClientMod::onKey(ll::event::input::KeyInputEvent& event) {

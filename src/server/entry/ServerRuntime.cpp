@@ -4,8 +4,17 @@
 #include <cmath>
 #include <type_traits>
 #include <utility>
+#include <variant>
 
 namespace vc::server {
+
+void ServerRuntime::logInfo(std::string const& message) const {
+    if (logSink_) logSink_(false, message);
+}
+
+void ServerRuntime::logWarn(std::string const& message) const {
+    if (logSink_) logSink_(true, message);
+}
 
 namespace {
 
@@ -72,6 +81,12 @@ void ServerRuntime::tickOnce(int64_t nowMs) {
 void ServerRuntime::drainPending() {
     mixer_.drainPending([this](const protocol::PlayerId& peerId, const protocol::Message& message) {
         transport_.send(peerId, message);
+        if (std::holds_alternative<protocol::MixStreamMessage>(message)) {
+            ++sentMixFrames_;
+            if (sentMixFrames_ == 1) {
+                logInfo("[smoke] downlink = PASS (server sent first MixStream to a listener)");
+            }
+        }
     });
 }
 
@@ -110,12 +125,36 @@ void ServerRuntime::handleHello(const protocol::PlayerId& peerId, const protocol
     welcome.frameSizeMs = static_cast<uint8_t>(config_.audio.frameSizeMs);
     welcome.sttEnabled = config_.sttEnabled && stt_ && stt_->available();
     transport_.send(peerId, welcome);
-}
 
+    logInfo(
+        "[smoke] handshake = PASS (session established, sessions=" + std::to_string(sessions_.size())
+        + " sampleRate=" + std::to_string(welcome.sampleRate)
+        + " frameSizeMs=" + std::to_string(welcome.frameSizeMs) + ")"
+    );
+}
 void ServerRuntime::handleAudio(const protocol::PlayerId& peerId, const protocol::AudioDataMessage& audio) {
     auto session = sessions_.find(peerId);
-    if (!session || !config_.voiceEnabled) return;
+    if (!session || !config_.voiceEnabled) {
+        logWarn(
+            "[smoke] uplink rejected: session=" + std::string(session ? "true" : "false")
+            + " voiceEnabled=" + std::string(config_.voiceEnabled ? "true" : "false")
+        );
+        return;
+    }
+    const size_t pendingBefore = session->pendingFrames();
     session->pushAudio(audio, steadyNowMs());
+    const size_t pendingAfter = session->pendingFrames();
+    if (pendingAfter > pendingBefore) {
+        ++acceptedAudioFrames_;
+        if (acceptedAudioFrames_ == 1) {
+            logInfo(
+                "[smoke] uplink = PASS (first voice frame accepted, bytes="
+                + std::to_string(audio.opusData.size()) + ")"
+            );
+        }
+    } else {
+        logWarn("[smoke] uplink frame dropped by session (rate limit or invalid frame)");
+    }
 }
 
 void ServerRuntime::handleControl(const protocol::PlayerId& /*peerId*/, const protocol::ControlMessage& /*control*/) {

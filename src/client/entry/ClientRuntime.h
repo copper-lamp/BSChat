@@ -24,6 +24,13 @@ public:
     void setTalking(bool); void submitAudio(std::vector<uint8_t>); void submitPcm(const float*, std::size_t);
     void setRenderSink(RenderSink sink); void setOutputVolume(float volume); void setOutputMuted(bool muted);
     void reportPosition(); State state() const{return state_;}
+    const config::ClientConfig& config() const { return config_; }
+    // Number of MixStream frames handed to the render sink so far.
+    uint64_t playedMixFrames() const { return playedMixFrames_; }
+    // Number of MixStream messages received from the server so far.
+    uint64_t receivedMixFrames() const { return receivedMixFrames_; }
+    // Number of encoded voice frames sent upstream so far.
+    uint64_t sentAudioFrames() const { return sentAudioFrames_; }
 private:
     void sendHello(); void drainPlayback();
     IClientTransport& transport_; IPlayerState& player_; IClock& clock_; config::ClientConfig config_;
@@ -31,5 +38,6 @@ private:
     std::unique_ptr<codec::OpusEncoder> encoder_; std::unique_ptr<codec::OpusDecoder> decoder_;
     audio::AgcProcessor agc_; ::vc::audio::JitterBuffer jitter_; RenderSink renderSink_; float outputVolume_=1.0F; bool outputMuted_=false;
     std::vector<float> pcmFrame_; std::vector<uint8_t> encoded_; std::size_t pcmPending_=0;
+    uint64_t playedMixFrames_=0; uint64_t receivedMixFrames_=0; uint64_t sentAudioFrames_=0;
 };
 }

@@ -55,6 +55,12 @@ bool ServerMod::load() {
         [this](const protocol::PlayerId& id) { return resolvePlayer(id); }
     );
     runtime_ = std::make_unique<ServerRuntime>(*transport_, config_);
+    runtime_->setLogSink([](bool isError, std::string const& message) {
+        auto self = ll::mod::NativeMod::current();
+        if (!self) return;
+        if (isError) self->getLogger().warn("{}", message);
+        else self->getLogger().info("{}", message);
+    });
     return true;
 }
 

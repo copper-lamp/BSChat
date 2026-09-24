@@ -93,6 +93,7 @@ void ClientRuntime::tick() {
 void ClientRuntime::onMessage(const protocol::PlayerId& peerId, const protocol::Message& message) {
     if (peerId != protocol::PlayerId{}) return;
     if (const auto* mix = std::get_if<protocol::MixStreamMessage>(&message)) {
+        ++receivedMixFrames_;
         jitter_.push(mix->seq, mix->opusData, clock_.nowMs());
         return;
     }
@@ -123,6 +124,7 @@ void ClientRuntime::setTalking(bool talking) {
 void ClientRuntime::submitAudio(std::vector<uint8_t> data) {
     if (state_ != State::Ready || !talking_ || data.empty()) return;
     transport_.send({}, protocol::AudioDataMessage{seq_++, protocol::AudioFlagNone, std::move(data)});
+    ++sentAudioFrames_;
 }
 
 void ClientRuntime::submitPcm(const float* pcm, std::size_t samples) {
@@ -154,6 +156,7 @@ void ClientRuntime::drainPlayback() {
         const float gain = outputMuted_ ? 0.0F : outputVolume_;
         for (int i = 0; i < n; ++i) pcm[static_cast<std::size_t>(i)] = std::clamp(pcm[static_cast<std::size_t>(i)] * gain, -1.0F, 1.0F);
         renderSink_(pcm.data(), static_cast<std::size_t>(n));
+        ++playedMixFrames_;
     }
 }
 
