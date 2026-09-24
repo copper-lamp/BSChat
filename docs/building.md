@@ -45,7 +45,48 @@ The `voicechat-tests` target is `set_default(false)`, so it is not built by defa
 cmd /d /s /c 'call "C:\Program Files (x86)\Microsoft Visual Studio\18\BuildTools\Common7\Tools\VsDevCmd.bat" -arch=x64 -host_arch=x64 && set "LIB=C:\Program Files (x86)\Microsoft Visual Studio\18\BuildTools\VC\Tools\MSVC\14.51.36231\atlmfc\lib\x64;%LIB%" && set "INCLUDE=C:\Program Files (x86)\Microsoft Visual Studio\18\BuildTools\VC\Tools\MSVC\14.51.36231\atlmfc\include;%INCLUDE%" && xmake f -a x64 -m debug -p windows --target_type=client -y && xmake build voicechat'
 ```
 
-The deployable client artifact is generated at `bin/voicechat/voicechat.dll`. The server target uses the same module target with `--target_type=server`; verify it separately before deployment. The current client build was verified with the Visual Studio Developer Command Prompt and produced the deployable DLL.
+Both builds write to the same path, `bin/voicechat/voicechat.dll`, and both produce a file literally named
+`voicechat.dll`. Switching `--target_type` therefore overwrites the previous build, and the two outputs are
+different binaries (server builds define `LL_PLAT_S` and compile `src/server/**`; client builds compile
+`src/client/**` and additionally link the whole LeviLamina archive). Always copy each build out to a
+separate folder immediately after building, e.g. `artifacts/server/voicechat/` and `artifacts/client/voicechat/`,
+and set that copy's `manifest.json` `platform` field to `server` or `client` respectively.
+
+### Verifying which flavor a DLL is
+
+A server build must not reference client events. Loading a client build as a server plugin fails at load
+time with `The specified procedure could not be found` and a dependency diagnostic listing
+`ll::event::client::ClientJoinLevelEvent` / `ll::event::input::KeyInputEvent`. Check before deploying:
+
+```powershell
+dumpbin /DEPENDENTS bin\voicechat\voicechat.dll
+```
+
+### Verifying that the server configuration took effect
+
+`xmake f` writes `.xmake\windows\x64\xmake.conf`. If dependency installation fails, the new option is
+**not** persisted and a later `xmake build` silently rebuilds the previous flavor. Always confirm the
+option was written before trusting a server build:
+
+```powershell
+Select-String -Path .xmake\windows\x64\xmake.conf -Pattern 'target_type'
+```
+
+The server build must also compile `src\server\**` (visible with `xmake build -v voicechat`), not `src\client\**`.
+
+### ATL requirement
+
+Building the LeviLamina **server** SDK variant requires `atls.lib` (the client variant does not). The
+Visual Studio Developer Command Prompt resets `LIB`, so setting `LIB`/`INCLUDE` on the command line has no
+effect. The machine instead has `atls.lib` copied next to the MSVC libraries, where the linker searches by
+default:
+
+```
+<VS>\VC\Tools\MSVC\<ver>\lib\x64\atls.lib   (copied from ...\atlmfc\lib\x64\atls.lib)
+```
+
+Without this, `xmake f --target_type=server` aborts during SDK installation with
+`LINK : fatal error LNK1104: cannot open file 'atls.lib'`.
 
 ## Targets
 

@@ -52,7 +52,9 @@ public:
     std::vector<uint8_t> payload;
 
     void write(::BinaryStream& bs) const override {
-        if (!payload.empty()) bs.write(reinterpret_cast<char const*>(payload.data()), payload.size());
+        // BinaryStream exposes no raw byte append on either platform variant, but
+        // its backing string is writable, which is exactly the payload contract.
+        if (!payload.empty()) bs.mBuffer.append(reinterpret_cast<char const*>(payload.data()), payload.size());
     }
 
     ::Bedrock::Result<void> read(::ReadOnlyBinaryStream& bs) override {
