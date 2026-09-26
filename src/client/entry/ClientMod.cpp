@@ -249,6 +249,7 @@ void ClientMod::startSmokeTest() {
         return;
     }
     smokeTest_ = std::make_unique<SmokeTest>(*runtime_);
+    smokeTestReported_ = false;
     smokeTest_->setLogSink([](bool isError, std::string const& message) {
         auto self = ll::mod::NativeMod::current();
         if (self) {
@@ -273,7 +274,19 @@ void ClientMod::onExit(ll::event::client::ClientExitLevelEvent&) {
 void ClientMod::onTick(ll::event::world::ClientLevelTickEvent&) {
     if (!runtime_) return;
     runtime_->tick();
-    if (smokeTest_) smokeTest_->tick(clock_->nowMs());
+    if (smokeTest_) {
+        smokeTest_->tick(clock_->nowMs());
+        if (smokeTest_->finished() && !smokeTestReported_) {
+            smokeTestReported_ = true;
+            // 设备级事实：真正写入渲染设备的帧数，用于区分“交给了 sink”和“真的出声”。
+            if (audioDevice_) {
+                auto const written = std::to_string(audioDevice_->renderFramesWritten());
+                auto self = ll::mod::NativeMod::current();
+                if (self) self->getLogger().info("[smoke] render device wrote {} frames", written);
+                shared::FileLog::info("[smoke] render device wrote " + written + " frames");
+            }
+        }
+    }
 }
 
 void ClientMod::onKey(ll::event::input::KeyInputEvent& event) {

@@ -26,6 +26,8 @@ public:
     void onMessage(const protocol::PlayerId&, const protocol::Message&);
     void setTalking(bool); void submitAudio(std::vector<uint8_t>); void submitPcm(const float*, std::size_t);
     void setRenderSink(RenderSink sink); void setOutputVolume(float volume); void setOutputMuted(bool muted);
+    // 自检用：把本机合成的 PCM 直接交给渲染 sink（经设备播放），不经过网络与服务端。
+    void playLocalPcm(const float* samples, std::size_t count);
     void setSmokeTestRequestHandler(SmokeTestRequestHandler handler);
     void reportPosition(); State state() const{return state_;}
     const config::ClientConfig& config() const { return config_; }

@@ -68,6 +68,10 @@ public:
     bool captureActive() const noexcept;
     bool renderActive() const noexcept;
 
+    // 已写入渲染设备的总帧数（设备级事实）：与“交给 render sink”区分开，
+    // 用于判断无声问题出在本机播放链路还是上游。
+    uint64_t renderFramesWritten() const noexcept;
+
     // Retained for callers that only need endpoint discovery.
     static WasapiProbeResult probeDefaultDevices();
 

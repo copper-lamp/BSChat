@@ -150,6 +150,9 @@ void ClientRuntime::submitPcm(const float* pcm, std::size_t samples) {
 }
 
 void ClientRuntime::setRenderSink(RenderSink sink) { renderSink_ = std::move(sink); }
+void ClientRuntime::playLocalPcm(const float* samples, std::size_t count) {
+    if (renderSink_ && samples && count > 0) renderSink_(samples, count);
+}
 void ClientRuntime::setOutputVolume(float volume) { outputVolume_ = std::clamp(volume, 0.0F, 1.0F); }
 void ClientRuntime::setOutputMuted(bool muted) { outputMuted_ = muted; }
 void ClientRuntime::setSmokeTestRequestHandler(SmokeTestRequestHandler handler) {

@@ -45,6 +45,7 @@ private:
     std::filesystem::path logPath_;
     std::unique_ptr<ClientRuntime> runtime_;
     std::unique_ptr<SmokeTest> smokeTest_;
+    bool smokeTestReported_ = false;
     std::unique_ptr<audio::WasapiAudioDevice> audioDevice_;
     std::unique_ptr<shared::GamePacketTransport> transport_;
     std::unique_ptr<PlayerState> playerState_;

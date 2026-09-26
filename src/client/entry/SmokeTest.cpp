@@ -12,6 +12,7 @@ namespace {
 constexpr int64_t kReadyWaitMs = 5000;    // 等待握手完成
 constexpr int64_t kUploadDurationMs = 1500; // 持续上行时长
 constexpr int64_t kDownlinkWaitMs = 3000; // 上行结束后的回传等待
+constexpr uint32_t kLocalToneFrames = 10; // 本机播放自检帧数（60ms/帧 → 约 600ms 可听音）
 constexpr double kToneHz = 440.0;         // 语音频段内的测试音
 constexpr float kToneAmplitude = 0.25F;   // 留足余量，避免 AGC/限幅削顶
 
@@ -36,6 +37,7 @@ void SmokeTest::begin() {
     uploadStopMs_ = 0;
     deadlineMs_ = 0;
     uplinkFrames_ = 0;
+    localToneFrames_ = 0;
     tonePhase_ = 0.0;
     reportedHandshake_ = false;
     // 按帧长节拍喂入，与真实采集一致：每 frameSizeMs 产出一帧 frameSizeMs 的音频。
@@ -49,7 +51,7 @@ void SmokeTest::reset() {
     uplinkFrames_ = 0;
 }
 
-void SmokeTest::fillTone(int64_t nowMs) {
+void SmokeTest::generateToneFrame() {
     const int sampleRate = std::max(8000, runtime_.config().audio.sampleRate);
     const int frameSamples = std::max(1, sampleRate * std::max(1, runtime_.config().audio.frameSizeMs) / 1000);
     toneBuffer_.resize(static_cast<std::size_t>(frameSamples));
@@ -60,8 +62,11 @@ void SmokeTest::fillTone(int64_t nowMs) {
         tonePhase_ += step;
         if (tonePhase_ > 2.0 * 3.14159265358979323846) tonePhase_ -= 2.0 * 3.14159265358979323846;
     }
-    (void)nowMs;
+}
 
+void SmokeTest::fillTone(int64_t nowMs) {
+    (void)nowMs;
+    generateToneFrame();
     // 走真实上行路径：AGC -> Opus 编码 -> 协议发送。
     runtime_.submitPcm(toneBuffer_.data(), toneBuffer_.size());
     ++uplinkFrames_;
@@ -117,13 +122,42 @@ void SmokeTest::tick(int64_t nowMs) {
         if (received > 0 && played > 0) {
             report("downlink", true, "(MixStream received=" + std::to_string(received)
                 + ", decoded+played=" + std::to_string(played) + ")");
-            finish(nowMs);
+            startLocalTone(nowMs);
         } else if (nowMs >= deadlineMs_) {
             report("downlink", false, "(MixStream received=" + std::to_string(received)
                 + ", decoded+played=" + std::to_string(played) + ")");
+            startLocalTone(nowMs);
+        }
+        return;
+    }
+
+    if (stage_ == Stage::LocalTone) {
+        while (nowMs >= nextToneMs_ && localToneFrames_ < kLocalToneFrames) {
+            generateToneFrame();
+            runtime_.playLocalPcm(toneBuffer_.data(), toneBuffer_.size());
+            ++localToneFrames_;
+            nextToneMs_ += toneIntervalMs_;
+        }
+        if (localToneFrames_ >= kLocalToneFrames) {
+            report(
+                "localTone",
+                true,
+                "(played " + std::to_string(localToneFrames_) + " frames on the local device; "
+                "the server excludes your own voice, so this is the audible check with one client)"
+            );
             finish(nowMs);
         }
     }
+}
+
+void SmokeTest::startLocalTone(int64_t nowMs) {
+    stage_ = Stage::LocalTone;
+    localToneFrames_ = 0;
+    nextToneMs_ = nowMs;
+    log(
+        "downlink finished; playing a short local tone through the local device "
+        "(the server suppresses a speaker's own audio, so a single client can only verify playback locally)"
+    );
 }
 
 void SmokeTest::finish(int64_t nowMs) {

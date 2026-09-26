@@ -26,6 +26,7 @@ public:
         WaitingForReady,   // 已进服，等待 Welcome 握手完成
         Uploading,         // 正在持续上行合成音调
         AwaitingDownlink,  // 上行结束，等待服务端回传混音
+        LocalTone,         // 本机播放自检（不经过服务端，单客户端唯一能听感验证的一段）
         Done,
     };
 
@@ -49,8 +50,10 @@ private:
     void log(const std::string& text) const;
     void report(const std::string& name, bool ok, const std::string& detail) const;
     void finish(int64_t nowMs);
+    void startLocalTone(int64_t nowMs);
 
     // 生成一帧语音音调 PCM（正弦叠加，幅度在 audible 范围内）。
+    void generateToneFrame();
     void fillTone(int64_t nowMs);
 
     ClientRuntime& runtime_;
@@ -62,6 +65,7 @@ private:
     int64_t uploadStopMs_ = 0;
     int64_t deadlineMs_ = 0;
     uint32_t uplinkFrames_ = 0;
+    uint32_t localToneFrames_ = 0;
     double tonePhase_ = 0.0;
     std::vector<float> toneBuffer_;
     bool reportedHandshake_ = false;

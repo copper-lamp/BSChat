@@ -63,6 +63,7 @@ struct WasapiAudioDevice::Impl {
     // 采集与渲染各自独立：没有麦克风的玩家也必须能听到别人，反之亦然。
     bool captureActive = false;
     bool renderActive = false;
+    uint64_t renderFramesWritten = 0; // 真正写入渲染设备的帧数
     std::string lastError; // 降级/失败的具体步骤与 HRESULT，供外层诊断日志使用
 #ifdef _WIN32
     ComPtr captureClient;
@@ -231,6 +232,8 @@ struct WasapiAudioDevice::Impl {
                             writeSample(out + i * bytesPerSample, requested.wBitsPerSample, isFloat, sample);
                         }
                         rc->ReleaseBuffer(framesPerWrite, 0);
+                        std::lock_guard lock(mutex);
+                        renderFramesWritten += framesPerWrite;
                     }
                 }
             }
@@ -270,6 +273,7 @@ void WasapiAudioDevice::setCaptureCallback(CaptureCallback callback) { std::lock
 std::string WasapiAudioDevice::lastError() const { std::lock_guard lock(impl_->mutex); return impl_->lastError; }
 bool WasapiAudioDevice::captureActive() const noexcept { std::lock_guard lock(impl_->mutex); return impl_->captureActive; }
 bool WasapiAudioDevice::renderActive() const noexcept { std::lock_guard lock(impl_->mutex); return impl_->renderActive; }
+uint64_t WasapiAudioDevice::renderFramesWritten() const noexcept { std::lock_guard lock(impl_->mutex); return impl_->renderFramesWritten; }
 
 WasapiProbeResult WasapiAudioDevice::probeDefaultDevices() {
     WasapiProbeResult result;

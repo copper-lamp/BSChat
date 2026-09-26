@@ -76,6 +76,7 @@ pwsh -File scripts/Invoke-VoiceChatSmokeTest.ps1 `
 1. `WaitingForReady`：等待 `ClientRuntime` 进入 `Ready`（即收到服务端 `Welcome`）。超时 5000 ms 判定 `handshake = FAIL`；进入 `Failed` 状态立即判负。
 2. `Uploading`：调用 `ClientRuntime::setTalking(true)` 打开上行闸门，然后**按配置帧长节拍**（`audio.frameSizeMs`，默认 60 ms）合成一帧 440 Hz、幅度 0.25 的正弦 PCM 交给 `submitPcm`，持续 1500 ms（约 25 帧）。节拍必须等于帧长，保证与真实采集同样的实时速率；早期固定每 20 ms 喂一帧 60 ms 音频等于 3 倍速上行，会触发服务端会话限速（40 帧/秒）而刷 `uplink frame dropped` 告警。该路径与真实按键完全一致，走的是 **AGC → Opus 编码 → 协议上行**，不绕过编解码器。
 3. `AwaitingDownlink`：`setTalking(false)` 关闭上行，等待服务端回传 `MixStream`，超时 3000 ms。
+4. `LocalTone`：本机直接播一段 440 Hz（10 帧 × 60 ms ≈ 600 ms）。服务端混音对每个接收者都排除发送者本人（`ServerMixer` 的 `speaker->id() == receiver->id()` 跳过），所以**单客户端回环下来听到的必然是静音**，`downlink` 只是链路级判定；可听感只能靠这一段本机播放，或者第二个真实客户端。
 
 客户端日志判定行（前缀统一为 `[smoke]`）：
 
@@ -84,7 +85,9 @@ pwsh -File scripts/Invoke-VoiceChatSmokeTest.ps1 `
 | `[smoke] handshake = PASS` | 收到 `Welcome` 并进入 `Ready` |
 | `[smoke] uplink = PASS` | `ClientRuntime::sentAudioFrames() > 0`，即确有编码后的包发出 |
 | `[smoke] downlink = PASS` | `receivedMixFrames() > 0` 且 `playedMixFrames() > 0`，即收到并解码播放了回传 |
-| `[smoke] overall = PASS` | 以上三项全部成立 |
+| `[smoke] localTone = PASS` | 本机播放自检的帧已交给渲染 sink（听感需人工确认） |
+| `[smoke] overall = PASS` | 以上前三项全部成立 |
+| `[smoke] render device wrote N frames` | 由 `ClientMod` 追加：渲染设备实际写入的帧数，区分“交给了 sink”和“真的出声” |
 
 对应的服务端日志判定行（由 `ServerRuntime::setLogSink` 注入的出口写出）：
 
@@ -101,6 +104,7 @@ pwsh -File scripts/Invoke-VoiceChatSmokeTest.ps1 `
 - `ServerRuntime` 与 `SmokeTest` 均零 LeviLamina 依赖，诊断日志经 `LogSink`（`std::function<void(bool, std::string const&)>`）由外层 `ServerMod`/`ClientMod` 注入；未注入时全部诊断静默丢弃，所以宿主单测不受影响。
 - 自检只发合成正弦音，不涉及麦克风采集，因此 WASAPI 采集设备不可用不会让自检失败；但此时 `playedMixFrames_` 仍会计数（渲染 sink 是运行时回调），真实听感仍需人工确认。
 - 自检在 `ClientExitLevelEvent` 时随 `smokeTest_` 销毁；重进世界后需要再次输入 `/voicechat test` 触发。
+- **单客户端听不到自己的声音是设计使然**：服务端按接收者逐个混音并跳过发送者本人（自我抑制，S-FR-10），所以回环的 `MixStream` 对说话者本人是静音，`downlink = PASS` 只证明“回传链路通”，不证明“能听到”。可听感验证有两条路：本机播放自检（`localTone`）验证扬声器链路；真正的双人听感需要第二个真实客户端。
 - 命令在服务端注册并在服务端执行，客户端不注册任何命令；客户端只是接收 `Control(SmokeTest)` 后在自己的主线程启动 `SmokeTest`，因此服务端未安装 voicechat 时命令不存在（`handshake` 也就不会因等待 `Welcome` 超时判负，命令根本不会出现）。
 - 服务端下行原先只认 `PlayerJoinEvent` 填的 `Player*`，而该事件触发晚于客户端首个 `Hello`（实测相差约 30 秒），期间 `Welcome` 会被静默丢弃、客户端每 5 秒重发 `Hello`。现在 `GamePacketTransport` 在收到首个数据包时就登记该 peer 的 `Player*` 作为回发兜底（玩家离线/停用时注销），并在两者都拿不到目标时写明确告警，不再静默丢包。
 - 脚本不会自动修改版本号，也不会创建 tag。
