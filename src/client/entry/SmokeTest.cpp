@@ -10,7 +10,6 @@ namespace {
 
 // 自检时间轴（毫秒，相对于开始时刻）
 constexpr int64_t kReadyWaitMs = 5000;    // 等待握手完成
-constexpr int64_t kToneIntervalMs = 20;   // 音调喂入间隔
 constexpr int64_t kUploadDurationMs = 1500; // 持续上行时长
 constexpr int64_t kDownlinkWaitMs = 3000; // 上行结束后的回传等待
 constexpr double kToneHz = 440.0;         // 语音频段内的测试音
@@ -39,6 +38,9 @@ void SmokeTest::begin() {
     uplinkFrames_ = 0;
     tonePhase_ = 0.0;
     reportedHandshake_ = false;
+    // 按帧长节拍喂入，与真实采集一致：每 frameSizeMs 产出一帧 frameSizeMs 的音频。
+    // 若快于实时（早期固定 20ms 喂 60ms 帧），服务端会话限速会按比例丢弃并刷告警。
+    toneIntervalMs_ = std::max<int64_t>(1, runtime_.config().audio.frameSizeMs);
     log("smoke test requested by the server /voicechat test command; it runs as soon as the handshake completes");
 }
 
@@ -96,7 +98,7 @@ void SmokeTest::tick(int64_t nowMs) {
         if (uploadStopMs_ == 0) uploadStopMs_ = nowMs + kUploadDurationMs;
         while (nowMs >= nextToneMs_ && nextToneMs_ < uploadStopMs_) {
             fillTone(nowMs);
-            nextToneMs_ += kToneIntervalMs;
+            nextToneMs_ += toneIntervalMs_;
         }
         if (nowMs >= uploadStopMs_) {
             runtime_.setTalking(false);

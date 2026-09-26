@@ -74,7 +74,7 @@ pwsh -File scripts/Invoke-VoiceChatSmokeTest.ps1 `
 执行步骤（时间轴相对命令触发的时刻）：
 
 1. `WaitingForReady`：等待 `ClientRuntime` 进入 `Ready`（即收到服务端 `Welcome`）。超时 5000 ms 判定 `handshake = FAIL`；进入 `Failed` 状态立即判负。
-2. `Uploading`：调用 `ClientRuntime::setTalking(true)` 打开上行闸门，然后每 20 ms 合成一帧 440 Hz、幅度 0.25 的正弦 PCM 交给 `submitPcm`，持续 1500 ms。该路径与真实按键完全一致，走的是 **AGC → Opus 编码 → 协议上行**，不绕过编解码器。
+2. `Uploading`：调用 `ClientRuntime::setTalking(true)` 打开上行闸门，然后**按配置帧长节拍**（`audio.frameSizeMs`，默认 60 ms）合成一帧 440 Hz、幅度 0.25 的正弦 PCM 交给 `submitPcm`，持续 1500 ms（约 25 帧）。节拍必须等于帧长，保证与真实采集同样的实时速率；早期固定每 20 ms 喂一帧 60 ms 音频等于 3 倍速上行，会触发服务端会话限速（40 帧/秒）而刷 `uplink frame dropped` 告警。该路径与真实按键完全一致，走的是 **AGC → Opus 编码 → 协议上行**，不绕过编解码器。
 3. `AwaitingDownlink`：`setTalking(false)` 关闭上行，等待服务端回传 `MixStream`，超时 3000 ms。
 
 客户端日志判定行（前缀统一为 `[smoke]`）：

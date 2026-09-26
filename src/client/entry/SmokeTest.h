@@ -58,6 +58,7 @@ private:
     Stage stage_ = Stage::Idle;
     int64_t beginMs_ = 0;
     int64_t nextToneMs_ = 0;
+    int64_t toneIntervalMs_ = 20; // 由 begin() 按配置帧长覆盖，保证实时喂帧节拍
     int64_t uploadStopMs_ = 0;
     int64_t deadlineMs_ = 0;
     uint32_t uplinkFrames_ = 0;
