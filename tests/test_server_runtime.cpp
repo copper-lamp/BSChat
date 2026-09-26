@@ -247,3 +247,92 @@ TEST(server_runtime_audio_reaches_mixer_without_stt) {
     }
     EXPECT_TRUE(hasMix);
 }
+
+TEST(server_runtime_rejects_handshake_version_mismatch) {
+    FakeTransport transport;
+    ServerRuntime runtime(transport, ServerConfig{});
+    auto id = makePlayerId(8);
+
+    HelloMessage hello;
+    hello.playerId = id;
+    hello.protocolVersion = static_cast<uint8_t>(kProtocolVersion + 1);
+    hello.capabilities = CapabilityPtt;
+    transport.inject(id, hello);
+
+    EXPECT_EQ(runtime.sessionCount(), 0u);
+    EXPECT_EQ(transport.sent.size(), 0u);
+}
+
+TEST(server_runtime_rejects_handshake_identity_mismatch) {
+    FakeTransport transport;
+    ServerRuntime runtime(transport, ServerConfig{});
+    auto id = makePlayerId(9);
+
+    HelloMessage hello;
+    hello.playerId = makePlayerId(10); // 与传输层报出的 peer 不一致
+    hello.protocolVersion = kProtocolVersion;
+    transport.inject(id, hello);
+
+    EXPECT_EQ(runtime.sessionCount(), 0u);
+    EXPECT_EQ(transport.sent.size(), 0u);
+}
+
+TEST(server_runtime_ignores_business_messages_before_handshake) {
+    FakeTransport transport;
+    ServerRuntime runtime(transport, ServerConfig{});
+    auto id = makePlayerId(11);
+
+    AudioDataMessage audio;
+    audio.seq = 1;
+    audio.opusData = {1, 2, 3};
+    transport.inject(id, audio);
+
+    PosUpdateMessage pos;
+    pos.playerId = id;
+    pos.x = 1.0f;
+    pos.y = 2.0f;
+    pos.z = 3.0f;
+    transport.inject(id, pos);
+
+    runtime.tickOnce(1000);
+    runtime.drainPending();
+
+    EXPECT_EQ(runtime.sessionCount(), 0u);
+    EXPECT_EQ(transport.sent.size(), 0u);
+}
+
+TEST(server_runtime_negotiates_only_common_capabilities) {
+    FakeTransport transport;
+    ServerRuntime runtime(transport, ServerConfig{}); // STT 默认关闭
+    auto id = makePlayerId(12);
+
+    HelloMessage hello;
+    hello.playerId = id;
+    hello.protocolVersion = kProtocolVersion;
+    hello.capabilities = CapabilityPtt | CapabilitySubtitle;
+    transport.inject(id, hello);
+
+    EXPECT_EQ(transport.sent.size(), 1u);
+    auto* welcome = std::get_if<WelcomeMessage>(&transport.sent[0].second);
+    EXPECT_TRUE(welcome != nullptr);
+    // STT 不可用 → 字幕不在服务端支持集合内，但基础 PTT 仍协商通过，连接保留
+    EXPECT_EQ(welcome->serverCapabilities, static_cast<uint8_t>(CapabilityPtt));
+    EXPECT_FALSE(welcome->sttEnabled);
+}
+
+TEST(server_runtime_never_negotiates_undeclared_capability) {
+    FakeTransport transport;
+    ServerRuntime runtime(transport, ServerConfig{});
+    auto id = makePlayerId(13);
+
+    HelloMessage hello;
+    hello.playerId = id;
+    hello.protocolVersion = kProtocolVersion;
+    hello.capabilities = CapabilityPtt; // 未声明字幕
+    transport.inject(id, hello);
+
+    EXPECT_EQ(transport.sent.size(), 1u);
+    auto* welcome = std::get_if<WelcomeMessage>(&transport.sent[0].second);
+    EXPECT_TRUE(welcome != nullptr);
+    EXPECT_FALSE((welcome->serverCapabilities & CapabilitySubtitle) != 0);
+}

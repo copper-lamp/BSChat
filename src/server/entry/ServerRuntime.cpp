@@ -168,8 +168,11 @@ void ServerRuntime::handleHello(const protocol::PlayerId& peerId, const protocol
     welcome.sampleRate = static_cast<uint16_t>(config_.audio.sampleRate);
     welcome.frameSizeMs = static_cast<uint8_t>(config_.audio.frameSizeMs);
     welcome.sttEnabled = config_.sttEnabled && stt_ && stt_->available();
-    const uint8_t supportedCapabilities = welcome.sttEnabled ? protocol::CapabilitySubtitle : protocol::CapabilityNone;
-    welcome.serverCapabilities = hello.capabilities & supportedCapabilities;
+    // 服务端本会话支持的可选能力：PTT 是基础能力（必支持），字幕跟随 STT 可用性。
+    // 协商只保留客户端声明且服务端支持的共同位，结果同时用于后续下行裁剪。
+    const uint8_t serverSupportedCapabilities = static_cast<uint8_t>(
+        protocol::CapabilityPtt | (welcome.sttEnabled ? protocol::CapabilitySubtitle : protocol::CapabilityNone));
+    welcome.serverCapabilities = protocol::negotiateCapabilities(hello.capabilities, serverSupportedCapabilities);
     {
         std::lock_guard lock(negotiatedCapabilitiesMutex_);
         negotiatedCapabilities_[peerId] = welcome.serverCapabilities;

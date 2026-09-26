@@ -231,3 +231,115 @@ TEST(protocol_ui_form_roundtrip) {
     oversized.payload.assign(kUiFormPayloadMaxBytes + 1, 'x');
     EXPECT_FALSE(MessageCodec::unpack(MessageCodec::pack(oversized, 14, 0)).has_value());
 }
+
+// 信封中 payload 长度字段的偏移：magic(2) + version(1) + type(1) + seq(4) + timestamp(8)
+constexpr std::size_t kEnvelopePayloadLenOffset = 2 + 1 + 1 + 4 + 8;
+
+// v0.1.0 已发布的 v1 wire 布局固定样本。协议编码一旦改动，本用例必须先失败，
+// 以便确认是否破坏与已发布旧客户端/旧服务端的互通（见 docs/bschat-protocol-compatibility-design.md）。
+TEST(protocol_v1_wire_fixture_hello_is_stable) {
+    const std::vector<uint8_t> fixture = {
+        0x53, 0x42,                                     // 魔数 "BS"
+        kProtocolVersion,                               // 信封版本
+        static_cast<uint8_t>(MessageType::Hello),
+        0x00, 0x00, 0x00, 0x00,                         // seq = 0
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // timestamp = 0
+        0x15, 0x00,                                     // payload 长度 = 21
+        0x07, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // playerId[0..7]
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // playerId[8..15]
+        kProtocolVersion,                               // Hello.protocolVersion
+        0x80, 0xBB,                                     // sampleRate = 48000
+        0x3C,                                           // frameSizeMs = 60
+        0x05,                                           // capabilities = Ptt | Subtitle
+    };
+
+    auto unpacked = MessageCodec::unpack(fixture);
+    EXPECT_TRUE(unpacked.has_value());
+    if (!unpacked) return;
+    auto& [info, msg] = *unpacked;
+    EXPECT_EQ(info.type, MessageType::Hello);
+    EXPECT_EQ(info.version, kProtocolVersion);
+    auto& hello = std::get<HelloMessage>(msg);
+    EXPECT_TRUE(hello.playerId == makePlayerId(7));
+    EXPECT_EQ(hello.protocolVersion, kProtocolVersion);
+    EXPECT_EQ(hello.sampleRate, 48000);
+    EXPECT_EQ(hello.frameSizeMs, 60);
+    EXPECT_EQ(hello.capabilities, static_cast<uint8_t>(CapabilityPtt | CapabilitySubtitle));
+
+    // 重新打包必须逐字节复现该样本，保证新端发往旧端的字节不变。
+    HelloMessage rebuilt;
+    rebuilt.playerId = makePlayerId(7);
+    rebuilt.protocolVersion = kProtocolVersion;
+    rebuilt.sampleRate = 48000;
+    rebuilt.frameSizeMs = 60;
+    rebuilt.capabilities = CapabilityPtt | CapabilitySubtitle;
+    EXPECT_TRUE(MessageCodec::pack(rebuilt, 0, 0) == fixture);
+}
+
+TEST(protocol_v1_wire_fixture_welcome_is_stable) {
+    const std::vector<uint8_t> fixture = {
+        0x53, 0x42,
+        kProtocolVersion,
+        static_cast<uint8_t>(MessageType::Welcome),
+        0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x06, 0x00,             // payload 长度 = 6
+        kProtocolVersion,       // Welcome.protocolVersion
+        0x80, 0xBB,             // sampleRate = 48000
+        0x3C,                   // frameSizeMs = 60
+        0x01,                   // sttEnabled = true
+        0x04,                   // serverCapabilities = Subtitle
+    };
+
+    auto unpacked = MessageCodec::unpack(fixture);
+    EXPECT_TRUE(unpacked.has_value());
+    if (!unpacked) return;
+    EXPECT_EQ(unpacked->first.type, MessageType::Welcome);
+    auto& welcome = std::get<WelcomeMessage>(unpacked->second);
+    EXPECT_EQ(welcome.protocolVersion, kProtocolVersion);
+    EXPECT_EQ(welcome.sampleRate, 48000);
+    EXPECT_EQ(welcome.frameSizeMs, 60);
+    EXPECT_TRUE(welcome.sttEnabled);
+    EXPECT_EQ(welcome.serverCapabilities, static_cast<uint8_t>(CapabilitySubtitle));
+
+    WelcomeMessage rebuilt;
+    rebuilt.protocolVersion = kProtocolVersion;
+    rebuilt.sampleRate = 48000;
+    rebuilt.frameSizeMs = 60;
+    rebuilt.sttEnabled = true;
+    rebuilt.serverCapabilities = CapabilitySubtitle;
+    EXPECT_TRUE(MessageCodec::pack(rebuilt, 0, 0) == fixture);
+}
+
+// 前向兼容边界：信封级尾随字节必须拒收；载荷级可选扩展（长度同步扩大）应被忽略并保留既有字段。
+TEST(protocol_v1_tail_extension_and_envelope_trailing_data) {
+    WelcomeMessage welcome;
+    welcome.protocolVersion = kProtocolVersion;
+    welcome.sampleRate = 48000;
+    welcome.frameSizeMs = 60;
+    welcome.sttEnabled = true;
+    welcome.serverCapabilities = CapabilityPtt | CapabilitySubtitle;
+    const auto packed = MessageCodec::pack(welcome, 0, 0);
+
+    // (1) 信封级尾随字节（未计入 payload 长度）→ 拒收，避免错位误读
+    auto envelopeGarbage = packed;
+    envelopeGarbage.push_back(0x7F);
+    EXPECT_FALSE(MessageCodec::unpack(envelopeGarbage).has_value());
+
+    // (2) 载荷级可选扩展：长度一并扩大后，未知尾随字节被忽略，既有字段原样保留
+    auto withTail = packed;
+    const uint16_t payloadLen = static_cast<uint16_t>(withTail[kEnvelopePayloadLenOffset]
+        | (withTail[kEnvelopePayloadLenOffset + 1] << 8));
+    const uint16_t extended = static_cast<uint16_t>(payloadLen + 3);
+    withTail[kEnvelopePayloadLenOffset] = static_cast<uint8_t>(extended & 0xFF);
+    withTail[kEnvelopePayloadLenOffset + 1] = static_cast<uint8_t>((extended >> 8) & 0xFF);
+    withTail.insert(withTail.end(), {0x7F, 0x01, 0x00});
+
+    auto unpacked = MessageCodec::unpack(withTail);
+    EXPECT_TRUE(unpacked.has_value());
+    if (!unpacked) return;
+    auto& out = std::get<WelcomeMessage>(unpacked->second);
+    EXPECT_EQ(out.serverCapabilities, static_cast<uint8_t>(CapabilityPtt | CapabilitySubtitle));
+    EXPECT_TRUE(out.sttEnabled);
+    EXPECT_EQ(out.frameSizeMs, 60);
+}

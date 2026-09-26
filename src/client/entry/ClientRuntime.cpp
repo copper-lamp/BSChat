@@ -127,8 +127,11 @@ void ClientRuntime::onMessage(const protocol::PlayerId& peerId, const protocol::
         return;
     }
     if (const auto* stt = std::get_if<protocol::SttTextMessage>(&message)) {
-        const bool subtitleNegotiated = (negotiatedCapabilities_ & protocol::CapabilitySubtitle) != 0
-            || (negotiatedCapabilities_ == protocol::CapabilityNone && negotiatedSttEnabled_);
+        // 新服务端：严格按协商位；旧服务端（未协商，0）回落 sttEnabled 字段判定。
+        const bool legacyServer = negotiatedCapabilities_ == protocol::kCapabilitiesNotNegotiated;
+        const bool subtitleNegotiated = legacyServer
+            ? negotiatedSttEnabled_
+            : protocol::capabilityEnabled(negotiatedCapabilities_, protocol::CapabilitySubtitle);
         if (config_.subtitleEnabled && (declaredCapabilities_ & protocol::CapabilitySubtitle) != 0
             && subtitleNegotiated && sttTextHandler_) sttTextHandler_(*stt);
         return;

@@ -5,6 +5,42 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.1] - 2026-09-26
+
+Pins the v1 wire protocol as a stable, append-only contract, and makes capability negotiation and
+handshake admission explicit on both ends. Also adds diagnostics that attribute dropped uplink frames.
+
+### Added
+
+- **Protocol compatibility contract** — the v1 envelope and existing payloads are now pinned by
+  byte-for-byte fixtures for `Hello` and `Welcome`. Evolution is append-only: new message types, or
+  optional payload tails that also raise the declared payload length. Envelope-level trailing bytes are
+  rejected.
+- **Capability negotiation** — the client declares capabilities in `Hello`; the server intersects them
+  with what it supports (PTT is the base capability, subtitles follow STT availability) and returns the
+  result in `Welcome.serverCapabilities`. Only negotiated options are enabled, and no new wire field was
+  needed because the byte already existed in 0.1.0.
+- **Handshake admission** — business messages are dropped on both ends before the handshake completes,
+  and a stale or duplicate `Welcome` no longer flips the client state. Unregistered senders are rejected
+  by the server.
+- **Per-receiver downlink filtering** — subtitles are only delivered to sessions that negotiated the
+  subtitle capability.
+
+### Changed
+
+- **Uplink diagnostics** — the server logs a speech summary per push-to-talk burst: duration, received
+  and accepted frames, and drops split into rate-limited, late, duplicate, buffer-full and evicted.
+  Repeating rejection logs are throttled instead of printed per frame.
+- **Jitter buffer reporting** — pushing a frame now reports whether it was accepted, accepted with
+  eviction, late, duplicate or rejected because the buffer was full, instead of a silent boolean, so
+  every dropped frame is attributable.
+
+### Known limitations
+
+- The limitations listed for 0.1.0 still apply.
+- The old/new interoperability combinations are covered by fixtures and unit tests only; they have not
+  been exercised on real game binaries across two mod versions yet.
+
 ## [0.1.0] - 2026-09-26
 
 First development release: the core voice engine, the wire protocol and both adaptation layers (the

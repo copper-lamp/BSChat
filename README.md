@@ -4,7 +4,7 @@
   <p><strong>Join the world and Start talking.</strong></p>
   <p>An open-source in-game real-time voice chat mod for Minecraft Bedrock on LeviLamina — server-side mixing, client-side capture and playback, with optional live speech-to-text subtitles.</p>
   <p>
-    <img src="https://img.shields.io/badge/release-v0.1.0-4c8bf5?style=flat-square" alt="BSChat v0.1.0">
+    <img src="https://img.shields.io/badge/release-v0.1.1-4c8bf5?style=flat-square" alt="BSChat v0.1.1">
     <img src="https://img.shields.io/badge/Minecraft%20Bedrock-Windows%20x64-62b47a?style=flat-square" alt="Windows x64 Minecraft Bedrock">
     <a href="LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0-blue?style=flat-square" alt="AGPL-3.0 License"></a>
   </p>
@@ -26,10 +26,11 @@
 </div>
 
 > [!WARNING]
-> mod is still in early development, and all current builds are test
-> builds. Please back up your important worlds and client/server data; after a Minecraft,
-> LeviLamina, or mod version change, compatibility with previous versions is not
-> guaranteed.
+> BSChat is still in early development, and all current builds are test
+> builds. Please back up your important worlds and client/server data. The voice protocol is pinned to
+> **v1** and only ever extended in a backwards-compatible way, so different mod patch versions can still
+> talk to each other. A Minecraft or LeviLamina version change is not guaranteed to stay compatible —
+> that depends on the game's network layer and mod loading, which are outside this project's control.
 
 Better Speech Chat brings your voice into the game 
 
@@ -71,15 +72,18 @@ Full installation and configuration steps are in the [Getting Started guide](../
 
 ## This Release
 
-`v0.1.0` is the first development release. The core voice engine, the wire protocol, the unit tests and
-both adaptation layers — the server plugin and the client mod — are implemented: server-side
-per-receiver mixing, client capture and playback, push-to-talk, the HUD with status and subtitles, the
-settings and admin panels, and optional speech-to-text. Full history is in the
-[Changelog](CHANGELOG.md).
+`v0.1.1` pins the voice protocol to **v1** as a stable, append-only contract and completes capability
+negotiation on both ends: the client declares what it supports, the server answers with the common
+subset, and only negotiated features are enabled — so newer and older builds keep talking to each other,
+with base voice preserved whenever an optional feature is unavailable. Handshakes are now enforced on
+both ends, and dropped uplink frames are attributed in the server log. The initial feature set
+(server-side mixing, capture and playback, push-to-talk, HUD, panels and speech-to-text) shipped in
+`v0.1.0`. Full history is in the [Changelog](CHANGELOG.md).
 
 > [!IMPORTANT]
-> This is still a test release and may apply breaking config or protocol changes later.
-> Please keep an eye on the changelog after use.
+> This is still a test release and configuration or new features may still change, but the voice
+> protocol is pinned to v1 and only grows in a backwards-compatible way. Please keep an eye on the
+> changelog after use.
 
 ## Compatibility
 
@@ -160,7 +164,8 @@ Yes — press **J** in game to open the voice settings panel and bind another ke
 
 ## Known Limitations
 
-- No stable release yet; breaking changes may occur between versions.
+- No stable release yet; configuration and new features may still change, but the v1 voice protocol
+  only ever grows in a backwards-compatible way.
 - Subtitles show the text only, without the speaker's name.
 - The admin panel exposes the server voice switch only.
 - No proximity/distance attenuation or environmental reverb yet (interfaces reserved for
