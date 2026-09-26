@@ -55,6 +55,9 @@ public:
     bool tryDequeueCapture(WasapiPcmFrame& frame);
     void setCaptureCallback(CaptureCallback callback);
 
+    // start() 失败时给出具体失败步骤与 HRESULT；成功或未启动时为空串。
+    std::string lastError() const;
+
     // Retained for callers that only need endpoint discovery.
     static WasapiProbeResult probeDefaultDevices();
 

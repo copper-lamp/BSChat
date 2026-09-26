@@ -206,9 +206,10 @@ void ClientMod::onJoin(ll::event::client::ClientJoinLevelEvent& event) {
             if (runtime_ && !frame.samples.empty()) runtime_->submitPcm(frame.samples.data(), frame.samples.size());
         });
         if (!audioDevice_->start()) {
+            auto const detail = audioDevice_->lastError();
             auto self = ll::mod::NativeMod::current();
-            if (self) self->getLogger().warn("WASAPI audio unavailable; voice chat will remain silent");
-            shared::FileLog::warn("onJoin: WASAPI audio unavailable; voice chat will remain silent");
+            if (self) self->getLogger().warn("WASAPI audio unavailable; voice chat will remain silent ({})", detail);
+            shared::FileLog::warn("onJoin: WASAPI audio unavailable; voice chat will remain silent (" + detail + ")");
         } else {
             shared::FileLog::info("onJoin: WASAPI capture/render started");
         }

@@ -3,8 +3,10 @@
 #include <algorithm>
 #include <condition_variable>
 #include <chrono>
+#include <cstdio>
 #include <deque>
 #include <mutex>
+#include <string>
 #include <thread>
 #include <utility>
 
@@ -58,6 +60,7 @@ struct WasapiAudioDevice::Impl {
     std::thread worker;
     bool running = false;
     bool stopping = false;
+    std::string lastError; // 启动失败的具体步骤与 HRESULT，供外层诊断日志使用
 #ifdef _WIN32
     ComPtr captureClient;
     ComPtr renderClient;
@@ -67,30 +70,55 @@ struct WasapiAudioDevice::Impl {
     UINT32 renderFrames = 0;
 #endif
 
+    void setError(const char* step, HRESULT hr) {
+        char buffer[192];
+        std::snprintf(buffer, sizeof(buffer), "%s failed, HRESULT=0x%08lX", step, static_cast<unsigned long>(hr));
+        std::lock_guard lock(mutex);
+        lastError = buffer;
+    }
+
     void run() noexcept {
 #ifdef _WIN32
         HRESULT init = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
-        if (FAILED(init) && init != RPC_E_CHANGED_MODE) { finish(); return; }
+        if (FAILED(init) && init != RPC_E_CHANGED_MODE) { setError("CoInitializeEx", init); finish(); return; }
         auto uninit = [&] { if (SUCCEEDED(init)) CoUninitialize(); };
+        // AUTOCONVERTPCM 必须与 SRC_DEFAULT_QUALITY 同时使用，否则 Initialize 会以
+        // E_INVALIDARG 失败（Windows 音频引擎的硬性要求）。
+        constexpr DWORD streamFlags = AUDCLNT_STREAMFLAGS_AUTOCONVERTPCM | AUDCLNT_STREAMFLAGS_SRC_DEFAULT_QUALITY;
         ComPtr enumerator, captureDevice, renderDevice;
+        const char* step = "CoCreateInstance(MMDeviceEnumerator)";
         HRESULT hr = CoCreateInstance(__uuidof(MMDeviceEnumerator), nullptr, CLSCTX_ALL,
                                       __uuidof(IMMDeviceEnumerator), reinterpret_cast<void**>(enumerator.put<IUnknown>()));
         IMMDeviceEnumerator* e = enumerator.get<IMMDeviceEnumerator>();
-        if (SUCCEEDED(hr)) hr = e->GetDefaultAudioEndpoint(eCapture, eCommunications, reinterpret_cast<IMMDevice**>(captureDevice.put<IUnknown>()));
-        if (SUCCEEDED(hr)) hr = e->GetDefaultAudioEndpoint(eRender, eConsole, reinterpret_cast<IMMDevice**>(renderDevice.put<IUnknown>()));
-        if (SUCCEEDED(hr)) hr = captureDevice.get<IMMDevice>()->Activate(__uuidof(IAudioClient), CLSCTX_ALL, nullptr, reinterpret_cast<void**>(captureAudio.put<IAudioClient>()));
-        if (SUCCEEDED(hr)) hr = renderDevice.get<IMMDevice>()->Activate(__uuidof(IAudioClient), CLSCTX_ALL, nullptr, reinterpret_cast<void**>(renderAudio.put<IAudioClient>()));
+        if (SUCCEEDED(hr)) {
+            step = "GetDefaultAudioEndpoint(capture, eCommunications)";
+            hr = e->GetDefaultAudioEndpoint(eCapture, eCommunications, reinterpret_cast<IMMDevice**>(captureDevice.put<IUnknown>()));
+            if (FAILED(hr)) {
+                // 例如设备没有配置“通信”角色的默认麦克风时退回控制台角色。
+                step = "GetDefaultAudioEndpoint(capture, eConsole)";
+                hr = e->GetDefaultAudioEndpoint(eCapture, eConsole, reinterpret_cast<IMMDevice**>(captureDevice.put<IUnknown>()));
+            }
+        }
+        if (SUCCEEDED(hr)) { step = "GetDefaultAudioEndpoint(render, eConsole)"; hr = e->GetDefaultAudioEndpoint(eRender, eConsole, reinterpret_cast<IMMDevice**>(renderDevice.put<IUnknown>())); }
+        if (SUCCEEDED(hr)) { step = "Activate(IAudioClient, capture)"; hr = captureDevice.get<IMMDevice>()->Activate(__uuidof(IAudioClient), CLSCTX_ALL, nullptr, reinterpret_cast<void**>(captureAudio.put<IAudioClient>())); }
+        if (SUCCEEDED(hr)) { step = "Activate(IAudioClient, render)"; hr = renderDevice.get<IMMDevice>()->Activate(__uuidof(IAudioClient), CLSCTX_ALL, nullptr, reinterpret_cast<void**>(renderAudio.put<IAudioClient>())); }
         IAudioClient* cap = captureAudio.get<IAudioClient>();
         IAudioClient* ren = renderAudio.get<IAudioClient>();
-        if (SUCCEEDED(hr)) hr = cap->GetMixFormat(&format);
-        if (SUCCEEDED(hr)) hr = cap->Initialize(AUDCLNT_SHAREMODE_SHARED, AUDCLNT_STREAMFLAGS_AUTOCONVERTPCM, 10000000, 0, format, nullptr);
-        if (SUCCEEDED(hr)) hr = ren->Initialize(AUDCLNT_SHAREMODE_SHARED, AUDCLNT_STREAMFLAGS_AUTOCONVERTPCM, 10000000, 0, format, nullptr);
-        if (SUCCEEDED(hr)) hr = cap->GetService(__uuidof(IAudioCaptureClient), reinterpret_cast<void**>(captureClient.put<IUnknown>()));
-        if (SUCCEEDED(hr)) hr = ren->GetService(__uuidof(IAudioRenderClient), reinterpret_cast<void**>(renderClient.put<IUnknown>()));
-        if (SUCCEEDED(hr)) hr = ren->GetBufferSize(&renderFrames);
-        if (SUCCEEDED(hr)) hr = cap->Start();
-        if (SUCCEEDED(hr)) hr = ren->Start();
-        if (FAILED(hr)) { if (format) { CoTaskMemFree(format); format = nullptr; } finish(); uninit(); return; }
+        if (SUCCEEDED(hr)) { step = "GetMixFormat(capture)"; hr = cap->GetMixFormat(&format); }
+        if (SUCCEEDED(hr)) { step = "Initialize(capture)"; hr = cap->Initialize(AUDCLNT_SHAREMODE_SHARED, streamFlags, 10000000, 0, format, nullptr); }
+        if (SUCCEEDED(hr)) { step = "Initialize(render)"; hr = ren->Initialize(AUDCLNT_SHAREMODE_SHARED, streamFlags, 10000000, 0, format, nullptr); }
+        if (SUCCEEDED(hr)) { step = "GetService(IAudioCaptureClient)"; hr = cap->GetService(__uuidof(IAudioCaptureClient), reinterpret_cast<void**>(captureClient.put<IUnknown>())); }
+        if (SUCCEEDED(hr)) { step = "GetService(IAudioRenderClient)"; hr = ren->GetService(__uuidof(IAudioRenderClient), reinterpret_cast<void**>(renderClient.put<IUnknown>())); }
+        if (SUCCEEDED(hr)) { step = "GetBufferSize(render)"; hr = ren->GetBufferSize(&renderFrames); }
+        if (SUCCEEDED(hr)) { step = "Start(capture)"; hr = cap->Start(); }
+        if (SUCCEEDED(hr)) { step = "Start(render)"; hr = ren->Start(); }
+        if (FAILED(hr)) {
+            setError(step, hr);
+            if (format) { CoTaskMemFree(format); format = nullptr; }
+            finish();
+            uninit();
+            return;
+        }
         { std::lock_guard lock(mutex); running = true; }
         // ComPtr cannot adopt stack pointers, so retain clients through local raw
         // references and release only after the loop; service objects retain them.
@@ -149,6 +177,7 @@ bool WasapiAudioDevice::isRunning() const noexcept { std::lock_guard lock(impl_-
 bool WasapiAudioDevice::enqueueRender(WasapiPcmFrame frame) { std::lock_guard lock(impl_->mutex); if (!impl_->running || impl_->renderQueue.size() >= impl_->config.renderQueueCapacity) return false; impl_->renderQueue.push_back(std::move(frame)); return true; }
 bool WasapiAudioDevice::tryDequeueCapture(WasapiPcmFrame& frame) { std::lock_guard lock(impl_->mutex); if (impl_->captureQueue.empty()) return false; frame = std::move(impl_->captureQueue.front()); impl_->captureQueue.pop_front(); return true; }
 void WasapiAudioDevice::setCaptureCallback(CaptureCallback callback) { std::lock_guard lock(impl_->mutex); impl_->callback = std::move(callback); }
+std::string WasapiAudioDevice::lastError() const { std::lock_guard lock(impl_->mutex); return impl_->lastError; }
 
 WasapiProbeResult WasapiAudioDevice::probeDefaultDevices() {
     WasapiProbeResult result;
