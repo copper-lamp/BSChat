@@ -9,6 +9,7 @@
 
 #include "client/entry/ClientEventIds.h"
 #include "ll/api/event/EventBus.h"
+#include "ll/api/i18n/I18n.h"
 #include "ll/api/mod/NativeMod.h"
 #include "ll/api/mod/RegisterHelper.h"
 #include "mc/world/actor/player/Player.h"
@@ -63,6 +64,12 @@ bool writeText(const std::filesystem::path& path, const std::string& text) {
 bool ClientMod::load() {
     auto self = ll::mod::NativeMod::current();
     if (!self) return false;
+
+    // 面向玩家的文案（HUD 状态、面板标题与选项）统一走 ll::i18n；
+    // 语言文件缺失时各调用点回落到键名，不会阻塞加载。
+    if (auto loaded = ll::i18n::getInstance().load(self->getLangDir()); !loaded) {
+        shared::FileLog::warn("load: client language files unavailable, falling back to i18n keys");
+    }
 
     // 纯文本日志与宿主日志并行输出，方便在没有控制台的场景下取证。
     logPath_ = self->getConfigDir() / "voicechat-client.log";

@@ -87,6 +87,19 @@ target("voicechat")
             add_links("LeviLamina", {wholearchive = true})
         end
     end
+    -- modpacker 只搬运 dll/pdb/manifest.json，语言文件需要自己拷贝，
+    -- 否则 ll::i18n 在运行时拿不到译文（HUD 与面板文案会回落到键名）。
+    after_build(function (target)
+        local source = path.join(os.projectdir(), "lang")
+        if not os.isdir(source) then
+            return
+        end
+        local destination = path.join(os.projectdir(), "bin", target:name(), "lang")
+        os.mkdir(destination)
+        for _, file in ipairs(os.files(path.join(source, "*.json"))) do
+            os.cp(file, path.join(destination, path.filename(file)))
+        end
+    end)
 
 -- 单元测试：host 运行，链接 core 静态库与第三方依赖，不进入默认构建。
 -- 额外编译 server/session、server/mixer、server/stt（零 LeviLamina 依赖的纯逻辑层），

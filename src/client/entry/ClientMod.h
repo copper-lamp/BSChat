@@ -6,7 +6,7 @@
 #include "client/entry/ClientRuntime.h"
 #include "client/audio/WasapiAudio.h"
 #include "client/entry/SmokeTest.h"
-#include "client/spike/UiChannelProbe.h"
+#include "client/hud/HudLayer.h"
 #include "shared/transport/GamePacketTransport.h"
 #include "ll/api/event/Listener.h"
 #include "ll/api/event/client/ClientExitLevelEvent.h"
@@ -35,8 +35,13 @@ public:
     bool disable();
     bool unload();
 
+    // 配置热生效入口：面板提交后由本方法统一分发到输入/音频/HUD。
+    void applyClientConfig(config::ClientConfig const& config);
+    config::ClientConfig const& clientConfig() const { return config_; }
+
 private:
     void startSmokeTest();
+    void updateHudStatus();
     void onJoin(class ll::event::client::ClientJoinLevelEvent& event);
     void onExit(class ll::event::client::ClientExitLevelEvent& event);
     void onTick(class ll::event::world::ClientLevelTickEvent& event);
@@ -51,7 +56,9 @@ private:
     std::unique_ptr<PlayerState> playerState_;
     std::unique_ptr<IClock> clock_;
     config::ClientConfig config_;
-    UiChannelProbe uiChannelProbe_;
+    hud::HudLayer hudLayer_;
+    uint64_t lastMixFrames_ = 0;
+    int64_t lastMixFrameMs_ = 0;
     std::shared_ptr<ll::event::Listener<ll::event::client::ClientJoinLevelEvent>> joinListener_;
     std::shared_ptr<ll::event::Listener<ll::event::client::ClientExitLevelEvent>> exitListener_;
     std::shared_ptr<ll::event::Listener<ll::event::world::ClientLevelTickEvent>> tickListener_;
