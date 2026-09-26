@@ -5,7 +5,7 @@
 #include <string_view>
 #include <vector>
 
-namespace vc::ui {
+namespace bsc::ui {
 
 // 面板定义：把「面板长什么样」从 C++ 里拿出来，交给内置 JSON 描述。
 // 双端共用：客户端用它构建设置面板，服务端用它构建管理员面板。
@@ -60,4 +60,4 @@ struct PanelDefinition {
 // 当前支持的 schema 版本；不匹配的定义整体拒绝，避免按错误语义解析。
 inline constexpr int kPanelSchemaVersion = 1;
 
-} // namespace vc::ui
+} // namespace bsc::ui

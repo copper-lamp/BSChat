@@ -13,9 +13,9 @@
 #include "core/protocol/Message.h"
 #include "shared/ui/PanelRegistry.h"
 
-namespace vc::client::ui {
+namespace bsc::client::ui {
 
-using ::vc::ui::PanelRegistry;
+using ::bsc::ui::PanelRegistry;
 
 // 客户端面板中继：U→S 发送表单请求，S→U 收到结果后写回 ClientConfig。
 // 表单只能由服务端下发（Bedrock 表单是网络包），因此客户端把自建的表单 JSON 交给服务端投递。
@@ -83,4 +83,4 @@ private:
     std::vector<protocol::UiFormMessage> incoming_;
 };
 
-} // namespace vc::client::ui
+} // namespace bsc::client::ui

@@ -15,9 +15,9 @@
 
 class Player;
 
-namespace vc::server::ui {
+namespace bsc::server::ui {
 
-using ::vc::ui::PanelRegistry;
+using ::bsc::ui::PanelRegistry;
 
 // 服务端面板中继：把客户端自建的表单 JSON 用原生表单投递给该玩家本人，再把结果原样送回。
 // 服务端不解析 payload（零知识中继），只做长度与频率限制、会话校验。
@@ -79,4 +79,4 @@ private:
     std::map<protocol::PlayerId, int64_t> lastRequestMs_; // 仅主线程访问
 };
 
-} // namespace vc::server::ui
+} // namespace bsc::server::ui

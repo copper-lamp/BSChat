@@ -5,7 +5,7 @@
 
 #include "server/admin/AdminPolicy.h"
 
-namespace vc::server::admin {
+namespace bsc::server::admin {
 
 // JSON persistence adapter. It never exposes the policy's internal locks.
 class AdminStore {
@@ -20,4 +20,4 @@ private:
     std::filesystem::path path_;
 };
 
-} // namespace vc::server::admin
+} // namespace bsc::server::admin

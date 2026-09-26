@@ -9,7 +9,7 @@
 
 #include "client/hud/StatusOverlay.h"
 
-namespace vc::client::hud {
+namespace bsc::client::hud {
 
 // 状态图标贴图缓存：把 AudioStatus 映射到本模组自带的 PNG 图标。
 //
@@ -53,4 +53,4 @@ private:
     int64_t                                   lastAttemptMs_ = 0;
 };
 
-} // namespace vc::client::hud
+} // namespace bsc::client::hud

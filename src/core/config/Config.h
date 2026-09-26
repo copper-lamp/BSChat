@@ -6,7 +6,7 @@
 
 #include "core/audio/AudioTypes.h"
 
-namespace vc::config {
+namespace bsc::config {
 
 // 音频参数（客户端采集/编码、服务端解码/混音共用同一基线；服务端为权威）
 struct AudioConfig {
@@ -71,4 +71,4 @@ std::string serverConfigToJson(const ServerConfig& config);
 ClientConfig clientConfigFromJson(const std::string& json);
 std::string clientConfigToJson(const ClientConfig& config);
 
-} // namespace vc::config
+} // namespace bsc::config

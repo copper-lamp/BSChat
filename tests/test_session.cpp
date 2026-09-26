@@ -10,10 +10,10 @@
 #include "server/session/PlayerSession.h"
 #include "server/session/SessionManager.h"
 
-using namespace vc::server;
-using namespace vc::codec;
-using namespace vc::protocol;
-using namespace vc::audio;
+using namespace bsc::server;
+using namespace bsc::codec;
+using namespace bsc::protocol;
+using namespace bsc::audio;
 
 namespace {
 

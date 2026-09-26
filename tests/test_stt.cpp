@@ -9,10 +9,10 @@
 #include "core/protocol/Message.h"
 #include "server/stt/SherpaStt.h"
 
-using namespace vc::server;
-using namespace vc::protocol;
-using namespace vc::pipeline;
-using namespace vc::audio;
+using namespace bsc::server;
+using namespace bsc::protocol;
+using namespace bsc::pipeline;
+using namespace bsc::audio;
 
 namespace {
 

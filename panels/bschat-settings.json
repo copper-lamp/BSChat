@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "id": "bschat.settings.client",
+  "title": "bschat.panel.settings.title",
+  "submitButton": "bschat.panel.settings.submit",
+  "elements": [
+    { "type": "header", "text": "bschat.panel.settings.audio" },
+    { "type": "toggle", "key": "voiceEnabled", "text": "bschat.opt.voiceEnabled", "default": true },
+    { "type": "dropdown", "key": "talkMode", "text": "bschat.opt.talkMode",
+      "options": [
+        { "value": "disabled", "text": "bschat.opt.talkMode.disabled" },
+        { "value": "pushToTalk", "text": "bschat.opt.talkMode.ptt" },
+        { "value": "voiceActivity", "text": "bschat.opt.talkMode.vad" }
+      ] },
+    { "type": "toggle", "key": "captureEnabled", "text": "bschat.opt.captureEnabled", "default": true },
+    { "type": "slider", "key": "playbackVolume", "text": "bschat.opt.volume", "min": 0, "max": 100, "step": 5, "default": 80 },
+    { "type": "divider" },
+    { "type": "header", "text": "bschat.panel.settings.keys" },
+    { "type": "input", "key": "pttKeyName", "text": "bschat.opt.pttKey", "placeholder": "V" },
+    { "type": "input", "key": "settingsKeyName", "text": "bschat.opt.settingsKey", "placeholder": "J" },
+    { "type": "divider" },
+    { "type": "header", "text": "bschat.panel.settings.subtitle" },
+    { "type": "toggle", "key": "subtitleEnabled", "text": "bschat.opt.subtitleEnabled", "default": true },
+    { "type": "slider", "key": "maxSubtitleLines", "text": "bschat.opt.subtitleLines", "min": 1, "max": 8, "step": 1, "default": 4 },
+    { "type": "toggle", "key": "hudEnabled", "text": "bschat.opt.hudEnabled", "default": true },
+    { "type": "label", "text": "bschat.panel.settings.hint" }
+  ]
+}

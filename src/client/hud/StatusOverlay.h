@@ -2,7 +2,7 @@
 
 #include <string_view>
 
-namespace vc::client::hud {
+namespace bsc::client::hud {
 
 // 状态覆盖层要表达的状态。图标与文案分别由绘制层与 i18n 键决定。
 enum class AudioStatus {
@@ -33,4 +33,4 @@ private:
     StatusInputs inputs_{};
 };
 
-} // namespace vc::client::hud
+} // namespace bsc::client::hud

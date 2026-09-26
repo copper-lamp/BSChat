@@ -9,7 +9,7 @@
 // 单测共用的最小 RIFF/WAVE 构造器（PCM16 或 IEEE float32）。
 // 仅测试使用：让 WAV 解析/回放测试不必依赖外部音频资源。
 
-namespace vc::test {
+namespace bsc::test {
 
 inline void appendU16(std::vector<uint8_t>& out, uint16_t v) {
     out.push_back(static_cast<uint8_t>(v & 0xFF));
@@ -76,4 +76,4 @@ inline std::filesystem::path writeTempWav(const std::vector<uint8_t>& bytes, con
     return path;
 }
 
-} // namespace vc::test
+} // namespace bsc::test

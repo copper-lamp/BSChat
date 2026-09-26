@@ -18,7 +18,7 @@
 
 class Player;
 
-namespace vc::server {
+namespace bsc::server {
 
 class ServerMod final {
 public:
@@ -32,7 +32,7 @@ private:
     bool registerCommand();
     // 把当前 config_ 落盘（沿用 loadConfig 的写文件方式）。
     bool persistConfig();
-    // 解析 /voicechat play 的文件参数：优先绝对路径，其次 <配置目录>/audio/<name>。
+    // 解析 /bsc play 的文件参数：优先绝对路径，其次 <配置目录>/audio/<name>。
     std::filesystem::path resolveAudioFile(const std::string& name) const;
     void onJoin(ll::event::player::PlayerJoinEvent& event);
     void onDisconnect(ll::event::player::PlayerDisconnectEvent& event);
@@ -53,4 +53,4 @@ private:
     std::shared_ptr<ll::event::Listener<ll::event::world::ServerLevelTickEvent>> tickListener_;
 };
 
-} // namespace vc::server
+} // namespace bsc::server

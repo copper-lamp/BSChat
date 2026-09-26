@@ -2,7 +2,7 @@
 
 #include "core/config/Config.h"
 
-using namespace vc::config;
+using namespace bsc::config;
 
 TEST(server_config_round_trips_advanced_limits) {
     ServerConfig input;

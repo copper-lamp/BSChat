@@ -8,7 +8,7 @@
 #include "core/protocol/Message.h"
 #include "server/session/PlayerSession.h"
 
-namespace vc::server {
+namespace bsc::server {
 
 // protocol::PlayerId（std::array<uint8_t,16>）无标准 hash，自备 FNV-1a 风格哈希
 struct PlayerIdHash {
@@ -56,4 +56,4 @@ private:
     std::unordered_map<protocol::PlayerId, SessionPtr, PlayerIdHash> sessions_;
 };
 
-} // namespace vc::server
+} // namespace bsc::server

@@ -5,7 +5,7 @@
 
 #include <opus/opus.h>
 
-namespace vc::codec {
+namespace bsc::codec {
 
 struct OpusEncoder::Impl {
     ::OpusEncoder* enc = nullptr; // opus.h 的 C 类型（全局命名空间）
@@ -93,4 +93,4 @@ void OpusDecoder::reset() {
     if (impl_ && impl_->dec) opus_decoder_ctl(impl_->dec, OPUS_RESET_STATE);
 }
 
-} // namespace vc::codec
+} // namespace bsc::codec

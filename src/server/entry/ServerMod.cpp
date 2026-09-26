@@ -41,9 +41,9 @@ constexpr EventIdView getEventId<world::ServerLevelTickEvent> =
     EventIdView{"ll::event::world::ServerLevelTickEvent"};
 } // namespace ll::event
 
-namespace vc::server {
+namespace bsc::server {
 
-// /voicechat play <file> 的命令参数结构（成员名即参数名）。
+// /bsc play <file> 的命令参数结构（成员名即参数名）。
 // 注意：必须定义在匿名命名空间之外——boost::pfr 反射依赖类型具有外部链接。
 struct PlayAudioParams {
     std::string file;
@@ -79,8 +79,8 @@ bool ServerMod::load() {
     if (!self) return false;
 
     // 纯文本日志与宿主日志并行输出，方便在没有控制台的场景下取证。
-    logPath_ = self->getConfigDir() / "voicechat-server.log";
-    shared::FileLog::reset(logPath_.string(), "voicechat server log started");
+    logPath_ = self->getConfigDir() / "bschat-server.log";
+    shared::FileLog::reset(logPath_.string(), "bschat server log started");
     shared::FileLog::info("load: server mod loading, config dir = " + self->getConfigDir().string());
 
     // 管理员面板文案走 ll::i18n；语言文件缺失时各调用点回落到键名，不会阻塞加载。
@@ -88,7 +88,7 @@ bool ServerMod::load() {
         shared::FileLog::warn("load: server language files unavailable, falling back to i18n keys");
     }
 
-    configPath_ = self->getConfigDir() / "voicechat.json";
+    configPath_ = self->getConfigDir() / "bschat.json";
     if (!loadConfig()) {
         shared::FileLog::error("load: config load failed at " + configPath_.string());
         return false;
@@ -130,7 +130,7 @@ bool ServerMod::load() {
 bool ServerMod::enable() {
     auto self = ll::mod::NativeMod::current();
     if (!runtime_ || !transport_) {
-        if (self) self->getLogger().error("voicechat server enable aborted: runtime or transport is not loaded");
+        if (self) self->getLogger().error("bschat server enable aborted: runtime or transport is not loaded");
         shared::FileLog::error("enable: runtime or transport is not loaded");
         return false;
     }
@@ -160,7 +160,7 @@ bool ServerMod::enable() {
     if (!joinListener_ || !disconnectListener_ || !tickListener_) {
         if (self) {
             self->getLogger().error(
-                "voicechat server listener registration failed: join={} disconnect={} tick={} eventIds=[{}|{}|{}]",
+                "bschat server listener registration failed: join={} disconnect={} tick={} eventIds=[{}|{}|{}]",
                 static_cast<bool>(joinListener_),
                 static_cast<bool>(disconnectListener_),
                 static_cast<bool>(tickListener_),
@@ -175,7 +175,7 @@ bool ServerMod::enable() {
     }
 
     if (!registerCommand()) {
-        if (self) self->getLogger().error("failed to register voicechat smoke test command");
+        if (self) self->getLogger().error("failed to register bschat smoke test command");
         shared::FileLog::error("enable: command registration failed");
         disable();
         return false;
@@ -204,7 +204,7 @@ bool ServerMod::enable() {
         }
     );
 
-    if (self) self->getLogger().info("voicechat server listeners enabled");
+    if (self) self->getLogger().info("bschat server listeners enabled");
     shared::FileLog::info("enable: server listeners enabled");
     return true;
 }
@@ -218,8 +218,8 @@ bool ServerMod::registerCommand() {
     // 发起者自己的客户端开始端到端自检，结果仍只落在客户端日志里。
     auto& registrar = ll::command::CommandRegistrar::getServerInstance();
     auto& handle    = registrar.getOrCreateCommand(
-        "voicechat",
-        "Betterlanguagechat voice chat diagnostics",
+        "bsc",
+        "BSChat voice chat diagnostics",
         CommandPermissionLevel::Any,
         CommandFlagValue::NotCheat,
         self
@@ -227,17 +227,17 @@ bool ServerMod::registerCommand() {
     handle.overload<>().text("test").execute([this](CommandOrigin const& origin, CommandOutput& output) {
         auto* entity = origin.getEntity();
         if (!entity || !entity->isPlayer()) {
-            output.error("voicechat: /voicechat test must be run by a player in game");
+            output.error("bsc: /bsc test must be run by a player in game");
             return;
         }
         auto& player = static_cast<Player&>(*entity);
         protocol::ControlMessage control;
         control.type = protocol::ControlType::SmokeTest;
         transport_->send(playerId(player), control);
-        output.success("voicechat: smoke test requested on your client, see the client log for results");
+        output.success("bsc: smoke test requested on your client, see the client log for results");
         shared::FileLog::info("command: smoke test requested by player");
     });
-    // /voicechat play <file>：把一段 WAV 当独立声源混入下行，用真实音频验证听感。
+    // /bsc play <file>：把一段 WAV 当独立声源混入下行，用真实音频验证听感。
     // 文件优先按给定路径查找，否则取 <配置目录>/audio/<file>。
     handle.overload<PlayAudioParams>()
         .text("play")
@@ -245,54 +245,54 @@ bool ServerMod::registerCommand() {
         .execute([this](CommandOrigin const& origin, CommandOutput& output, PlayAudioParams const& params) {
             auto* entity = origin.getEntity();
             if (!entity || !entity->isPlayer()) {
-                output.error("voicechat: /voicechat play must be run by a player in game");
+                output.error("bsc: /bsc play must be run by a player in game");
                 return;
             }
             auto const path = resolveAudioFile(params.file);
             if (path.empty()) {
                 output.error(
-                    "voicechat: audio file not found; put a 48kHz wav under <voicechat config>/audio/ "
+                    "bsc: audio file not found; put a 48kHz wav under <bschat config>/audio/ "
                     "or pass an absolute path"
                 );
                 return;
             }
             std::string error;
             if (!runtime_->playAudioFile(path.string(), error)) {
-                output.error("voicechat: playback failed - " + error);
+                output.error("bsc: playback failed - " + error);
                 shared::FileLog::error("command: audio playback failed: " + error);
                 return;
             }
-            output.success("voicechat: playing " + path.filename().string() + " through the voice chat downlink");
+            output.success("bsc: playing " + path.filename().string() + " through the voice chat downlink");
             shared::FileLog::info("command: audio file playback started: " + path.string());
         });
 
     handle.overload<>().text("stop").execute([this](CommandOrigin const&, CommandOutput& output) {
         if (!runtime_->audioFilePlaying()) {
-            output.success("voicechat: no audio file playback is running");
+            output.success("bsc: no audio file playback is running");
             return;
         }
         auto const name = runtime_->audioFileName();
         runtime_->stopAudioFilePlayback();
-        output.success("voicechat: stopped playing " + name);
+        output.success("bsc: stopped playing " + name);
         shared::FileLog::info("command: audio file playback stopped: " + name);
     });
 
-    // /voicechat admin：仅管理员（OP）可执行；服务端本地构建管理面板并下发给本人。
+    // /bsc admin：仅管理员（OP）可执行；服务端本地构建管理面板并下发给本人。
     // 面板只暴露已存在的服务端配置项（服务器语音开关），提交后写回并落盘。
     handle.overload<>().text("admin").execute([this](CommandOrigin const& origin, CommandOutput& output) {
         auto* entity = origin.getEntity();
         if (!entity || !entity->isPlayer()) {
-            output.error("voicechat: /voicechat admin must be run by a player in game");
+            output.error("bsc: /bsc admin must be run by a player in game");
             return;
         }
         auto& player = static_cast<Player&>(*entity);
         if (!player.isOperator()) {
-            output.error("voicechat: /voicechat admin requires operator permission");
+            output.error("bsc: /bsc admin requires operator permission");
             shared::FileLog::warn("command: admin panel denied (not an operator)");
             return;
         }
         if (!panelRelay_) {
-            output.error("voicechat: admin panel is not available");
+            output.error("bsc: admin panel is not available");
             return;
         }
         bool const opened = panelRelay_->openAdminPanel(player, config_, [this] {
@@ -300,15 +300,15 @@ bool ServerMod::registerCommand() {
             if (!persistConfig()) shared::FileLog::warn("command: failed to persist the server config");
         });
         if (!opened) {
-            output.error("voicechat: admin panel is unavailable (panel definition missing)");
+            output.error("bsc: admin panel is unavailable (panel definition missing)");
             return;
         }
-        output.success("voicechat: admin panel sent");
+        output.success("bsc: admin panel sent");
         shared::FileLog::info("command: admin panel sent to an operator");
     });
 
     smokeCommand_ = &handle;
-    shared::FileLog::info("enable: registered server command /voicechat test");
+    shared::FileLog::info("enable: registered server command /bsc test");
     return true;
 }
 
@@ -400,13 +400,13 @@ protocol::PlayerId ServerMod::playerId(const Player& player) const {
     return shared::playerIdFromUuid(player.getUuid());
 }
 
-} // namespace vc::server
+} // namespace bsc::server
 
 namespace {
-vc::server::ServerMod& serverMod() {
-    static vc::server::ServerMod instance;
+bsc::server::ServerMod& serverMod() {
+    static bsc::server::ServerMod instance;
     return instance;
 }
 }
 
-LL_REGISTER_MOD(vc::server::ServerMod, serverMod());
+LL_REGISTER_MOD(bsc::server::ServerMod, serverMod());

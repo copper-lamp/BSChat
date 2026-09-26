@@ -7,7 +7,7 @@
 // 线程安全约定：每个编码器/解码器实例只能被一个线程使用；
 // 服务端每发送者一个解码器、混音输出一个编码器，客户端采集/播放各一个，天然满足。
 
-namespace vc::codec {
+namespace bsc::codec {
 
 class OpusEncoder {
 public:
@@ -53,4 +53,4 @@ private:
     Impl* impl_ = nullptr;
 };
 
-} // namespace vc::codec
+} // namespace bsc::codec

@@ -2,7 +2,7 @@
 
 #include "core/protocol/Message.h"
 
-namespace vc::audio {
+namespace bsc::audio {
 
 // 空间选路模式
 enum class MixMode { Global, Proximity };
@@ -46,4 +46,4 @@ private:
     SpatialPolicyConfig cfg_;
 };
 
-} // namespace vc::audio
+} // namespace bsc::audio

@@ -16,7 +16,7 @@
 #include "client/hud/StatusOverlay.h"
 #include "client/hud/SubtitleOverlay.h"
 
-namespace vc::client::hud {
+namespace bsc::client::hud {
 
 // HUD 装配层：订阅客户端 UI 渲染事件，把字幕与状态两个数据模型交给 HudRenderer 绘制。
 // 数据来源由外层（ClientMod / ClientRuntime）推入，本层不主动拉取网络或音频状态。
@@ -59,4 +59,4 @@ private:
     bool iconReadyLogged_ = false;
 };
 
-} // namespace vc::client::hud
+} // namespace bsc::client::hud

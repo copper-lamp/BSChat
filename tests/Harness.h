@@ -6,9 +6,9 @@
 
 // 极简单测框架：零第三方依赖，纯 host 运行。
 // 用法：TEST(用例名) { EXPECT_TRUE(...); EXPECT_EQ(a, b); }
-// main 中调用 vc::test::runAll()，返回非 0 表示存在失败。
+// main 中调用 bsc::test::runAll()，返回非 0 表示存在失败。
 
-namespace vc::test {
+namespace bsc::test {
 
 struct TestCase {
     const char* name;
@@ -46,21 +46,21 @@ inline int runAll() {
     return failureCount == 0 ? 0 : 1;
 }
 
-} // namespace vc::test
+} // namespace bsc::test
 
 #define TEST(name) \
     static void name(); \
-    static ::vc::test::Registrar name##_reg_##__LINE__(#name, &name); \
+    static ::bsc::test::Registrar name##_reg_##__LINE__(#name, &name); \
     static void name()
 
 #define EXPECT_TRUE(cond) \
     do { \
-        if (!(cond)) ::vc::test::reportFailure(__FILE__, __LINE__, #cond); \
+        if (!(cond)) ::bsc::test::reportFailure(__FILE__, __LINE__, #cond); \
     } while (0)
 
 #define EXPECT_FALSE(cond) \
     do { \
-        if ((cond)) ::vc::test::reportFailure(__FILE__, __LINE__, #cond); \
+        if ((cond)) ::bsc::test::reportFailure(__FILE__, __LINE__, #cond); \
     } while (0)
 
 #define EXPECT_EQ(a, b) \
@@ -68,7 +68,7 @@ inline int runAll() {
         auto va = (a); \
         auto vb = (b); \
         if (!(va == vb)) \
-            ::vc::test::reportFailure(__FILE__, __LINE__, std::string(#a " == " #b)); \
+            ::bsc::test::reportFailure(__FILE__, __LINE__, std::string(#a " == " #b)); \
     } while (0)
 
 #define EXPECT_NEAR(a, b, eps) \
@@ -76,5 +76,5 @@ inline int runAll() {
         double va = (a); \
         double vb = (b); \
         if (va < vb - (eps) || va > vb + (eps)) \
-            ::vc::test::reportFailure(__FILE__, __LINE__, std::string(#a " ~= " #b)); \
+            ::bsc::test::reportFailure(__FILE__, __LINE__, std::string(#a " ~= " #b)); \
     } while (0)

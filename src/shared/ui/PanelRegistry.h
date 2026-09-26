@@ -7,7 +7,7 @@
 
 #include "shared/ui/PanelDefinition.h"
 
-namespace vc::ui {
+namespace bsc::ui {
 
 // 内置面板定义的加载与检索。面板以只读 JSON 文件随模组发布，用 PanelDefinition::id 作为检索键。
 // 零 LeviLamina 依赖，可 host 单测。
@@ -34,4 +34,4 @@ private:
     std::vector<PanelDefinition> panels_;
 };
 
-} // namespace vc::ui
+} // namespace bsc::ui

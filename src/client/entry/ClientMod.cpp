@@ -17,7 +17,7 @@
 #include "shared/util/FileLog.h"
 #include "shared/util/PlayerIdUtils.h"
 
-namespace vc::client {
+namespace bsc::client {
 
 void PlayerState::set(Player* player) { player_ = player; }
 protocol::PlayerId PlayerState::playerId() const {
@@ -72,11 +72,11 @@ bool ClientMod::load() {
     }
 
     // 纯文本日志与宿主日志并行输出，方便在没有控制台的场景下取证。
-    logPath_ = self->getConfigDir() / "voicechat-client.log";
-    shared::FileLog::reset(logPath_.string(), "voicechat client log started");
+    logPath_ = self->getConfigDir() / "bschat-client.log";
+    shared::FileLog::reset(logPath_.string(), "bschat client log started");
     shared::FileLog::info("load: client mod loading, config dir = " + self->getConfigDir().string());
 
-    auto path = self->getConfigDir() / "voicechat.json";
+    auto path = self->getConfigDir() / "bschat.json";
     auto text = readText(path);
     config::ClientConfig config{};
     if (!text.empty()) config = config::clientConfigFromJson(text);
@@ -103,7 +103,7 @@ bool ClientMod::load() {
 bool ClientMod::enable() {
     auto self = ll::mod::NativeMod::current();
     if (!transport_ || !playerState_ || !clock_) {
-        if (self) self->getLogger().error("voicechat client enable prerequisites are not ready");
+        if (self) self->getLogger().error("bschat client enable prerequisites are not ready");
         shared::FileLog::error("enable: prerequisites are not ready (transport/playerState/clock)");
         return false;
     }
@@ -122,7 +122,7 @@ bool ClientMod::enable() {
     if (!keyListener_) self->getLogger().error("failed to register KeyInputEvent listener");
     if (!joinListener_ || !exitListener_ || !tickListener_ || !keyListener_) {
         self->getLogger().error(
-            "voicechat client listener registration failed: join={} exit={} tick={} key={} eventIds=[{}|{}|{}|{}]",
+            "bschat client listener registration failed: join={} exit={} tick={} key={} eventIds=[{}|{}|{}|{}]",
             static_cast<bool>(joinListener_),
             static_cast<bool>(exitListener_),
             static_cast<bool>(tickListener_),
@@ -136,7 +136,7 @@ bool ClientMod::enable() {
         disable();
         return false;
     }
-    if (self) self->getLogger().info("voicechat client listeners enabled");
+    if (self) self->getLogger().info("bschat client listeners enabled");
     shared::FileLog::info("enable: client listeners enabled");
     hudLayer_.applyConfig(config_);
     // 状态图标 PNG 随模组发布在模组目录的 icons/（由构建脚本拷入），运行期解码后直接上传进纹理组。
@@ -200,7 +200,7 @@ void ClientMod::onJoin(ll::event::client::ClientJoinLevelEvent& event) {
     playerState_->set(&event.player());
     runtime_.reset();
     runtime_ = std::make_unique<ClientRuntime>(*transport_, *playerState_, *clock_, config_);
-    // 自检由服务端 /voicechat test 命令经 Control(SmokeTest) 请求，回调在主线程 tick 中触发。
+    // 自检由服务端 /bsc test 命令经 Control(SmokeTest) 请求，回调在主线程 tick 中触发。
     runtime_->setSmokeTestRequestHandler([this] { startSmokeTest(); });
     // 字幕由服务端 STT 结果驱动，入队后由 HUD 在渲染事件里绘制。
     runtime_->setSttTextHandler([this](protocol::SttTextMessage const& text) {
@@ -251,7 +251,7 @@ void ClientMod::onJoin(ll::event::client::ClientJoinLevelEvent& event) {
     }
     runtime_->start();
     shared::FileLog::info(
-        "onJoin: client runtime started; smoke test is now armed, run /voicechat test on the server to start it"
+        "onJoin: client runtime started; smoke test is now armed, run /bsc test on the server to start it"
     );
 }
 
@@ -284,7 +284,7 @@ void ClientMod::applyClientConfig(config::ClientConfig const& config) {
 
     auto self = ll::mod::NativeMod::current();
     if (!self) return;
-    if (!writeText(self->getConfigDir() / "voicechat.json", config::clientConfigToJson(config_))) {
+    if (!writeText(self->getConfigDir() / "bschat.json", config::clientConfigToJson(config_))) {
         shared::FileLog::warn("applyClientConfig: failed to persist the client config");
     }
 }
@@ -342,20 +342,20 @@ void ClientMod::onKey(ll::event::input::KeyInputEvent& event) {
     int const key = event.keyCode();
     // 设置面板快捷键（默认 J）：按下即请求服务端中继下发设置面板。
     if (key == static_cast<int>(config_.settingsKey)) {
-        if (event.isDown() && panelRelay_) panelRelay_->requestPanel("voicechat.settings.client");
+        if (event.isDown() && panelRelay_) panelRelay_->requestPanel("bschat.settings.client");
         return;
     }
     if (!runtime_ || key != static_cast<int>(config_.pttKey)) return;
     runtime_->setTalking(event.isDown());
 }
 
-} // namespace vc::client
+} // namespace bsc::client
 
 namespace {
-vc::client::ClientMod& clientMod() {
-    static vc::client::ClientMod instance;
+bsc::client::ClientMod& clientMod() {
+    static bsc::client::ClientMod instance;
     return instance;
 }
 }
 
-LL_REGISTER_MOD(vc::client::ClientMod, clientMod());
+LL_REGISTER_MOD(bsc::client::ClientMod, clientMod());

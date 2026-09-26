@@ -1,6 +1,6 @@
 #include "client/hud/StatusOverlay.h"
 
-namespace vc::client::hud {
+namespace bsc::client::hud {
 
 AudioStatus StatusOverlay::status() const {
     if (!inputs_.inSession) return AudioStatus::Idle;
@@ -13,17 +13,17 @@ AudioStatus StatusOverlay::status() const {
 std::string_view StatusOverlay::i18nKey(AudioStatus status) {
     switch (status) {
     case AudioStatus::Idle:
-        return "voicechat.status.idle";
+        return "bschat.status.idle";
     case AudioStatus::Speaking:
-        return "voicechat.status.speaking";
+        return "bschat.status.speaking";
     case AudioStatus::Muted:
-        return "voicechat.status.muted";
+        return "bschat.status.muted";
     case AudioStatus::Playing:
-        return "voicechat.status.playing";
+        return "bschat.status.playing";
     case AudioStatus::Silent:
-        return "voicechat.status.silent";
+        return "bschat.status.silent";
     }
-    return "voicechat.status.idle";
+    return "bschat.status.idle";
 }
 
-} // namespace vc::client::hud
+} // namespace bsc::client::hud

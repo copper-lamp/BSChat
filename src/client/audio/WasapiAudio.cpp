@@ -19,7 +19,7 @@
 #include <windows.h>
 #endif
 
-namespace vc::client::audio {
+namespace bsc::client::audio {
 namespace {
 #ifdef _WIN32
 class ComPtr {
@@ -111,7 +111,7 @@ struct WasapiAudioDevice::Impl {
         // 缓冲时长固定取 Opus 允许的最大帧长：帧长由服务端协商（20/40/60ms），缓冲取上界后
         // 任意合法帧长都能整帧写入，写入长度直接跟随到达帧的实际长度。
         const REFERENCE_TIME bufferDuration =
-            static_cast<REFERENCE_TIME>(::vc::audio::kMaxFrameSizeMs) * 10000; // ms → 100ns 单位
+            static_cast<REFERENCE_TIME>(::bsc::audio::kMaxFrameSizeMs) * 10000; // ms → 100ns 单位
 
         ComPtr enumerator;
         HRESULT hr = CoCreateInstance(__uuidof(MMDeviceEnumerator), nullptr, CLSCTX_ALL,
@@ -300,4 +300,4 @@ WasapiProbeResult WasapiAudioDevice::probeDefaultDevices() {
 #endif
     return result;
 }
-} // namespace vc::client::audio
+} // namespace bsc::client::audio

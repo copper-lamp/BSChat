@@ -18,7 +18,7 @@
 #include "mc/deps/core/string/HashedString.h"
 #include "mc/deps/input/RectangleArea.h"
 
-namespace vc::client::hud {
+namespace bsc::client::hud {
 namespace {
 
 // flushImages 提交贴图时使用的 Bedrock UI 材质名。
@@ -121,4 +121,4 @@ bool HudRenderer::draw(ll::event::render::AfterUIRenderEvent& event, Frame const
     return true;
 }
 
-} // namespace vc::client::hud
+} // namespace bsc::client::hud

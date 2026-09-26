@@ -4,7 +4,7 @@
 
 #include <nlohmann/json.hpp>
 
-namespace vc::ui {
+namespace bsc::ui {
 namespace {
 
 using Json = nlohmann::json;
@@ -151,4 +151,4 @@ PanelValues parseFormResponse(
     return values;
 }
 
-} // namespace vc::ui
+} // namespace bsc::ui

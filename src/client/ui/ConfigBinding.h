@@ -6,14 +6,14 @@
 #include "core/config/Config.h"
 #include "shared/ui/FormPlan.h"
 
-namespace vc::client::ui {
+namespace bsc::client::ui {
 
 // 面板定义里的配置键与 ClientConfig 字段之间的映射。
 // 本模块零 LeviLamina 依赖（不含 ll::form 的类型），可 host 单测；
 // 表单结果由 FormPanelBuilder 归一化成 PanelValue 后交给这里。
 // PanelValue / PanelValues 定义在 shared/ui（双端共用），这里直接复用。
-using ::vc::ui::PanelValue;
-using ::vc::ui::PanelValues;
+using ::bsc::ui::PanelValue;
+using ::bsc::ui::PanelValues;
 
 class ConfigBinding final {
 public:
@@ -40,4 +40,4 @@ public:
 //   settingsKeyName     文本   设置面板键名，与说话键不得相同
 // 说明：两个按键名条目会成对校验（见实现），因此它们的写入不受 PanelValues 遍历顺序影响。
 
-} // namespace vc::client::ui
+} // namespace bsc::client::ui

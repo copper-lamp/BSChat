@@ -2,7 +2,7 @@
 
 #include <algorithm>
 
-namespace vc::server {
+namespace bsc::server {
 
 PlayerSession::PlayerSession(protocol::PlayerId id, Options options)
 : id_(id),
@@ -80,4 +80,4 @@ bool PlayerSession::allowFrameLocked(int64_t nowMs) {
     return arrivals_.size() <= options_.maxFramesPerSecond;
 }
 
-} // namespace vc::server
+} // namespace bsc::server

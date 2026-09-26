@@ -6,8 +6,8 @@
 #include "client/hud/StatusOverlay.h"
 #include "client/hud/SubtitleOverlay.h"
 
-using namespace vc::client::hud;
-using namespace vc::protocol;
+using namespace bsc::client::hud;
+using namespace bsc::protocol;
 
 namespace {
 
@@ -126,9 +126,9 @@ TEST(hud_status_priority) {
 }
 
 TEST(hud_status_i18n_keys) {
-    EXPECT_EQ(StatusOverlay::i18nKey(AudioStatus::Idle), std::string_view("voicechat.status.idle"));
-    EXPECT_EQ(StatusOverlay::i18nKey(AudioStatus::Speaking), std::string_view("voicechat.status.speaking"));
-    EXPECT_EQ(StatusOverlay::i18nKey(AudioStatus::Muted), std::string_view("voicechat.status.muted"));
-    EXPECT_EQ(StatusOverlay::i18nKey(AudioStatus::Playing), std::string_view("voicechat.status.playing"));
-    EXPECT_EQ(StatusOverlay::i18nKey(AudioStatus::Silent), std::string_view("voicechat.status.silent"));
+    EXPECT_EQ(StatusOverlay::i18nKey(AudioStatus::Idle), std::string_view("bschat.status.idle"));
+    EXPECT_EQ(StatusOverlay::i18nKey(AudioStatus::Speaking), std::string_view("bschat.status.speaking"));
+    EXPECT_EQ(StatusOverlay::i18nKey(AudioStatus::Muted), std::string_view("bschat.status.muted"));
+    EXPECT_EQ(StatusOverlay::i18nKey(AudioStatus::Playing), std::string_view("bschat.status.playing"));
+    EXPECT_EQ(StatusOverlay::i18nKey(AudioStatus::Silent), std::string_view("bschat.status.silent"));
 }

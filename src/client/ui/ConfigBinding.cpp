@@ -2,7 +2,7 @@
 
 #include "client/input/KeyNames.h"
 
-namespace vc::client::ui {
+namespace bsc::client::ui {
 namespace {
 
 constexpr double kVolumeMin = 0.0;
@@ -139,4 +139,4 @@ std::size_t ConfigBinding::apply(config::ClientConfig& config, PanelValues const
     return applied;
 }
 
-} // namespace vc::client::ui
+} // namespace bsc::client::ui

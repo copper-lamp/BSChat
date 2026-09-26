@@ -5,7 +5,7 @@
 
 #include "client/input/KeyNames.h"
 
-using namespace vc::client::input;
+using namespace bsc::client::input;
 
 TEST(key_names_letters_and_digits) {
     EXPECT_EQ(virtualKeyFromName("V").value_or(0), 0x56u);

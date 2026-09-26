@@ -6,7 +6,7 @@
 
 #include "core/codec/OpusCodec.h"
 
-using namespace vc::codec;
+using namespace bsc::codec;
 
 namespace {
 constexpr int kSampleRate = 48000;

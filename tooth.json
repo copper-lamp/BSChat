@@ -1,10 +1,10 @@
 {
   "format_version": 3,
   "format_uuid": "289f771f-2c9a-4d73-9f3f-8492495a924d",
-  "tooth": "github.com/yourname/voicechat",
+  "tooth": "github.com/copper-lamp/BSChat",
   "version": "0.0.0",
   "info": {
-    "name": "VoiceChat",
+    "name": "BSChat",
     "description": "游戏内实时语音聊天：客户端采集语音上行，服务端混音并可本地语音转文字，混合音频流与字幕回传客户端",
     "tags": [
       "platform:levilamina",
@@ -23,13 +23,13 @@
         {
           "type": "zip",
           "urls": [
-            "https://{{tooth}}/releases/download/v{{version}}/voicechat-server-windows-x64.zip"
+            "https://{{tooth}}/releases/download/v{{version}}/bschat-server-windows-x64.zip"
           ],
           "placements": [
             {
               "type": "dir",
-              "src": "voicechat/",
-              "dest": "plugins/voicechat/"
+              "src": "bschat/",
+              "dest": "plugins/bschat/"
             }
           ]
         }
@@ -57,13 +57,13 @@
         {
           "type": "zip",
           "urls": [
-            "https://{{tooth}}/releases/download/v{{version}}/voicechat-client-windows-x64.zip"
+            "https://{{tooth}}/releases/download/v{{version}}/bschat-client-windows-x64.zip"
           ],
           "placements": [
             {
               "type": "dir",
-              "src": "voicechat/",
-              "dest": "mods/voicechat/"
+              "src": "bschat/",
+              "dest": "mods/bschat/"
             }
           ]
         }

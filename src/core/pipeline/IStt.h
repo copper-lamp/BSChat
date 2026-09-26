@@ -6,7 +6,7 @@
 
 #include "core/protocol/Message.h"
 
-namespace vc::pipeline {
+namespace bsc::pipeline {
 
 // 转写结果（字幕数据）
 struct SttResult {
@@ -47,4 +47,4 @@ public:
     virtual void shutdown() = 0;
 };
 
-} // namespace vc::pipeline
+} // namespace bsc::pipeline

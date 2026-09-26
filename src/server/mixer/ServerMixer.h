@@ -21,7 +21,7 @@
 #include "server/mixer/FilePlaybackSource.h"
 #include "server/session/SessionManager.h"
 
-namespace vc::server {
+namespace bsc::server {
 
 // 独立音频线程上的逐接收者混音器。STT 回调与音频输出共用待发队列。
 class ServerMixer {
@@ -87,4 +87,4 @@ private:
     std::map<protocol::PlayerId, uint64_t> mixSeqs_;
 };
 
-} // namespace vc::server
+} // namespace bsc::server

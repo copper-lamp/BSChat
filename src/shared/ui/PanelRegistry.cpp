@@ -6,7 +6,7 @@
 #include <system_error>
 #include <utility>
 
-namespace vc::ui {
+namespace bsc::ui {
 namespace {
 
 std::string readFile(std::filesystem::path const& path) {
@@ -74,4 +74,4 @@ PanelDefinition const* PanelRegistry::find(std::string const& id) const {
     return nullptr;
 }
 
-} // namespace vc::ui
+} // namespace bsc::ui

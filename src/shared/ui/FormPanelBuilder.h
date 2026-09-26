@@ -7,7 +7,7 @@
 #include "shared/ui/FormPlan.h"
 #include "shared/ui/PanelDefinition.h"
 
-namespace vc::ui {
+namespace bsc::ui {
 
 // 把 PanelDefinition 构造成 ll::form::CustomForm。依赖 ll::form，仅双端适配层使用，不进 host 单测。
 // 定义 → 控件入参的映射与响应解析拆到 FormPlan（零 ll::form 依赖，可 host 单测）。
@@ -28,4 +28,4 @@ public:
     static PanelTextResolver i18nResolver();
 };
 
-} // namespace vc::ui
+} // namespace bsc::ui

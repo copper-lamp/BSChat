@@ -5,7 +5,7 @@
 #include <iomanip>
 #include <sstream>
 
-namespace vc::server::admin {
+namespace bsc::server::admin {
 namespace {
 using json = nlohmann::json;
 std::string encode(PlayerId const& id) { std::ostringstream out; for (auto b : id) out << std::hex << std::setw(2) << std::setfill('0') << static_cast<unsigned>(b); return out.str(); }
@@ -46,4 +46,4 @@ bool AdminStore::load(AdminPolicy& policy, std::string* error) const {
         return true;
     } catch (std::exception const& e) { fail(error, e.what()); return false; }
 }
-} // namespace vc::server::admin
+} // namespace bsc::server::admin

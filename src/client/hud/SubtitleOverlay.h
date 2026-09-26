@@ -7,7 +7,7 @@
 
 #include "core/protocol/Message.h"
 
-namespace vc::client::hud {
+namespace bsc::client::hud {
 
 // 字幕数据模型：只负责「谁说了什么、什么时候说的、还要显示多久」，
 // 不包含任何绘制与 LeviLamina 依赖，可 host 单测。
@@ -51,4 +51,4 @@ private:
     std::vector<SubtitleLine> lines_;
 };
 
-} // namespace vc::client::hud
+} // namespace bsc::client::hud

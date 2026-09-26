@@ -12,7 +12,7 @@
 
 class Player;
 
-namespace vc::shared {
+namespace bsc::shared {
 
 // 客户端模式对端标识（全 0）：下行混音流/字幕一律来自所连接的服务器。
 // 真实玩家 UUID 不可能是全 0（mce::UUID::EMPTY），可安全用作哨兵。
@@ -61,7 +61,7 @@ public:
     TransportMode mode() const { return mode_; }
 
 private:
-    friend class VoiceChatPacketHandler;
+    friend class BSChatPacketHandler;
 
     void onPacketReceived(const std::vector<uint8_t>& payload, const protocol::PlayerId& peerId);
     void dispatch(const protocol::PlayerId& peerId, const protocol::Message& message);
@@ -77,4 +77,4 @@ private:
     uint32_t sendSeq_ = 0;    // 信封级序号（仅主线程访问）
 };
 
-} // namespace vc::shared
+} // namespace bsc::shared

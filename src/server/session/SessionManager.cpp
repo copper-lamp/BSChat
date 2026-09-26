@@ -2,7 +2,7 @@
 
 #include <utility>
 
-namespace vc::server {
+namespace bsc::server {
 
 void SessionManager::addSession(const protocol::PlayerId& id, PlayerSession::Options options) {
     std::lock_guard lock(mutex_);
@@ -41,4 +41,4 @@ void SessionManager::clear() {
     sessions_.clear();
 }
 
-} // namespace vc::server
+} // namespace bsc::server

@@ -4,7 +4,7 @@
 
 #include <filesystem>
 
-using namespace vc::server::admin;
+using namespace bsc::server::admin;
 
 namespace { PlayerId id(unsigned char v) { PlayerId x{}; x[0] = v; return x; } }
 
@@ -16,7 +16,7 @@ TEST(admin_policy_admission_and_gain) {
 }
 
 TEST(admin_store_round_trip) {
-    auto path = std::filesystem::temp_directory_path() / "betterlanguagechat-admin-test.json";
+    auto path = std::filesystem::temp_directory_path() / "bschat-admin-test.json";
     std::error_code ec; std::filesystem::remove(path, ec);
     AdminPolicy source; auto a = id(3); source.setWhitelistEnabled(true); source.addWhitelist(a); source.setGain(a, 0.5f);
     AdminStore store(path); std::string error; EXPECT_TRUE(store.save(source, &error));

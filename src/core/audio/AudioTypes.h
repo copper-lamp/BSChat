@@ -3,7 +3,7 @@
 #include <cstdint>
 #include <vector>
 
-namespace vc::audio {
+namespace bsc::audio {
 
 // 默认音频参数（质量优先基线：48kHz mono 20ms 帧、40kbps、关 DTX）。
 // 服务端配置里的 audio.* 是权威值：客户端在 Welcome 时采用服务端的帧长，
@@ -29,4 +29,4 @@ inline constexpr int samplesPerFrame(int sampleRate, int frameSizeMs) {
 // 帧 PCM（float [-1,1]，长 = frameSamples）
 using FloatVector = std::vector<float>;
 
-} // namespace vc::audio
+} // namespace bsc::audio

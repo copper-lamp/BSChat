@@ -5,7 +5,7 @@
 #include "core/protocol/Message.h"
 #include "mc/platform/UUID.h"
 
-namespace vc::shared {
+namespace bsc::shared {
 
 // mce::UUID → 协议 PlayerId（16 字节，小端：前 8 字节 = uuid.a，后 8 字节 = uuid.b）。
 // 客户端与服务端共用同一换算，保证玩家身份一致。
@@ -18,4 +18,4 @@ inline protocol::PlayerId playerIdFromUuid(mce::UUID const& uuid) {
     return id;
 }
 
-} // namespace vc::shared
+} // namespace bsc::shared

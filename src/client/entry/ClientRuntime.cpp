@@ -5,7 +5,7 @@
 #include <utility>
 #include <cmath>
 
-namespace vc::client {
+namespace bsc::client {
 namespace {
 
 constexpr int64_t kPositionReportIntervalMs = 1000;
@@ -29,7 +29,7 @@ ClientRuntime::ClientRuntime(
     : transport_(transport), player_(player), clock_(clock), config_(std::move(config)) {
     transport_.setMessageHandler([this](const auto& id, const auto& message) { onMessage(id, message); });
     rebuildCodecs();
-    jitter_ = ::vc::audio::JitterBuffer({static_cast<std::size_t>(std::max(1, config_.jitterMaxDepthFrames)),
+    jitter_ = ::bsc::audio::JitterBuffer({static_cast<std::size_t>(std::max(1, config_.jitterMaxDepthFrames)),
                                    std::max<int64_t>(0, config_.jitterMaxWaitMs)});
 }
 
@@ -45,7 +45,7 @@ void ClientRuntime::rebuildCodecs() {
 }
 
 void ClientRuntime::applyNegotiatedFrameSize(int frameSizeMs) {
-    const int clamped = std::clamp(frameSizeMs, ::vc::audio::kMinFrameSizeMs, ::vc::audio::kMaxFrameSizeMs);
+    const int clamped = std::clamp(frameSizeMs, ::bsc::audio::kMinFrameSizeMs, ::bsc::audio::kMaxFrameSizeMs);
     if (clamped == config_.audio.frameSizeMs) return;
     config_.audio.frameSizeMs = clamped;
     rebuildCodecs();
@@ -216,4 +216,4 @@ void ClientRuntime::reportPosition() {
     transport_.send({}, update);
 }
 
-} // namespace vc::client
+} // namespace bsc::client

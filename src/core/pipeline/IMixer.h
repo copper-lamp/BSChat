@@ -5,7 +5,7 @@
 
 #include "core/protocol/Message.h"
 
-namespace vc::pipeline {
+namespace bsc::pipeline {
 
 // 混音器抽象。
 // v1 实现为全局混音（GlobalMixer，位于 core/audio）；
@@ -30,4 +30,4 @@ public:
     virtual int sampleRate() const = 0;
 };
 
-} // namespace vc::pipeline
+} // namespace bsc::pipeline

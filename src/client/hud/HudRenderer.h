@@ -15,7 +15,7 @@ namespace mce {
 struct ClientTexture;
 }
 
-namespace vc::client::hud {
+namespace bsc::client::hud {
 
 // HUD 绘制实现：唯一一处直接调用 Bedrock UI 渲染上下文的地方。
 // 只负责「把已经算好的内容画到屏幕上」，不含状态推导与配置读取，便于替换绘制载体。
@@ -46,4 +46,4 @@ public:
     bool draw(ll::event::render::AfterUIRenderEvent& event, Frame const& frame, Layout const& layout) const;
 };
 
-} // namespace vc::client::hud
+} // namespace bsc::client::hud

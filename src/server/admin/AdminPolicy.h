@@ -7,7 +7,7 @@
 #include <vector>
 #include <shared_mutex>
 
-namespace vc::server::admin {
+namespace bsc::server::admin {
 
 using PlayerId = std::array<std::uint8_t, 16>;
 
@@ -51,4 +51,4 @@ private:
     std::unordered_map<PlayerId, float, PlayerIdHash> gains_;
 };
 
-} // namespace vc::server::admin
+} // namespace bsc::server::admin

@@ -6,10 +6,10 @@
 #include "shared/ui/FormPanelBuilder.h"
 #include "shared/ui/FormPlan.h"
 
-namespace vc::client::ui {
+namespace bsc::client::ui {
 
-using ::vc::ui::FormPanelBuilder;
-using ::vc::ui::parseFormResponse;
+using ::bsc::ui::FormPanelBuilder;
+using ::bsc::ui::parseFormResponse;
 
 void PanelRelay::initialize(
     std::filesystem::path const& panelsDir,
@@ -184,4 +184,4 @@ void PanelRelay::logWarn(std::string const& message) const {
     if (log_) log_(true, message);
 }
 
-} // namespace vc::client::ui
+} // namespace bsc::client::ui

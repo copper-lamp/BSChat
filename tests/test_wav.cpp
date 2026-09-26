@@ -9,9 +9,9 @@
 #include "core/audio/WavFile.h"
 #include "server/mixer/FilePlaybackSource.h"
 
-using namespace vc::audio;
-using vc::test::buildWavBytes;
-using vc::test::writeTempWav;
+using namespace bsc::audio;
+using bsc::test::buildWavBytes;
+using bsc::test::writeTempWav;
 
 TEST(wav_parse_pcm16_mono) {
     std::vector<float> samples{-1.0F, -0.5F, 0.0F, 0.5F, 1.0F};
@@ -72,9 +72,9 @@ TEST(wav_rejects_invalid_stream) {
 TEST(file_playback_source_pads_last_frame_then_finishes) {
     std::vector<float> samples(100, 0.5F);
     auto bytes = buildWavBytes(48000, 1, true, samples);
-    auto path = writeTempWav(bytes, "voicechat-test-playback.wav");
+    auto path = writeTempWav(bytes, "bschat-test-playback.wav");
 
-    vc::server::FilePlaybackSource source;
+    bsc::server::FilePlaybackSource source;
     std::string error;
     EXPECT_TRUE(source.load(path, 48000, error));
     EXPECT_TRUE(source.active());

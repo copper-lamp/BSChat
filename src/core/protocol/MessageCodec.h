@@ -8,7 +8,7 @@
 
 #include "core/protocol/Message.h"
 
-namespace vc::protocol {
+namespace bsc::protocol {
 
 // 信封解包信息
 struct EnvelopeInfo {
@@ -34,4 +34,4 @@ private:
     static std::optional<Message> deserializePayload(MessageType type, std::span<const uint8_t> payload);
 };
 
-} // namespace vc::protocol
+} // namespace bsc::protocol

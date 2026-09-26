@@ -11,11 +11,11 @@
 #include "shared/ui/FormPanelBuilder.h"
 #include "shared/ui/FormPlan.h"
 
-namespace vc::server::ui {
+namespace bsc::server::ui {
 
-using ::vc::ui::FormPanelBuilder;
-using ::vc::ui::PanelValue;
-using ::vc::ui::PanelValues;
+using ::bsc::ui::FormPanelBuilder;
+using ::bsc::ui::PanelValue;
+using ::bsc::ui::PanelValues;
 
 void PanelRelay::initialize(
     std::filesystem::path const& panelsDir,
@@ -117,9 +117,9 @@ void PanelRelay::deliver(PendingRequest request) {
 }
 
 bool PanelRelay::openAdminPanel(Player& player, config::ServerConfig& config, std::function<void()> onApplied) {
-    auto const* definition = registry_.find("voicechat.admin");
+    auto const* definition = registry_.find("bschat.admin");
     if (!definition) {
-        logWarn("admin: panel definition 'voicechat.admin' is not loaded");
+        logWarn("admin: panel definition 'bschat.admin' is not loaded");
         return false;
     }
 
@@ -178,4 +178,4 @@ void PanelRelay::logWarn(std::string const& message) const {
     if (log_) log_(true, message);
 }
 
-} // namespace vc::server::ui
+} // namespace bsc::server::ui

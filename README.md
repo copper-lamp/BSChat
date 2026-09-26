@@ -1,10 +1,10 @@
 
 <div align="center">
-  <h1>Better Language Chat</h1>
+  <h1>BSChat</h1>
   <p><strong>Join the world and Start talking.</strong></p>
   <p>An open-source in-game real-time voice chat mod for Minecraft Bedrock on LeviLamina — server-side mixing, client-side capture and playback, with optional live speech-to-text subtitles.</p>
   <p>
-    <img src="https://img.shields.io/badge/release-v0.0.0-4c8bf5?style=flat-square" alt="Betterlanguagechat v0.0.0">
+    <img src="https://img.shields.io/badge/release-v0.0.0-4c8bf5?style=flat-square" alt="BSChat v0.0.0">
     <img src="https://img.shields.io/badge/Minecraft%20Bedrock-Windows%20x64-62b47a?style=flat-square" alt="Windows x64 Minecraft Bedrock">
     <a href="LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0-blue?style=flat-square" alt="AGPL-3.0 License"></a>
   </p>
@@ -21,17 +21,17 @@
     <a href="README_ZH.md">简体中文</a>
   </p>
   <p>
-    <a href="https://qm.qq.com/q/861900673"><img src="https://img.shields.io/badge/QQ-861900673-EA0000?style=for-the-badge&amp;logo=qq&amp;logoColor=white" alt="Join the Betterlanguagechat QQ group"></a>
+    <a href="https://qm.qq.com/q/861900673"><img src="https://img.shields.io/badge/QQ-861900673-EA0000?style=for-the-badge&amp;logo=qq&amp;logoColor=white" alt="Join the BSChat QQ group"></a>
   </p>
 </div>
 
 > [!WARNING]
-> Betterlanguagechat is still in early development, and all current builds are test
+> BSChat is still in early development, and all current builds are test
 > builds. Please back up your important worlds and client/server data; after a Minecraft,
 > LeviLamina, or mod version change, compatibility with previous versions is not
 > guaranteed.
 
-Betterlanguagechat brings your voice into the game 
+BSChat brings your voice into the game 
 
 hold a key to talk, and your audio
 travels over the game's built-in data channel to everyone on the server in real time; the
@@ -42,12 +42,12 @@ server plugin and a client mod, delivering a consistent experience from server t
 ## Quick Start
 
 > [!IMPORTANT]
-> Betterlanguagechat ships as two independent builds — server and client. Both must be
+> BSChat ships as two independent builds — server and client. Both must be
 > installed and running on the same LeviLamina baseline, or the handshake will fail.
 
 1. Install [LeviLamina](https://lamina.levimc.org/) on your server (baseline 26.10.14).
 2. Install LeviLamina client on each player's Bedrock client.
-3. Install the matching build: server → `plugins/voicechat/`, client → `mods/voicechat/`.
+3. Install the matching build: server → `plugins/bschat/`, client → `mods/bschat/`.
 4. Restart, join the world, and **hold V** to talk; release to go quiet.
 
 Full installation and configuration steps are in the [Getting Started guide](../docs/getting-started.md).
@@ -82,8 +82,8 @@ the [Changelog](CHANGELOG.md).
 
 | End | Build | Install path |
 | ------------------ | ---------------- | ------------------------ |
-| Server (BDS) | Server build | `plugins/voicechat/` |
-| Client (Bedrock) | Client build | `mods/voicechat/` |
+| Server (BDS) | Server build | `plugins/bschat/` |
+| Client (Bedrock) | Client build | `mods/bschat/` |
 
 Both are built for **Windows x64** and run on **LeviLamina 26.10.14**.
 
@@ -102,10 +102,10 @@ The following commands are planned and will ship as development proceeds:
 
 | Command | Description |
 | -------------------------------- | ---------------------------------- |
-| `/voicechat help` | Show voice chat command help. |
-| `/voicechat mute <player>` | Force-mute a player. |
-| `/voicechat unmute <player>` | Unmute a player. |
-| `/voicechat toggle` | Toggle your own microphone. |
+| `/bsc help` | Show voice chat command help. |
+| `/bsc mute <player>` | Force-mute a player. |
+| `/bsc unmute <player>` | Unmute a player. |
+| `/bsc toggle` | Toggle your own microphone. |
 
 ## Languages
 
@@ -116,7 +116,7 @@ Player-facing text is wired through the LeviLamina i18n system and ships with bo
 
 ## Frequently Asked Questions
 
-### What is Betterlanguagechat?
+### What is BSChat?
 It is an in-game real-time voice chat mod for Minecraft Bedrock on Windows x64 LeviLamina.
 Players hold a key to talk; audio goes up over the game's built-in data channel, is mixed
 server-side, and streams back to all online players, with optional live speech-to-text
@@ -176,7 +176,7 @@ transcription, and JSON parsing capabilities.
 
 ## License
 
-Betterlanguagechat is free software released under the
+BSChat is free software released under the
 [GNU Affero General Public License v3.0](LICENSE) (or any later version). See
 `LICENSE` for details. Third-party dependencies remain under their own licenses;
 see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) and the

@@ -10,11 +10,11 @@
 #include "core/protocol/Message.h"
 #include "server/entry/ServerRuntime.h"
 
-using namespace vc::codec;
-using namespace vc::config;
-using namespace vc::pipeline;
-using namespace vc::protocol;
-using namespace vc::server;
+using namespace bsc::codec;
+using namespace bsc::config;
+using namespace bsc::pipeline;
+using namespace bsc::protocol;
+using namespace bsc::server;
 
 namespace {
 
@@ -26,9 +26,9 @@ PlayerId makePlayerId(uint8_t value) {
 
 std::vector<uint8_t> encodeTone() {
     // 跟随产品默认音频参数：编码帧长必须与会话解码帧长一致，否则该帧解不出音频
-    constexpr int sampleRate = vc::audio::kDefaultSampleRate;
-    constexpr int frameSamples = vc::audio::samplesPerFrame(sampleRate, vc::audio::kDefaultFrameSizeMs);
-    OpusEncoder encoder(sampleRate, 1, frameSamples, vc::audio::kDefaultBitrateKbps);
+    constexpr int sampleRate = bsc::audio::kDefaultSampleRate;
+    constexpr int frameSamples = bsc::audio::samplesPerFrame(sampleRate, bsc::audio::kDefaultFrameSizeMs);
+    OpusEncoder encoder(sampleRate, 1, frameSamples, bsc::audio::kDefaultBitrateKbps);
     std::vector<float> pcm(frameSamples);
     for (int i = 0; i < frameSamples; ++i) {
         pcm[i] = static_cast<float>(0.25 * std::sin(2.0 * 3.14159265358979 * 440.0 * i / sampleRate));
@@ -69,8 +69,8 @@ TEST(server_runtime_hello_creates_session_and_sends_welcome) {
     hello.playerId = id;
     hello.protocolVersion = kProtocolVersion;
     hello.capabilities = CapabilityPtt | CapabilitySubtitle;
-    hello.sampleRate = vc::audio::kDefaultSampleRate;
-    hello.frameSizeMs = vc::audio::kDefaultFrameSizeMs;
+    hello.sampleRate = bsc::audio::kDefaultSampleRate;
+    hello.frameSizeMs = bsc::audio::kDefaultFrameSizeMs;
     transport.inject(id, hello);
 
     EXPECT_EQ(runtime.sessionCount(), 1u);
@@ -91,8 +91,8 @@ TEST(server_runtime_audio_reaches_mixer_without_stt) {
     HelloMessage hello;
     hello.playerId = id;
     hello.protocolVersion = kProtocolVersion;
-    hello.sampleRate = vc::audio::kDefaultSampleRate;
-    hello.frameSizeMs = vc::audio::kDefaultFrameSizeMs;
+    hello.sampleRate = bsc::audio::kDefaultSampleRate;
+    hello.frameSizeMs = bsc::audio::kDefaultFrameSizeMs;
     transport.inject(id, hello);
     transport.sent.clear();
 

@@ -15,7 +15,7 @@
 #include "ll/api/event/input/KeyInputEvent.h"
 #include "ll/api/event/world/ClientLevelTickEvent.h"
 
-namespace vc::client {
+namespace bsc::client {
 
 class PlayerState final : public IPlayerState {
 public:
@@ -67,4 +67,4 @@ private:
     std::shared_ptr<ll::event::Listener<ll::event::input::KeyInputEvent>> keyListener_;
 };
 
-} // namespace vc::client
+} // namespace bsc::client

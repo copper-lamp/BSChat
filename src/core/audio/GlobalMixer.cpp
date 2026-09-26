@@ -3,7 +3,7 @@
 #include <algorithm>
 #include <cmath>
 
-namespace vc::audio {
+namespace bsc::audio {
 
 GlobalMixer::GlobalMixer(Config config) : config_(config) {}
 
@@ -51,4 +51,4 @@ void GlobalMixer::removeSpeaker(const protocol::PlayerId& speaker) {
     speakers_.erase(speaker);
 }
 
-} // namespace vc::audio
+} // namespace bsc::audio

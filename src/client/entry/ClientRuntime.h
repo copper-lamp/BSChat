@@ -9,7 +9,7 @@
 #include "core/audio/JitterBuffer.h"
 #include "client/audio/AgcProcessor.h"
 #include "core/pipeline/ITransport.h"
-namespace vc::client {
+namespace bsc::client {
 using IClientTransport = pipeline::ITransport;
 struct Position { float x=0,y=0,z=0; int32_t dimensionId=0; uint8_t envFlags=0; };
 class IPlayerState { public: virtual ~IPlayerState()=default; virtual protocol::PlayerId playerId() const=0; virtual Position position() const=0; };
@@ -55,7 +55,7 @@ private:
     IClientTransport& transport_; IPlayerState& player_; IClock& clock_; config::ClientConfig config_;
     State state_=State::Stopped; int64_t nextHelloMs_=0; int64_t nextPositionMs_=0; uint64_t seq_=0; bool talking_=false;
     std::unique_ptr<codec::OpusEncoder> encoder_; std::unique_ptr<codec::OpusDecoder> decoder_;
-    audio::AgcProcessor agc_; ::vc::audio::JitterBuffer jitter_; RenderSink renderSink_; float outputVolume_=1.0F; bool outputMuted_=false;
+    audio::AgcProcessor agc_; ::bsc::audio::JitterBuffer jitter_; RenderSink renderSink_; float outputVolume_=1.0F; bool outputMuted_=false;
     SmokeTestRequestHandler smokeTestRequestHandler_; std::atomic<bool> smokeTestRequested_{false};
     SttTextHandler sttTextHandler_;
     UiFormHandler uiFormHandler_;

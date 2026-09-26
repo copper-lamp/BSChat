@@ -2,7 +2,7 @@
 
 #include <algorithm>
 
-namespace vc::client::hud {
+namespace bsc::client::hud {
 
 SubtitleOverlay::SubtitleOverlay(Options options) : options_(options) {
     if (options_.maxLines < 1) options_.maxLines = 1;
@@ -72,4 +72,4 @@ void SubtitleOverlay::clear() {
     lines_.clear();
 }
 
-} // namespace vc::client::hud
+} // namespace bsc::client::hud

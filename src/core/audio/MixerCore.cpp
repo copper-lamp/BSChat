@@ -3,7 +3,7 @@
 #include <algorithm>
 #include <cmath>
 
-namespace vc::audio {
+namespace bsc::audio {
 
 MixerCore::MixerCore(int frameSamples, int sampleRate)
     : frameSamples_(frameSamples), sampleRate_(sampleRate) {}
@@ -66,4 +66,4 @@ void MixerCore::reset() {
     gains_.clear();
 }
 
-} // namespace vc::audio
+} // namespace bsc::audio

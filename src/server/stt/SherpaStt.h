@@ -13,7 +13,7 @@
 
 #include "core/pipeline/IStt.h"
 
-namespace vc::server {
+namespace bsc::server {
 
 // 服务端本地流式语音转文字：基于 sherpa-onnx（流式 Zipformer）。
 // 零 LeviLamina 依赖，可纯 host 单测。
@@ -25,7 +25,7 @@ namespace vc::server {
 //   endUtterance   → 对整段产出最终结果（isFinal=true）并释放上下文。
 //   maxUtteranceMs 超长 → 自动切分：先产出最终结果再开新上下文，不丢句尾。
 //
-// 引擎集成：VC_ENABLE_SHERPA 开启时接入 sherpa-onnx（vendoring 后实现
+// 引擎集成：BSC_ENABLE_SHERPA 开启时接入 sherpa-onnx（vendoring 后实现
 // transcribePartial/transcribeFinal）；未开启或模型缺失 → available()=false，
 // 所有输入被丢弃，语音主链路不受影响（降级）。
 class SherpaStt : public pipeline::IStt {
@@ -110,4 +110,4 @@ private:
     std::map<protocol::PlayerId, SpeakerCtx, std::less<>> contexts_;
 };
 
-} // namespace vc::server
+} // namespace bsc::server

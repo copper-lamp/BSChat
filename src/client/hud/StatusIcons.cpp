@@ -17,7 +17,7 @@
 #include "mc/deps/core_graphics/TextureSetLayerType.h"
 #include "mc/deps/minecraft_renderer/renderer/BedrockTexture.h"
 
-namespace vc::client::hud {
+namespace bsc::client::hud {
 namespace {
 
 // 状态到贴图的唯一顺序来源：indexOf / ensureLoaded 都以它为准。
@@ -37,7 +37,7 @@ constexpr StatusIconSpec kIconSpecs[] = {
 static_assert(sizeof(kIconSpecs) / sizeof(kIconSpecs[0]) == 5);
 
 // 上传进纹理组时使用的键。它只作为纹理组内部的缓存键，不参与资源包解析，因此不带 .png 后缀。
-constexpr char kTextureKeyPrefix[] = "textures/ui/voicechat/status_";
+constexpr char kTextureKeyPrefix[] = "textures/ui/bschat/status_";
 
 // 加载失败后的重试冷却，避免逐帧重复解码 PNG。
 constexpr int64_t kRetryCooldownMs = 2000;
@@ -115,4 +115,4 @@ mce::ClientTexture const* StatusIcons::textureFor(AudioStatus status) const {
     return &texture.getClientTexture();
 }
 
-} // namespace vc::client::hud
+} // namespace bsc::client::hud

@@ -4,7 +4,7 @@
 #include <string>
 #include <string_view>
 
-namespace vc::shared {
+namespace bsc::shared {
 
 // 纯文本文件日志。
 //
@@ -33,4 +33,4 @@ private:
     static void write(std::string_view level, std::string_view message);
 };
 
-} // namespace vc::shared
+} // namespace bsc::shared

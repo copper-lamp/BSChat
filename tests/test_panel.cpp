@@ -4,7 +4,7 @@
 
 #include "shared/ui/PanelDefinition.h"
 
-using namespace vc::ui;
+using namespace bsc::ui;
 
 namespace {
 
@@ -12,7 +12,7 @@ std::optional<PanelDefinition> parseOk(std::string const& json) {
     std::string error;
     auto definition = PanelDefinition::parse(json, error);
     if (!definition) {
-        ::vc::test::reportFailure(__FILE__, __LINE__, "parse failed: " + error);
+        ::bsc::test::reportFailure(__FILE__, __LINE__, "parse failed: " + error);
     }
     return definition;
 }
@@ -22,33 +22,33 @@ std::optional<PanelDefinition> parseOk(std::string const& json) {
 TEST(ui_panel_definition_parses_elements) {
     auto definition = parseOk(R"({
         "schemaVersion": 1,
-        "id": "voicechat.settings.client",
-        "title": "voicechat.panel.settings.title",
-        "submitButton": "voicechat.panel.submit",
+        "id": "bschat.settings.client",
+        "title": "bschat.panel.settings.title",
+        "submitButton": "bschat.panel.submit",
         "elements": [
-            { "type": "header", "text": "voicechat.panel.settings.audio" },
-            { "type": "toggle", "key": "audio.captureEnabled", "text": "voicechat.opt.capture", "default": true },
-            { "type": "dropdown", "key": "talkMode", "text": "voicechat.opt.talkMode",
+            { "type": "header", "text": "bschat.panel.settings.audio" },
+            { "type": "toggle", "key": "audio.captureEnabled", "text": "bschat.opt.capture", "default": true },
+            { "type": "dropdown", "key": "talkMode", "text": "bschat.opt.talkMode",
               "options": [
-                { "value": "disabled", "text": "voicechat.opt.talkMode.disabled" },
-                { "value": "pushToTalk", "text": "voicechat.opt.talkMode.ptt" }
+                { "value": "disabled", "text": "bschat.opt.talkMode.disabled" },
+                { "value": "pushToTalk", "text": "bschat.opt.talkMode.ptt" }
               ] },
-            { "type": "slider", "key": "audio.playbackVolume", "text": "voicechat.opt.volume",
+            { "type": "slider", "key": "audio.playbackVolume", "text": "bschat.opt.volume",
               "min": 0, "max": 100, "step": 5, "default": 80 },
-            { "type": "input", "key": "input.pttKeyName", "text": "voicechat.opt.pttKey", "placeholder": "V" },
+            { "type": "input", "key": "input.pttKeyName", "text": "bschat.opt.pttKey", "placeholder": "V" },
             { "type": "divider" },
-            { "type": "label", "text": "voicechat.panel.settings.hint" }
+            { "type": "label", "text": "bschat.panel.settings.hint" }
         ]
     })");
     EXPECT_TRUE(definition.has_value());
     EXPECT_EQ(definition->schemaVersion, 1);
-    EXPECT_EQ(definition->id, std::string("voicechat.settings.client"));
-    EXPECT_EQ(definition->titleKey, std::string("voicechat.panel.settings.title"));
-    EXPECT_EQ(definition->submitButtonKey, std::string("voicechat.panel.submit"));
+    EXPECT_EQ(definition->id, std::string("bschat.settings.client"));
+    EXPECT_EQ(definition->titleKey, std::string("bschat.panel.settings.title"));
+    EXPECT_EQ(definition->submitButtonKey, std::string("bschat.panel.submit"));
     EXPECT_EQ(definition->elements.size(), static_cast<std::size_t>(7));
 
     EXPECT_EQ(definition->elements[0].type, PanelElementType::Header);
-    EXPECT_EQ(definition->elements[0].textKey, std::string("voicechat.panel.settings.audio"));
+    EXPECT_EQ(definition->elements[0].textKey, std::string("bschat.panel.settings.audio"));
 
     auto const& toggle = definition->elements[1];
     EXPECT_EQ(toggle.type, PanelElementType::Toggle);
@@ -59,7 +59,7 @@ TEST(ui_panel_definition_parses_elements) {
     EXPECT_EQ(dropdown.type, PanelElementType::Dropdown);
     EXPECT_EQ(dropdown.options.size(), static_cast<std::size_t>(2));
     EXPECT_EQ(dropdown.options[0].value, std::string("disabled"));
-    EXPECT_EQ(dropdown.options[1].textKey, std::string("voicechat.opt.talkMode.ptt"));
+    EXPECT_EQ(dropdown.options[1].textKey, std::string("bschat.opt.talkMode.ptt"));
 
     auto const& slider = definition->elements[3];
     EXPECT_EQ(slider.type, PanelElementType::Slider);
@@ -79,14 +79,14 @@ TEST(ui_panel_definition_parses_elements) {
 TEST(ui_panel_definition_drops_invalid_elements) {
     auto definition = parseOk(R"({
         "schemaVersion": 1,
-        "id": "voicechat.settings.client",
-        "title": "voicechat.panel.settings.title",
+        "id": "bschat.settings.client",
+        "title": "bschat.panel.settings.title",
         "elements": [
-            { "type": "toggle", "text": "voicechat.opt.noKey" },
-            { "type": "dropdown", "key": "empty", "text": "voicechat.opt.empty", "options": [] },
-            { "type": "slider", "key": "badRange", "text": "voicechat.opt.bad", "min": 10, "max": 1 },
-            { "type": "unknownFutureElement", "key": "future", "text": "voicechat.opt.future" },
-            { "type": "toggle", "key": "subtitle.enabled", "text": "voicechat.opt.subtitle", "default": true }
+            { "type": "toggle", "text": "bschat.opt.noKey" },
+            { "type": "dropdown", "key": "empty", "text": "bschat.opt.empty", "options": [] },
+            { "type": "slider", "key": "badRange", "text": "bschat.opt.bad", "min": 10, "max": 1 },
+            { "type": "unknownFutureElement", "key": "future", "text": "bschat.opt.future" },
+            { "type": "toggle", "key": "subtitle.enabled", "text": "bschat.opt.subtitle", "default": true }
         ]
     })");
     EXPECT_TRUE(definition.has_value());

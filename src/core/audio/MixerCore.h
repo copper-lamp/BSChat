@@ -6,7 +6,7 @@
 #include "core/audio/AudioTypes.h"
 #include "core/protocol/Message.h"
 
-namespace vc::audio {
+namespace bsc::audio {
 
 // 逐接收者（per-receiver）权重混音引擎。与全局混音器不同，本引擎对每个接收者
 // 维护独立的一路增益矩阵，可表达"空间选路"——不同位置的接收者听到不同说话者。
@@ -59,4 +59,4 @@ private:
     std::map<protocol::PlayerId, std::map<protocol::PlayerId, float>> gains_;
 };
 
-} // namespace vc::audio
+} // namespace bsc::audio

@@ -3,7 +3,7 @@
 #include <cstdint>
 #include <functional>
 
-namespace vc::client::input {
+namespace bsc::client::input {
 
 struct InputEvent { bool pressed = false; uint32_t key = 0; int64_t atMs = 0; };
 using TriggerCallback = std::function<void(bool active, int64_t atMs)>;
@@ -29,4 +29,4 @@ public: explicit VadTrigger(float threshold = 0.02F, int holdMs = 180, TriggerCa
 private: float threshold_; int holdMs_; int64_t belowSinceMs_ = -1;
 };
 
-} // namespace vc::client::input
+} // namespace bsc::client::input

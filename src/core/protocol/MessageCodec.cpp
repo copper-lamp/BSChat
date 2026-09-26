@@ -3,7 +3,7 @@
 #include <cstring>
 #include <limits>
 
-namespace vc::protocol {
+namespace bsc::protocol {
 namespace {
 
 // 小端写入器
@@ -327,4 +327,4 @@ std::optional<Message> MessageCodec::deserializePayload(MessageType type, std::s
     }
 }
 
-} // namespace vc::protocol
+} // namespace bsc::protocol

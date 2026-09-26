@@ -8,7 +8,7 @@
 
 #include "client/entry/ClientRuntime.h"
 
-namespace vc::client {
+namespace bsc::client {
 
 // 进入服务器后由玩家手动触发的双端链路自检。
 //
@@ -37,7 +37,7 @@ public:
     using LogSink = std::function<void(bool isError, std::string const& message)>;
     void setLogSink(LogSink sink) { logSink_ = std::move(sink); }
 
-    // 由 /voicechat test 命令触发，开始一次自检。
+    // 由 /bsc test 命令触发，开始一次自检。
     void begin();
 
     // 由 ClientLevelTickEvent 驱动推进；nowMs 为单调毫秒时钟。
@@ -71,4 +71,4 @@ private:
     bool reportedHandshake_ = false;
 };
 
-} // namespace vc::client
+} // namespace bsc::client

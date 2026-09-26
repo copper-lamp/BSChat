@@ -11,7 +11,7 @@
 
 #include "shared/ui/PanelDefinition.h"
 
-namespace vc::ui {
+namespace bsc::ui {
 
 // 面板值：布尔 → uint64_t(0/1)，数值 → double，文本 → std::string；
 // monostate 表示「该键不存在或不可读」。双端共用：客户端映射 ClientConfig，服务端映射 ServerConfig。
@@ -57,4 +57,4 @@ PanelValues parseFormResponse(
     std::string* error = nullptr
 );
 
-} // namespace vc::ui
+} // namespace bsc::ui

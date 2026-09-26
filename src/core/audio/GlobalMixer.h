@@ -6,7 +6,7 @@
 #include "core/pipeline/IMixer.h"
 #include "core/protocol/Message.h"
 
-namespace vc::audio {
+namespace bsc::audio {
 
 // 全局混音器：所有活跃说话者等权重叠加，输出一路混合帧。
 // 归一化策略：说话者增益 = 1/sqrt(活跃数)（功率归一），输出限幅 [-1,1]。
@@ -37,4 +37,4 @@ private:
     std::map<protocol::PlayerId, SpeakerBuffer> speakers_;
 };
 
-} // namespace vc::audio
+} // namespace bsc::audio

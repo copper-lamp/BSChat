@@ -6,7 +6,7 @@
 #include <optional>
 #include <vector>
 
-namespace vc::audio {
+namespace bsc::audio {
 
 // 抖动缓冲：按发送序号排序，吸收网络抖动并容忍乱序/丢失。
 // 规则：
@@ -52,4 +52,4 @@ private:
     std::map<uint64_t, Entry> frames_;
 };
 
-} // namespace vc::audio
+} // namespace bsc::audio

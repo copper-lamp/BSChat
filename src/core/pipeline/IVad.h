@@ -2,7 +2,7 @@
 
 #include <cstddef>
 
-namespace vc::pipeline {
+namespace bsc::pipeline {
 
 // 语音活动检测抽象。
 // v1 默认关闭（PTT 触发），后续接入采集触发源时替换实现即可。
@@ -16,4 +16,4 @@ public:
     virtual void reset() = 0;
 };
 
-} // namespace vc::pipeline
+} // namespace bsc::pipeline

@@ -1,7 +1,7 @@
 OPUS (libopus) — BSD 3-Clause License
 ======================================
 
-Betterlanguagechat statically links the Opus audio codec
+BSChat statically links the Opus audio codec
 (https://opus-codec.org/) and therefore redistributes it in binary form. The
 following is the copyright notice and BSD 3-Clause license of the reference
 implementation, reproduced verbatim from https://opus-codec.org/license/.

@@ -1,6 +1,6 @@
-# Getting Started with Betterlanguagechat
+# Getting Started with BSChat
 
-Betterlanguagechat is distributed as **two separate builds**: a **server** plugin and a
+BSChat is distributed as **two separate builds**: a **server** plugin and a
 **client** mod. Both must be installed and running on the same LeviLamina baseline for
 voice to work.
 
@@ -12,13 +12,13 @@ Common prerequisites:
 ## 1. Install the server build
 
 1. Set up LeviLamina on your Bedrock Dedicated Server.
-2. Copy the **server** build into `plugins/voicechat/`.
+2. Copy the **server** build into `plugins/bschat/`.
 3. Restart the server.
 
 ## 2. Install the client build
 
 1. Install LeviLamina on each player's Bedrock client.
-2. Copy the **client** build into `mods/voicechat/`.
+2. Copy the **client** build into `mods/bschat/`.
 3. Restart the game.
 
 > [!IMPORTANT]
@@ -48,5 +48,5 @@ If the model is missing, speech-to-text is disabled without affecting voice.
 
 - Tune options in `config.json`.
 - Build from source: see [building](building.md).
-- Review current implementation status: see [voicechat-fullscope-execution.md](voicechat-fullscope-execution.md).
+- Review current implementation status: see [bschat-fullscope-execution.md](bschat-fullscope-execution.md).
 - Report issues or suggest features by opening an issue.

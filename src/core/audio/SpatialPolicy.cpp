@@ -3,7 +3,7 @@
 #include <algorithm>
 #include <cmath>
 
-namespace vc::audio {
+namespace bsc::audio {
 
 SpatialPolicy::SpatialPolicy(SpatialPolicyConfig cfg) : cfg_(cfg) {}
 
@@ -30,4 +30,4 @@ float SpatialPolicy::gain(const SpatialGainQuery& q) const {
     return std::clamp(std::max(base, cfg_.minGain), 0.0f, 1.0f);
 }
 
-} // namespace vc::audio
+} // namespace bsc::audio

@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "id": "bschat.admin",
+  "title": "bschat.panel.admin.title",
+  "submitButton": "bschat.panel.settings.submit",
+  "elements": [
+    { "type": "header", "text": "bschat.panel.admin.audio" },
+    { "type": "toggle", "key": "voiceEnabled", "text": "bschat.opt.voiceEnabled", "default": true },
+    { "type": "label", "text": "bschat.panel.admin.hint" }
+  ]
+}

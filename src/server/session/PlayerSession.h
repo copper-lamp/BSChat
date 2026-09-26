@@ -13,7 +13,7 @@
 #include "core/audio/JitterBuffer.h"
 #include "core/codec/OpusCodec.h"
 
-namespace vc::server {
+namespace bsc::server {
 
 // 单个玩家的服务端会话：每发送者一个 Opus 解码器 + 抖动缓冲 + 限速。
 // 零 LeviLamina 依赖，可纯 host 单测。
@@ -90,4 +90,4 @@ private:
     SpatialState spatial_;
 };
 
-} // namespace vc::server
+} // namespace bsc::server

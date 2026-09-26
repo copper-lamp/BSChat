@@ -1,6 +1,6 @@
 #include "core/audio/JitterBuffer.h"
 
-namespace vc::audio {
+namespace bsc::audio {
 
 JitterBuffer::JitterBuffer() : JitterBuffer(Options{}) {}
 
@@ -50,4 +50,4 @@ void JitterBuffer::clear() {
 
 size_t JitterBuffer::size() const { return frames_.size(); }
 
-} // namespace vc::audio
+} // namespace bsc::audio

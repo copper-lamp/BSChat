@@ -1,6 +1,6 @@
 # Third-Party Notices
 
-Betterlanguagechat is free software released under the GNU Affero General
+BSChat is free software released under the GNU Affero General
 Public License v3.0 (see `LICENSE`). This project also depends on and/or
 statically links third-party components that remain under their own licenses.
 Redistribution of the project therefore must comply with each of the licenses
@@ -28,7 +28,7 @@ below, in addition to the AGPL-3.0 terms of the project itself.
   server-side streaming speech-to-text runtime.
 - **ONNX Runtime (MIT)** — preserve the copyright and permission notice when the
   server-side runtime is redistributed.
-- **LeviLamina (LGPL-3.0)** — dynamically linked only; Betterlanguagechat does
+- **LeviLamina (LGPL-3.0)** — dynamically linked only; BSChat does
   not modify or redistribute LeviLamina's own source or binaries. Users remain
   responsible for complying with LeviLamina's license and Minecraft's EULA.
 

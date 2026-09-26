@@ -12,7 +12,7 @@
 
 #include "client/entry/ClientEventIds.h"
 
-namespace vc::client::hud {
+namespace bsc::client::hud {
 namespace {
 
 int64_t nowMs() {
@@ -125,4 +125,4 @@ void HudLayer::onAfterUIRender(ll::event::render::AfterUIRenderEvent& event) {
     renderer_.draw(event, frame, layout_);
 }
 
-} // namespace vc::client::hud
+} // namespace bsc::client::hud

@@ -8,8 +8,8 @@
 #include "core/audio/JitterBuffer.h"
 #include "core/protocol/Message.h"
 
-using namespace vc::audio;
-using namespace vc::protocol;
+using namespace bsc::audio;
+using namespace bsc::protocol;
 
 namespace {
 

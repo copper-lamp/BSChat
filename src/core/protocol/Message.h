@@ -7,13 +7,13 @@
 #include <variant>
 #include <vector>
 
-namespace vc::protocol {
+namespace bsc::protocol {
 
 // 玩家身份：128 位 UUID（与服务端玩家 UUID 一致）
 using PlayerId = std::array<uint8_t, 16>;
 
-// 消息信封魔数 "VC"
-inline constexpr uint16_t kMagic = 0x5643;
+// 消息信封魔数 "BS"
+inline constexpr uint16_t kMagic = 0x4253;
 
 // 当前协议版本
 inline constexpr uint8_t kProtocolVersion = 1;
@@ -136,4 +136,4 @@ using Message = std::variant<
     PosUpdateMessage,
     UiFormMessage>;
 
-} // namespace vc::protocol
+} // namespace bsc::protocol

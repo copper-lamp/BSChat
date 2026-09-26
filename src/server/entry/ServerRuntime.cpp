@@ -6,7 +6,7 @@
 #include <utility>
 #include <variant>
 
-namespace vc::server {
+namespace bsc::server {
 
 void ServerRuntime::logInfo(std::string const& message) const {
     if (logSink_) logSink_(false, message);
@@ -213,4 +213,4 @@ std::unique_ptr<SherpaStt> ServerRuntime::createStt() const {
     return std::make_unique<SherpaStt>(std::move(options));
 }
 
-} // namespace vc::server
+} // namespace bsc::server

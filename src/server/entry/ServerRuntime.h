@@ -13,7 +13,7 @@
 #include "server/session/SessionManager.h"
 #include "server/stt/SherpaStt.h"
 
-namespace vc::server {
+namespace bsc::server {
 
 class ServerRuntime final {
 public:
@@ -79,4 +79,4 @@ private:
     UiFormHandler uiFormHandler_;
 };
 
-} // namespace vc::server
+} // namespace bsc::server

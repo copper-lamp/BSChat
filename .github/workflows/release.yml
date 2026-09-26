@@ -88,7 +88,7 @@ jobs:
 
       - uses: actions/upload-artifact@v7
         with:
-          name: voicechat-${{ needs.resolve-tag.outputs.tag }}-${{ matrix.target_type }}-windows-x64
+          name: bschat-${{ needs.resolve-tag.outputs.tag }}-${{ matrix.target_type }}-windows-x64
           path: |
             bin/
 
@@ -102,12 +102,12 @@ jobs:
 
       - uses: actions/download-artifact@v8
         with:
-          name: voicechat-${{ needs.resolve-tag.outputs.tag }}-server-windows-x64
+          name: bschat-${{ needs.resolve-tag.outputs.tag }}-server-windows-x64
           path: dist/server
 
       - uses: actions/download-artifact@v8
         with:
-          name: voicechat-${{ needs.resolve-tag.outputs.tag }}-client-windows-x64
+          name: bschat-${{ needs.resolve-tag.outputs.tag }}-client-windows-x64
           path: dist/client
 
       - name: Attach shared release documents
@@ -118,12 +118,12 @@ jobs:
       - name: Package server artifact
         working-directory: dist/server
         run: |
-          zip -r "${GITHUB_WORKSPACE}/voicechat-server-windows-x64.zip" .
+          zip -r "${GITHUB_WORKSPACE}/bschat-server-windows-x64.zip" .
 
       - name: Package client artifact
         working-directory: dist/client
         run: |
-          zip -r "${GITHUB_WORKSPACE}/voicechat-client-windows-x64.zip" .
+          zip -r "${GITHUB_WORKSPACE}/bschat-client-windows-x64.zip" .
 
       - id: extract-release-notes
         uses: ffurrer2/extract-release-notes@v3
@@ -135,5 +135,5 @@ jobs:
           body: |
             ${{ steps.extract-release-notes.outputs.release_notes }}
           files: |
-            voicechat-server-windows-x64.zip
-            voicechat-client-windows-x64.zip
+            bschat-server-windows-x64.zip
+            bschat-client-windows-x64.zip

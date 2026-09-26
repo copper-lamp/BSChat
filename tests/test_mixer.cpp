@@ -14,11 +14,11 @@
 #include "server/session/PlayerSession.h"
 #include "server/session/SessionManager.h"
 
-using namespace vc::server;
-using namespace vc::codec;
-using namespace vc::protocol;
-using namespace vc::audio;
-using namespace vc::pipeline;
+using namespace bsc::server;
+using namespace bsc::codec;
+using namespace bsc::protocol;
+using namespace bsc::audio;
+using namespace bsc::pipeline;
 
 namespace {
 
@@ -66,7 +66,7 @@ std::vector<std::pair<PlayerId, Message>> collect(ServerMixer& mixer) {
 }
 
 // 记录调用的假 STT：验证混音器按 Start/End 驱动流式 begin/feed/end，并可注入结果
-class RecordStt : public vc::pipeline::IStt {
+class RecordStt : public bsc::pipeline::IStt {
 public:
     void beginUtterance(const PlayerId& id) override { begins.push_back(id); }
     void feedAudio(const PlayerId& id, const std::vector<float>& pcm) override {
@@ -221,8 +221,8 @@ TEST(mixer_file_playback_reaches_receiver_without_uplink) {
     ServerMixer mixer(sessions, {});
 
     std::vector<float> samples(static_cast<size_t>(kFrameSamples) * 2, 0.4F);
-    auto bytes = vc::test::buildWavBytes(kSampleRate, 1, true, samples);
-    auto path = vc::test::writeTempWav(bytes, "voicechat-test-mixer-playback.wav");
+    auto bytes = bsc::test::buildWavBytes(kSampleRate, 1, true, samples);
+    auto path = bsc::test::writeTempWav(bytes, "bschat-test-mixer-playback.wav");
 
     std::string error;
     EXPECT_TRUE(mixer.startFilePlayback(path, error));
@@ -252,8 +252,8 @@ TEST(mixer_tick_gated_by_configured_period) {
     ServerMixer mixer(sessions, {});
 
     std::vector<float> samples(static_cast<size_t>(kFrameSamples) * 8, 0.4F);
-    auto bytes = vc::test::buildWavBytes(kSampleRate, 1, true, samples);
-    auto path = vc::test::writeTempWav(bytes, "voicechat-test-mixer-pacing.wav");
+    auto bytes = bsc::test::buildWavBytes(kSampleRate, 1, true, samples);
+    auto path = bsc::test::writeTempWav(bytes, "bschat-test-mixer-pacing.wav");
     std::string error;
     EXPECT_TRUE(mixer.startFilePlayback(path, error));
 
@@ -283,8 +283,8 @@ TEST(mixer_sub_frames_use_distinct_audio) {
         samples[static_cast<size_t>(i)] = 0.4F;
         samples[static_cast<size_t>(kFrameSamples) + static_cast<size_t>(i)] = -0.4F;
     }
-    auto bytes = vc::test::buildWavBytes(kSampleRate, 1, true, samples);
-    auto path = vc::test::writeTempWav(bytes, "voicechat-test-mixer-subframes.wav");
+    auto bytes = bsc::test::buildWavBytes(kSampleRate, 1, true, samples);
+    auto path = bsc::test::writeTempWav(bytes, "bschat-test-mixer-subframes.wav");
     std::string error;
     EXPECT_TRUE(mixer.startFilePlayback(path, error));
 

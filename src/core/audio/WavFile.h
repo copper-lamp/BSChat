@@ -5,7 +5,7 @@
 #include <string>
 #include <vector>
 
-namespace vc::audio {
+namespace bsc::audio {
 
 // 解码后的 WAV 内容（交错浮点，范围 [-1,1]）。
 struct WavClip {
@@ -35,4 +35,4 @@ bool loadWavMono(
     std::string&        error
 );
 
-} // namespace vc::audio
+} // namespace bsc::audio

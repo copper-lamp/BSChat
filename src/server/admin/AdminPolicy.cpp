@@ -5,7 +5,7 @@
 #include <cstring>
 #include <mutex>
 
-namespace vc::server::admin {
+namespace bsc::server::admin {
 
 std::size_t PlayerIdHash::operator()(PlayerId const& id) const noexcept {
     std::size_t h = 1469598103934665603ull;
@@ -40,4 +40,4 @@ std::vector<PlayerId> AdminPolicy::blacklist() const { std::shared_lock lock(mut
 std::vector<std::pair<PlayerId, float>> AdminPolicy::gains() const { std::shared_lock lock(mutex_); return {gains_.begin(), gains_.end()}; }
 void AdminPolicy::clear() { std::unique_lock lock(mutex_); whitelist_.clear(); blacklist_.clear(); gains_.clear(); whitelistEnabled_ = false; }
 
-} // namespace vc::server::admin
+} // namespace bsc::server::admin

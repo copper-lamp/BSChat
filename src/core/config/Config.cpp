@@ -4,7 +4,7 @@
 
 #include <nlohmann/json.hpp>
 
-namespace vc::config {
+namespace bsc::config {
 namespace {
 
 template <typename T>
@@ -163,4 +163,4 @@ std::string clientConfigToJson(const ClientConfig& c) {
     return j.dump(4);
 }
 
-} // namespace vc::config
+} // namespace bsc::config

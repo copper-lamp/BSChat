@@ -12,7 +12,7 @@
 #include <dlfcn.h>
 #endif
 
-namespace vc::server {
+namespace bsc::server {
 
 namespace {
 
@@ -337,4 +337,4 @@ void SherpaStt::emitResult(const protocol::PlayerId& speakerId, bool isFinal, co
     sink(result);
 }
 
-} // namespace vc::server
+} // namespace bsc::server

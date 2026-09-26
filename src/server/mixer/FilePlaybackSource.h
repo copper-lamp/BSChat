@@ -8,7 +8,7 @@
 
 #include "core/protocol/Message.h"
 
-namespace vc::server {
+namespace bsc::server {
 
 // 文件声源的虚拟标识：真实玩家 UUID 不可能是全 0xFF，故不会与玩家冲突。
 // 它不是任何接收者本人，因此天然不受“不把自己的声音混给自己”的自我抑制影响。
@@ -43,4 +43,4 @@ private:
     std::string fileName_;
 };
 
-} // namespace vc::server
+} // namespace bsc::server

@@ -8,7 +8,7 @@
 #include "core/protocol/Message.h"
 #include "core/protocol/MessageCodec.h"
 
-using namespace vc::protocol;
+using namespace bsc::protocol;
 
 namespace {
 
@@ -185,7 +185,7 @@ TEST(protocol_ui_form_roundtrip) {
     request.kind = UiFormKind::Request;
     request.requestId = 4242;
     request.cancelReason = -1;
-    request.payload = "{\"type\":\"custom_form\",\"title\":\"voicechat\"}";
+    request.payload = "{\"type\":\"custom_form\",\"title\":\"bschat\"}";
 
     auto unpacked = MessageCodec::unpack(MessageCodec::pack(request, 11, 2222));
     EXPECT_TRUE(unpacked.has_value());

@@ -1,6 +1,6 @@
-# Building Betterlanguagechat
+# Building BSChat
 
-This guide explains how to build Betterlanguagechat from source with xmake.
+This guide explains how to build BSChat from source with xmake.
 
 ## Prerequisites
 
@@ -28,14 +28,14 @@ Configure and build the **server** version (default):
 
 ```bash
 xmake f -y -p windows -a x64 -m release
-xmake build voicechat
+xmake build bschat
 ```
 
 Build the **client** version:
 
 ```bash
 xmake f -y -p windows -a x64 -m release --target_type=client
-xmake build voicechat
+xmake build bschat
 ```
 
 ## Run unit tests
@@ -44,21 +44,21 @@ The core engine and host-test adapters have zero LeviLamina dependency and run a
 
 ```bash
 xmake f -y -p windows -a x64 -m release
-xmake build voicechat-tests
-xmake run voicechat-tests
+xmake build bschat-tests
+xmake run bschat-tests
 ```
 
-The `voicechat-tests` target is `set_default(false)`, so it is not built by default. If xmake reports a stale package lock, stop other xmake processes and remove the matching `package.lock` under `%LOCALAPPDATA%\\.xmake\\cache\\packages`; do not delete a lock held by an active build. The current machine has the ATL headers and `atls.lib`; configure and build through the Visual Studio Developer Command Prompt so both `INCLUDE` and `LIB` contain the `atlmfc` directories. The client target now builds successfully with this environment. The reliable command pattern is:
+The `bschat-tests` target is `set_default(false)`, so it is not built by default. If xmake reports a stale package lock, stop other xmake processes and remove the matching `package.lock` under `%LOCALAPPDATA%\\.xmake\\cache\\packages`; do not delete a lock held by an active build. The current machine has the ATL headers and `atls.lib`; configure and build through the Visual Studio Developer Command Prompt so both `INCLUDE` and `LIB` contain the `atlmfc` directories. The client target now builds successfully with this environment. The reliable command pattern is:
 
 ```powershell
-cmd /d /s /c 'call "C:\Program Files (x86)\Microsoft Visual Studio\18\BuildTools\Common7\Tools\VsDevCmd.bat" -arch=x64 -host_arch=x64 && set "LIB=C:\Program Files (x86)\Microsoft Visual Studio\18\BuildTools\VC\Tools\MSVC\14.51.36231\atlmfc\lib\x64;%LIB%" && set "INCLUDE=C:\Program Files (x86)\Microsoft Visual Studio\18\BuildTools\VC\Tools\MSVC\14.51.36231\atlmfc\include;%INCLUDE%" && xmake f -a x64 -m debug -p windows --target_type=client -y && xmake build voicechat'
+cmd /d /s /c 'call "C:\Program Files (x86)\Microsoft Visual Studio\18\BuildTools\Common7\Tools\VsDevCmd.bat" -arch=x64 -host_arch=x64 && set "LIB=C:\Program Files (x86)\Microsoft Visual Studio\18\BuildTools\VC\Tools\MSVC\14.51.36231\atlmfc\lib\x64;%LIB%" && set "INCLUDE=C:\Program Files (x86)\Microsoft Visual Studio\18\BuildTools\VC\Tools\MSVC\14.51.36231\atlmfc\include;%INCLUDE%" && xmake f -a x64 -m debug -p windows --target_type=client -y && xmake build bschat'
 ```
 
-Both builds write to the same path, `bin/voicechat/voicechat.dll`, and both produce a file literally named
-`voicechat.dll`. Switching `--target_type` therefore overwrites the previous build, and the two outputs are
+Both builds write to the same path, `bin/bschat/bschat.dll`, and both produce a file literally named
+`bschat.dll`. Switching `--target_type` therefore overwrites the previous build, and the two outputs are
 different binaries (server builds define `LL_PLAT_S` and compile `src/server/**`; client builds compile
 `src/client/**` and additionally link the whole LeviLamina archive). Always copy each build out to a
-separate folder immediately after building, e.g. `artifacts/server/voicechat/` and `artifacts/client/voicechat/`,
+separate folder immediately after building, e.g. `artifacts/server/bschat/` and `artifacts/client/bschat/`,
 and set that copy's `manifest.json` `platform` field to `server` or `client` respectively.
 
 ### Verifying which flavor a DLL is
@@ -68,7 +68,7 @@ time with `The specified procedure could not be found` and a dependency diagnost
 `ll::event::client::ClientJoinLevelEvent` / `ll::event::input::KeyInputEvent`. Check before deploying:
 
 ```powershell
-dumpbin /DEPENDENTS bin\voicechat\voicechat.dll
+dumpbin /DEPENDENTS bin\bschat\bschat.dll
 ```
 
 ### Verifying that the server configuration took effect
@@ -81,7 +81,7 @@ option was written before trusting a server build:
 Select-String -Path .xmake\windows\x64\xmake.conf -Pattern 'target_type'
 ```
 
-The server build must also compile `src\server\**` (visible with `xmake build -v voicechat`), not `src\client\**`.
+The server build must also compile `src\server\**` (visible with `xmake build -v bschat`), not `src\client\**`.
 
 ### ATL requirement
 
@@ -101,9 +101,9 @@ Without this, `xmake f --target_type=server` aborts during SDK installation with
 
 | Target | Kind | Description |
 |---|---|---|
-| `voicechat-core` | static library | Pure C++ core engine (codec / protocol / audio / pipeline / config) |
-| `voicechat` | module | Main module; picks `src/server` or `src/client` by `target_type` |
-| `voicechat-tests` | binary | Core and host-test adapters (no LeviLamina) |
+| `bschat-core` | static library | Pure C++ core engine (codec / protocol / audio / pipeline / config) |
+| `bschat` | module | Main module; picks `src/server` or `src/client` by `target_type` |
+| `bschat-tests` | binary | Core and host-test adapters (no LeviLamina) |
 
 ## Deployment
 
@@ -111,15 +111,15 @@ After a successful build, place the output in the correct directory:
 
 | Target build type | Deploy to |
 |---|---|
-| `server` | `plugins/voicechat/` |
-| `client` | `mods/voicechat/` |
+| `server` | `plugins/bschat/` |
+| `client` | `mods/bschat/` |
 
 > [!IMPORTANT]
-> Deploy the **whole module directory**, not just the DLL. Besides `voicechat.dll` and `manifest.json`,
+> Deploy the **whole module directory**, not just the DLL. Besides `bschat.dll` and `manifest.json`,
 > the module needs `lang/` (i18n), `panels/` (settings and admin panel definitions) and `icons/` (HUD status
-> icon PNGs). `xmake`'s `after_build` copies all of them into `bin/voicechat/`, but a deploy step that copies
+> icon PNGs). `xmake`'s `after_build` copies all of them into `bin/bschat/`, but a deploy step that copies
 > only the DLL plus manifest silently produces a hollow module: panels fail to open, text falls back to raw
-> i18n keys, and the HUD shows text only. `scripts/Invoke-VoiceChatSmokeTest.ps1` copies the full tree and
+> i18n keys, and the HUD shows text only. `scripts/Invoke-BSChatSmokeTest.ps1` copies the full tree and
 > fails loudly when any of the three directories is missing. When updating an existing install, keep its
 > `config/` directory.
 
@@ -147,4 +147,4 @@ src/client/      Client adaptation layer (client target)
 tests/           Core unit tests
 ```
 
-See the current execution status in [voicechat-fullscope-execution.md](voicechat-fullscope-execution.md), and the module documents for [protocol](protocol.md), [mixer](mixer.md), [admin](admin.md), and [client](client.md).
+See the current execution status in [bschat-fullscope-execution.md](bschat-fullscope-execution.md), and the module documents for [protocol](protocol.md), [mixer](mixer.md), [admin](admin.md), and [client](client.md).

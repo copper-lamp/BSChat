@@ -4,7 +4,7 @@
 
 #include "core/protocol/Message.h"
 
-namespace vc::pipeline {
+namespace bsc::pipeline {
 
 // 传输层抽象：业务层通过它收发协议消息。
 // v1 实现为游戏内自定义包（GamePacketTransport，位于 src/shared）；
@@ -26,4 +26,4 @@ public:
     virtual void clearMessageHandler() {}
 };
 
-} // namespace vc::pipeline
+} // namespace bsc::pipeline

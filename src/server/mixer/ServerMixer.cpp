@@ -5,7 +5,7 @@
 #include <cmath>
 #include <thread>
 
-namespace vc::server {
+namespace bsc::server {
 namespace {
 int64_t steadyNowMs() {
     return std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -192,4 +192,4 @@ void ServerMixer::enqueueTo(const protocol::PlayerId& peerId, const protocol::Me
     pending_.emplace_back(peerId, message);
 }
 
-} // namespace vc::server
+} // namespace bsc::server

@@ -4,7 +4,7 @@
 #include <cmath>
 #include <string>
 
-namespace vc::client {
+namespace bsc::client {
 
 namespace {
 
@@ -43,7 +43,7 @@ void SmokeTest::begin() {
     // 按帧长节拍喂入，与真实采集一致：每 frameSizeMs 产出一帧 frameSizeMs 的音频。
     // 若快于实时（早期固定 20ms 喂 60ms 帧），服务端会话限速会按比例丢弃并刷告警。
     toneIntervalMs_ = std::max<int64_t>(1, runtime_.config().audio.frameSizeMs);
-    log("smoke test requested by the server /voicechat test command; it runs as soon as the handshake completes");
+    log("smoke test requested by the server /bsc test command; it runs as soon as the handshake completes");
 }
 
 void SmokeTest::reset() {
@@ -170,4 +170,4 @@ void SmokeTest::finish(int64_t nowMs) {
     log("smoke test finished; send this log to the developer");
 }
 
-} // namespace vc::client
+} // namespace bsc::client

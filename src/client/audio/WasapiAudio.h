@@ -6,7 +6,7 @@
 #include <string>
 #include <vector>
 
-namespace vc::client::audio {
+namespace bsc::client::audio {
 
 struct WasapiProbeResult {
     bool captureAvailable = false;
@@ -80,4 +80,4 @@ private:
     std::unique_ptr<Impl> impl_;
 };
 
-} // namespace vc::client::audio
+} // namespace bsc::client::audio

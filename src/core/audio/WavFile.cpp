@@ -5,7 +5,7 @@
 #include <cstring>
 #include <fstream>
 
-namespace vc::audio {
+namespace bsc::audio {
 namespace {
 
 constexpr uint16_t kFormatPcm        = 0x0001;
@@ -199,4 +199,4 @@ bool loadWavMono(
     return true;
 }
 
-} // namespace vc::audio
+} // namespace bsc::audio

@@ -47,7 +47,7 @@ function apply_common_windows_flags()
 end
 
 -- 核心引擎：纯 C++ 静态库，零 LeviLamina 依赖，可独立单测
-target("voicechat-core")
+target("bschat-core")
     set_kind("static")
     set_languages("c++20")
     apply_common_windows_flags()
@@ -57,11 +57,11 @@ target("voicechat-core")
     add_headerfiles("src/core/**.h")
 
 -- 模组本体：按 target_type 编译服务端或客户端适配层
-target("voicechat")
+target("bschat")
     set_kind("shared")
     set_languages("c++20")
     apply_common_windows_flags()
-    add_deps("voicechat-core")
+    add_deps("bschat-core")
     add_rules("@levibuildscript/linkrule")
     add_rules("@levibuildscript/modpacker")
     add_packages("levilamina")
@@ -119,12 +119,12 @@ target("voicechat")
 -- 单元测试：host 运行，链接 core 静态库与第三方依赖，不进入默认构建。
 -- 额外编译 server/session、server/mixer、server/stt（零 LeviLamina 依赖的纯逻辑层），
 -- 覆盖会话切分/限速、混音 tick/待发队列、STT worker 管线单测。
-target("voicechat-tests")
+target("bschat-tests")
     set_default(false)
     set_kind("binary")
     set_languages("c++20")
     apply_common_windows_flags()
-    add_deps("voicechat-core")
+    add_deps("bschat-core")
     add_packages("libopus", "nlohmann_json")
     add_includedirs("src", "tests", "third_party/sherpa-onnx")
     add_files(

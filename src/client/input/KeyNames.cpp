@@ -4,7 +4,7 @@
 #include <cctype>
 #include <string_view>
 
-namespace vc::client::input {
+namespace bsc::client::input {
 namespace {
 
 struct KeyName {
@@ -117,4 +117,4 @@ std::string nameFromVirtualKey(uint32_t virtualKey) {
     return {};
 }
 
-} // namespace vc::client::input
+} // namespace bsc::client::input

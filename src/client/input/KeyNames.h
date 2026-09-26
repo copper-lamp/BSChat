@@ -5,7 +5,7 @@
 #include <string>
 #include <string_view>
 
-namespace vc::client::input {
+namespace bsc::client::input {
 
 // 面板里用户填写的按键名与虚拟键码互转（LeviLamina 客户端 KeyInputEvent 用的是虚拟键码）。
 // 只收录可以安全绑定的常用键：字母、数字、F1-F12、少量功能键；
@@ -18,4 +18,4 @@ std::optional<uint32_t> virtualKeyFromName(std::string_view name);
 // 反向查询，返回规范名；未收录的键码返回空串（调用方据此只显示 placeholder）。
 std::string nameFromVirtualKey(uint32_t virtualKey);
 
-} // namespace vc::client::input
+} // namespace bsc::client::input

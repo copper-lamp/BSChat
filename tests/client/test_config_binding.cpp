@@ -7,9 +7,9 @@
 #include "client/ui/ConfigBinding.h"
 #include "core/config/Config.h"
 
-using namespace vc::client::ui;
+using namespace bsc::client::ui;
 
-namespace config = vc::config;
+namespace config = bsc::config;
 
 TEST(config_binding_reads_current_values) {
     config::ClientConfig c;

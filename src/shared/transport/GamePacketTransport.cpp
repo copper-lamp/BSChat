@@ -30,7 +30,7 @@ ll::network::PacketRuntimeId ll::network::Packet::getRuntimeId() const {
     return ll::hash_utils::doHash(getName());
 }
 
-namespace vc::shared {
+namespace bsc::shared {
 
 namespace {
 
@@ -53,7 +53,7 @@ bool isRealtimeAudio(const protocol::Message& message) {
 
 } // namespace
 
-class VoiceChatPacket : public ll::network::PacketBase<VoiceChatPacket> {
+class BSChatPacket : public ll::network::PacketBase<BSChatPacket> {
 public:
     std::vector<uint8_t> payload;
 
@@ -74,9 +74,9 @@ public:
     }
 };
 
-class VoiceChatPacketHandler : public ll::network::PacketHandlerBase<VoiceChatPacketHandler, VoiceChatPacket> {
+class BSChatPacketHandler : public ll::network::PacketHandlerBase<BSChatPacketHandler, BSChatPacket> {
 public:
-    void handlePacket(::NetworkIdentifier const& netId, ::NetEventCallback&, VoiceChatPacket const& packet) const {
+    void handlePacket(::NetworkIdentifier const& netId, ::NetEventCallback&, BSChatPacket const& packet) const {
         auto* transport = g_transport;
         if (!transport) return;
         protocol::PlayerId peerId = kServerPlayerId;
@@ -101,15 +101,15 @@ namespace {
 // sendToServer/sendToClient，没有 registerPacket/registerHandler）。后果是客户端发出的
 // RuntimePacket 在服务端 PacketRegistrar::createPacket 中找不到工厂，BDS 反序列化失败并
 // 直接断开客户端，表现为进服后立刻掉线。此处显式注册，保证双端运行时 ID 与处理器一致。
-void registerVoiceChatPacket() {
+void registerBSChatPacket() {
     static bool const registered = [] {
         auto&      registrar = ll::network::PacketRegistrar::getInstance();
-        auto const name      = ll::reflection::type_unprefix_name_v<VoiceChatPacket>;
+        auto const name      = ll::reflection::type_unprefix_name_v<BSChatPacket>;
         auto const id        = ll::hash_utils::doHash(name);
         registrar.registerPacket(name, id, []() -> std::unique_ptr<ll::network::Packet> {
-            return std::make_unique<VoiceChatPacket>();
+            return std::make_unique<BSChatPacket>();
         });
-        static VoiceChatPacketHandler handler; // 注册表只存引用，处理器需静态存储期
+        static BSChatPacketHandler handler; // 注册表只存引用，处理器需静态存储期
         registrar.registerHandler(name, id, handler);
         return true;
     }();
@@ -120,7 +120,7 @@ void registerVoiceChatPacket() {
 
 GamePacketTransport::GamePacketTransport(TransportMode mode, PlayerResolver resolver) : mode_(mode), resolver_(std::move(resolver)) {
     // 先注册包类型，再对外暴露 transport，避免收到未注册的 runtimeId。
-    registerVoiceChatPacket();
+    registerBSChatPacket();
     g_transport = this;
 }
 GamePacketTransport::~GamePacketTransport() { if (g_transport == this) g_transport = nullptr; }
@@ -157,7 +157,7 @@ Player* GamePacketTransport::resolvePlayer(const protocol::PlayerId& peerId) con
 void GamePacketTransport::send(const protocol::PlayerId& peerId, const protocol::Message& message) {
     auto bytes = protocol::MessageCodec::pack(message, ++sendSeq_, steadyClockMs());
     if (bytes.empty()) return;
-    VoiceChatPacket packet;
+    BSChatPacket packet;
     packet.payload = std::move(bytes);
     if (isRealtimeAudio(message)) {
         packet.mPriority = PacketPriority::ImmediatePriority;
@@ -204,4 +204,4 @@ void GamePacketTransport::dispatch(const protocol::PlayerId& peerId, const proto
     if (handler) handler(peerId, message);
 }
 
-} // namespace vc::shared
+} // namespace bsc::shared

@@ -1,10 +1,10 @@
 
 <div align="center">
-  <h1>Betterlanguagechat</h1>
+  <h1>BSChat</h1>
   <p><strong>进服开麦，即刻畅聊。</strong></p>
   <p>面向 LeviLamina 的开源 Minecraft 基岩版游戏内实时语音聊天模组，服务端混音、客户端收发，可选实时语音转写字幕。</p>
   <p>
-    <img src="https://img.shields.io/badge/release-v0.0.0-4c8bf5?style=flat-square" alt="Betterlanguagechat v0.0.0">
+    <img src="https://img.shields.io/badge/release-v0.0.0-4c8bf5?style=flat-square" alt="BSChat v0.0.0">
     <img src="https://img.shields.io/badge/Minecraft%20Bedrock-Windows%20x64-62b47a?style=flat-square" alt="Windows x64 Minecraft 基岩版">
     <a href="LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0-blue?style=flat-square" alt="AGPL-3.0 许可证"></a>
   </p>
@@ -25,18 +25,18 @@
 </div>
 
 > [!WARNING]
-> Betterlanguagechat 目前仍处于早期开发阶段，现有版本均为测试版本。请备份重要世界与客户端/服务端数据；在 Minecraft、LeviLamina 或本模组版本发生变化后，不保证先前版本仍然兼容。
+> BSChat 目前仍处于早期开发阶段，现有版本均为测试版本。请备份重要世界与客户端/服务端数据；在 Minecraft、LeviLamina 或本模组版本发生变化后，不保证先前版本仍然兼容。
 
-Betterlanguagechat 将你在游戏里的语音带到身边——按住按键说话，声音经游戏自带数据通道实时传给服务器上的每一个人，服务端把多方语音混合后回传；还可以开启实时语音转文字，把谁在说什么直接显示在屏幕上。一个项目、两套构建：服务端插件 + 客户端模组，从服务器到玩家体验一致。
+BSChat 将你在游戏里的语音带到身边——按住按键说话，声音经游戏自带数据通道实时传给服务器上的每一个人，服务端把多方语音混合后回传；还可以开启实时语音转文字，把谁在说什么直接显示在屏幕上。一个项目、两套构建：服务端插件 + 客户端模组，从服务器到玩家体验一致。
 
 ## 快速开始
 
 > [!IMPORTANT]
-> Betterlanguagechat 以服务端和客户端两个独立构建分发，两端都必须安装且使用相同的 LeviLamina 基线，否则无法握手。
+> BSChat 以服务端和客户端两个独立构建分发，两端都必须安装且使用相同的 LeviLamina 基线，否则无法握手。
 
 1. 在服务器上安装 [LeviLamina](https://lamina.levimc.org/)（基线 26.10.14）。
 2. 在每位玩家的基岩版客户端安装 LeviLamina 客户端。
-3. 安装对应构建：服务端 → `plugins/voicechat/`，客户端 → `mods/voicechat/`。
+3. 安装对应构建：服务端 → `plugins/bschat/`，客户端 → `mods/bschat/`。
 4. 重启后进服，按住 **V** 说话，松开结束。
 
 完整安装与配置说明见[快速上手指南](../docs/getting-started.md)。
@@ -63,8 +63,8 @@ Betterlanguagechat 将你在游戏里的语音带到身边——按住按键说�
 
 | 端 | 构建 | 安装路径 |
 | ------------------ | ---------------- | ------------------------ |
-| 服务端（BDS） | 服务端构建 | `plugins/voicechat/` |
-| 客户端（基岩版） | 客户端构建 | `mods/voicechat/` |
+| 服务端（BDS） | 服务端构建 | `plugins/bschat/` |
+| 客户端（基岩版） | 客户端构建 | `mods/bschat/` |
 
 以上均面向 **Windows x64** 平台，运行于 **LeviLamina 26.10.14**。
 
@@ -81,10 +81,10 @@ Betterlanguagechat 将你在游戏里的语音带到身边——按住按键说�
 
 | 命令 | 说明 |
 | -------------------------------- | ---------------------------------- |
-| `/voicechat help` | 显示语音命令帮助。 |
-| `/voicechat mute <player>` | 强制静音指定玩家。 |
-| `/voicechat unmute <player>` | 解除指定玩家静音。 |
-| `/voicechat toggle` | 开关自身麦克风。 |
+| `/bsc help` | 显示语音命令帮助。 |
+| `/bsc mute <player>` | 强制静音指定玩家。 |
+| `/bsc unmute <player>` | 解除指定玩家静音。 |
+| `/bsc toggle` | 开关自身麦克风。 |
 
 ## 语言
 
@@ -95,7 +95,7 @@ Betterlanguagechat 将你在游戏里的语音带到身边——按住按键说�
 
 ## 常见问题
 
-### Betterlanguagechat 是什么？
+### BSChat 是什么？
 它是面向 Windows x64 LeviLamina 的 Minecraft 基岩版游戏内实时语音聊天模组。玩家按住按键说话，语音经游戏自带数据通道上行，服务端混音后回传所有在线玩家，可选实时语音转文字字幕。
 
 ### 需要开放端口或配置 UDP 通道吗？
@@ -140,4 +140,4 @@ Betterlanguagechat 将你在游戏里的语音带到身边——按住按键说�
 
 ## 许可证
 
-Betterlanguagechat 是以 [GNU Affero 通用公共许可证 v3.0](LICENSE)（可含更高版本）发布的自由软件。详见 `LICENSE`。第三方依赖保留各自许可证，详见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) 与 [licenses/](licenses/) 目录。
+BSChat 是以 [GNU Affero 通用公共许可证 v3.0](LICENSE)（可含更高版本）发布的自由软件。详见 `LICENSE`。第三方依赖保留各自许可证，详见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) 与 [licenses/](licenses/) 目录。

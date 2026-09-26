@@ -5,7 +5,7 @@
 #include <fstream>
 #include <mutex>
 
-namespace vc::shared {
+namespace bsc::shared {
 
 namespace {
 
@@ -56,7 +56,7 @@ void FileLog::reset(std::string const& path, std::string_view header) {
         return;
     }
     logReady() = true;
-    std::string banner = header.empty() ? std::string("voicechat log started") : std::string(header);
+    std::string banner = header.empty() ? std::string("bschat log started") : std::string(header);
     logStream() << formatLine("info", banner);
     logStream().flush();
 }
@@ -75,4 +75,4 @@ void FileLog::write(std::string_view level, std::string_view message) {
     logStream().flush();
 }
 
-} // namespace vc::shared
+} // namespace bsc::shared

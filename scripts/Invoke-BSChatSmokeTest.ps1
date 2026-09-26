@@ -6,8 +6,8 @@ param(
     [Parameter(Mandatory = $true)]
     [string]$ClientRoot,
 
-    [string]$ServerArtifact = (Join-Path $PSScriptRoot '..\artifacts\server\voicechat'),
-    [string]$ClientArtifact = (Join-Path $PSScriptRoot '..\artifacts\client\voicechat'),
+    [string]$ServerArtifact = (Join-Path $PSScriptRoot '..\artifacts\server\bschat'),
+    [string]$ClientArtifact = (Join-Path $PSScriptRoot '..\artifacts\client\bschat'),
     [string]$BdsExecutable = 'bedrock_server.exe',
     [string]$ClientCommand,
     [int]$StartupTimeoutSeconds = 45,
@@ -34,9 +34,9 @@ function Find-FirstExisting([string[]]$Candidates) {
 
 function Copy-ModArtifact([string]$Artifact, [string]$Destination, [string]$Side) {
     $artifactRoot = Resolve-ExistingPath $Artifact "$Side artifact"
-    $dll = Join-Path $artifactRoot 'voicechat.dll'
+    $dll = Join-Path $artifactRoot 'bschat.dll'
     $manifest = Join-Path $artifactRoot 'manifest.json'
-    if (!(Test-Path -LiteralPath $dll)) { throw "$Side artifact is missing voicechat.dll: $artifactRoot" }
+    if (!(Test-Path -LiteralPath $dll)) { throw "$Side artifact is missing bschat.dll: $artifactRoot" }
     if (!(Test-Path -LiteralPath $manifest)) { throw "$Side artifact is missing manifest.json: $artifactRoot" }
     # 模组目录是「整目录」交付物：dll/manifest 之外还有 lang（i18n）、panels（设置/管理面板）
     # 和 icons（HUD 状态图标）。只拷 dll+manifest 会让这些目录变空，面板不可用、文案回落键名、
@@ -61,8 +61,8 @@ function New-Backup([string]$Path) {
 $repo = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 $bdsRootResolved = Resolve-ExistingPath $BdsRoot 'BDS root'
 $clientRootResolved = Resolve-ExistingPath $ClientRoot 'client root'
-$serverInstall = Join-Path $bdsRootResolved 'plugins\voicechat'
-$clientInstall = Join-Path $clientRootResolved 'mods\voicechat'
+$serverInstall = Join-Path $bdsRootResolved 'plugins\bschat'
+$clientInstall = Join-Path $clientRootResolved 'mods\bschat'
 $bdsExe = Find-FirstExisting @(
     (Join-Path $bdsRootResolved $BdsExecutable),
     (Join-Path $bdsRootResolved 'bedrock_server_mod.exe')
@@ -102,8 +102,8 @@ try {
     }
 
     Write-Host "[2/6] Installation verified"
-    $result.checks.serverDll = Test-Path (Join-Path $serverInstall 'voicechat.dll')
-    $result.checks.clientDll = Test-Path (Join-Path $clientInstall 'voicechat.dll')
+    $result.checks.serverDll = Test-Path (Join-Path $serverInstall 'bschat.dll')
+    $result.checks.clientDll = Test-Path (Join-Path $clientInstall 'bschat.dll')
 
     if ($Launch) {
         Write-Host "[3/6] Starting BDS"

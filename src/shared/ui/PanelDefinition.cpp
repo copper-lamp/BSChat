@@ -4,7 +4,7 @@
 
 #include <nlohmann/json.hpp>
 
-namespace vc::ui {
+namespace bsc::ui {
 namespace {
 
 using Json = nlohmann::json;
@@ -150,4 +150,4 @@ std::optional<PanelDefinition> PanelDefinition::parse(std::string_view json, std
     return definition;
 }
 
-} // namespace vc::ui
+} // namespace bsc::ui

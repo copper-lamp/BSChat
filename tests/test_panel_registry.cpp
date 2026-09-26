@@ -12,26 +12,26 @@
 #include "shared/ui/FormPlan.h"
 #include "shared/ui/PanelRegistry.h"
 
-using namespace vc::ui;
+using namespace bsc::ui;
 
 namespace {
 
 constexpr char const* kSettingsPanel = R"({
     "schemaVersion": 1,
-    "id": "voicechat.settings.client",
-    "title": "voicechat.panel.settings.title",
-    "submitButton": "voicechat.panel.settings.submit",
+    "id": "bschat.settings.client",
+    "title": "bschat.panel.settings.title",
+    "submitButton": "bschat.panel.settings.submit",
     "elements": [
-        { "type": "toggle", "key": "voiceEnabled", "text": "voicechat.opt.voiceEnabled", "default": true }
+        { "type": "toggle", "key": "voiceEnabled", "text": "bschat.opt.voiceEnabled", "default": true }
     ]
 })";
 
 constexpr char const* kAdminPanel = R"({
     "schemaVersion": 1,
-    "id": "voicechat.admin",
-    "title": "voicechat.panel.admin.title",
+    "id": "bschat.admin",
+    "title": "bschat.panel.admin.title",
     "elements": [
-        { "type": "toggle", "key": "voiceEnabled", "text": "voicechat.opt.voiceEnabled", "default": true }
+        { "type": "toggle", "key": "voiceEnabled", "text": "bschat.opt.voiceEnabled", "default": true }
     ]
 })";
 
@@ -51,7 +51,7 @@ void writeFile(std::filesystem::path const& path, std::string const& text) {
 std::optional<PanelDefinition> parseOk(std::string const& json) {
     std::string error;
     auto definition = PanelDefinition::parse(json, error);
-    if (!definition) ::vc::test::reportFailure(__FILE__, __LINE__, "parse failed: " + error);
+    if (!definition) ::bsc::test::reportFailure(__FILE__, __LINE__, "parse failed: " + error);
     return definition;
 }
 
@@ -62,8 +62,8 @@ PanelTextResolver resolver() { return [](std::string_view key) { return prefixed
 
 TEST(panel_registry_loads_json_and_skips_bad_files) {
     auto const dir = makeTempDir("vc_panel_registry_test");
-    writeFile(dir / "voicechat-settings.json", kSettingsPanel);
-    writeFile(dir / "voicechat-admin.json", kAdminPanel);
+    writeFile(dir / "bschat-settings.json", kSettingsPanel);
+    writeFile(dir / "bschat-admin.json", kAdminPanel);
     writeFile(dir / "broken.json", R"({"schemaVersion": 1, "id": "broken",)"); // 截断的 JSON
     writeFile(dir / "notes.txt", "not a panel"); // 非 json 应被忽略
 
@@ -74,10 +74,10 @@ TEST(panel_registry_loads_json_and_skips_bad_files) {
     EXPECT_EQ(registry.size(), static_cast<std::size_t>(2));
     EXPECT_FALSE(error.empty()); // 坏文件被跳过并记录，但不影响好文件
 
-    auto const* settings = registry.find("voicechat.settings.client");
+    auto const* settings = registry.find("bschat.settings.client");
     EXPECT_TRUE(settings != nullptr);
-    if (settings) EXPECT_EQ(settings->titleKey, std::string("voicechat.panel.settings.title"));
-    EXPECT_TRUE(registry.find("voicechat.admin") != nullptr);
+    if (settings) EXPECT_EQ(settings->titleKey, std::string("bschat.panel.settings.title"));
+    EXPECT_TRUE(registry.find("bschat.admin") != nullptr);
     EXPECT_TRUE(registry.find("missing.panel") == nullptr);
 
     std::error_code code;

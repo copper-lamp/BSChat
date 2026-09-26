@@ -4,7 +4,7 @@
 
 #include "ll/api/i18n/I18n.h"
 
-namespace vc::ui {
+namespace bsc::ui {
 
 std::unique_ptr<ll::form::CustomForm> FormPanelBuilder::build(
     PanelDefinition const& definition,
@@ -72,4 +72,4 @@ PanelTextResolver FormPanelBuilder::i18nResolver() {
     };
 }
 
-} // namespace vc::ui
+} // namespace bsc::ui

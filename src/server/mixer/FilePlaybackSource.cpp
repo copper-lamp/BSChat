@@ -4,7 +4,7 @@
 
 #include "core/audio/WavFile.h"
 
-namespace vc::server {
+namespace bsc::server {
 
 bool FilePlaybackSource::load(const std::filesystem::path& path, int targetSampleRate, std::string& error) {
     std::vector<float> pcm;
@@ -59,4 +59,4 @@ std::string FilePlaybackSource::fileName() const {
     return fileName_;
 }
 
-} // namespace vc::server
+} // namespace bsc::server
