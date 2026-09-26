@@ -124,6 +124,7 @@ ClientConfig clientConfigFromJson(const std::string& json) {
         c.audio = audioFromJson(valueOr(j, "audio", nlohmann::json::object()));
         c.voiceEnabled = valueOr(j, "voiceEnabled", c.voiceEnabled);
         c.pttKey = valueOr(j, "pttKey", c.pttKey);
+        c.settingsKey = valueOr(j, "settingsKey", c.settingsKey);
         c.vadEnabled = valueOr(j, "vadEnabled", c.vadEnabled);
         c.captureEnabled = valueOr(j, "captureEnabled", c.captureEnabled);
         // 音量手改后可能越界，加载即收敛，避免非法值直接进入播放设备。
@@ -148,6 +149,7 @@ std::string clientConfigToJson(const ClientConfig& c) {
     j["audio"] = audioToJson(c.audio);
     j["voiceEnabled"] = c.voiceEnabled;
     j["pttKey"] = c.pttKey;
+    j["settingsKey"] = c.settingsKey;
     j["vadEnabled"] = c.vadEnabled;
     j["captureEnabled"] = c.captureEnabled;
     j["playbackVolume"] = c.playbackVolume;

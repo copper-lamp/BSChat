@@ -87,18 +87,21 @@ target("voicechat")
             add_links("LeviLamina", {wholearchive = true})
         end
     end
-    -- modpacker 只搬运 dll/pdb/manifest.json，语言文件需要自己拷贝，
-    -- 否则 ll::i18n 在运行时拿不到译文（HUD 与面板文案会回落到键名）。
+    -- modpacker 只搬运 dll/pdb/manifest.json，语言文件与面板定义需要自己拷贝，
+    -- 否则 ll::i18n 与面板加载在运行时拿不到内容（HUD/面板文案会回落到键名，面板不可用）。
     after_build(function (target)
-        local source = path.join(os.projectdir(), "lang")
-        if not os.isdir(source) then
-            return
+        local function copy_json_dir(source, destination)
+            if not os.isdir(source) then
+                return
+            end
+            os.mkdir(destination)
+            for _, file in ipairs(os.files(path.join(source, "*.json"))) do
+                os.cp(file, path.join(destination, path.filename(file)))
+            end
         end
-        local destination = path.join(os.projectdir(), "bin", target:name(), "lang")
-        os.mkdir(destination)
-        for _, file in ipairs(os.files(path.join(source, "*.json"))) do
-            os.cp(file, path.join(destination, path.filename(file)))
-        end
+        local modDir = path.join(os.projectdir(), "bin", target:name())
+        copy_json_dir(path.join(os.projectdir(), "lang"), path.join(modDir, "lang"))
+        copy_json_dir(path.join(os.projectdir(), "panels"), path.join(modDir, "panels"))
     end)
 
 -- 单元测试：host 运行，链接 core 静态库与第三方依赖，不进入默认构建。
@@ -114,7 +117,9 @@ target("voicechat-tests")
     add_includedirs("src", "tests", "third_party/sherpa-onnx")
     add_files(
         "tests/**.cpp",
-        "src/shared/ui/*.cpp",
+        "src/shared/ui/PanelDefinition.cpp",
+        "src/shared/ui/PanelRegistry.cpp",
+        "src/shared/ui/FormPlan.cpp",
         "src/server/session/*.cpp",
         "src/server/mixer/*.cpp",
         "src/server/stt/*.cpp",

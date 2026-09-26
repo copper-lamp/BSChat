@@ -5,6 +5,7 @@
 #include <functional>
 #include <memory>
 #include <string>
+#include <utility>
 
 #include "core/config/Config.h"
 #include "core/pipeline/ITransport.h"
@@ -30,6 +31,17 @@ public:
     // 因此由外层宿主注入日志函数；未注入时全部诊断静默丢弃。
     using LogSink = std::function<void(bool isError, std::string const& message)>;
     void setLogSink(LogSink sink) { logSink_ = std::move(sink); }
+
+    // 面板中继消息转发；本类保持零 LeviLamina 依赖，由外层宿主接上服务端中继。
+    // 从网络线程回调（transport dispatch），订阅方需自行保证线程安全。
+    using UiFormHandler = std::function<void(protocol::PlayerId const& peerId, protocol::UiFormMessage const&)>;
+    void setUiFormHandler(UiFormHandler handler) { uiFormHandler_ = std::move(handler); }
+
+    // 该玩家是否已完成 Hello/Welcome 会话登记（面板中继受理约束）。
+    bool hasSession(protocol::PlayerId const& id) const { return static_cast<bool>(sessions_.find(id)); }
+
+    // 管理员面板即时生效：开关服务器语音（config 为权威，mixer 侧每 tick 读取）。
+    void setVoiceEnabled(bool enabled) { config_.voiceEnabled = enabled; }
 
     void tickOnce(int64_t nowMs);
     void drainPending();
@@ -64,6 +76,7 @@ private:
     uint64_t acceptedAudioFrames_ = 0;
     uint64_t sentMixFrames_ = 0;
     LogSink logSink_;
+    UiFormHandler uiFormHandler_;
 };
 
 } // namespace vc::server

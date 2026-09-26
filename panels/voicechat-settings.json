@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "id": "voicechat.settings.client",
+  "title": "voicechat.panel.settings.title",
+  "submitButton": "voicechat.panel.settings.submit",
+  "elements": [
+    { "type": "header", "text": "voicechat.panel.settings.audio" },
+    { "type": "toggle", "key": "voiceEnabled", "text": "voicechat.opt.voiceEnabled", "default": true },
+    { "type": "dropdown", "key": "talkMode", "text": "voicechat.opt.talkMode",
+      "options": [
+        { "value": "disabled", "text": "voicechat.opt.talkMode.disabled" },
+        { "value": "pushToTalk", "text": "voicechat.opt.talkMode.ptt" },
+        { "value": "voiceActivity", "text": "voicechat.opt.talkMode.vad" }
+      ] },
+    { "type": "toggle", "key": "captureEnabled", "text": "voicechat.opt.captureEnabled", "default": true },
+    { "type": "slider", "key": "playbackVolume", "text": "voicechat.opt.volume", "min": 0, "max": 100, "step": 5, "default": 80 },
+    { "type": "divider" },
+    { "type": "header", "text": "voicechat.panel.settings.subtitle" },
+    { "type": "toggle", "key": "subtitleEnabled", "text": "voicechat.opt.subtitleEnabled", "default": true },
+    { "type": "slider", "key": "maxSubtitleLines", "text": "voicechat.opt.subtitleLines", "min": 1, "max": 8, "step": 1, "default": 4 },
+    { "type": "toggle", "key": "hudEnabled", "text": "voicechat.opt.hudEnabled", "default": true },
+    { "type": "label", "text": "voicechat.panel.settings.hint" }
+  ]
+}

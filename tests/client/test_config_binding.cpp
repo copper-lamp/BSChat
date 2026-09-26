@@ -103,12 +103,19 @@ TEST(config_client_panel_fields_roundtrip) {
     c.captureEnabled = false;
     c.hudEnabled = false;
     c.playbackVolume = 0.25f;
+    c.settingsKey = 0x4B; // 面板快捷键（默认 J=0x4A）
 
     auto restored = config::clientConfigFromJson(config::clientConfigToJson(c));
 
     EXPECT_FALSE(restored.captureEnabled);
     EXPECT_FALSE(restored.hudEnabled);
     EXPECT_NEAR(restored.playbackVolume, 0.25f, 1e-6);
+    EXPECT_EQ(restored.settingsKey, 0x4Bu);
+}
+
+TEST(config_client_panel_fields_defaults) {
+    // 缺字段时回退默认：面板快捷键默认 J（0x4A），避免旧配置文件读不出键。
+    EXPECT_EQ(config::clientConfigFromJson(R"({})").settingsKey, 0x4Au);
 }
 
 TEST(config_client_volume_clamped_on_load) {

@@ -144,6 +144,16 @@ void GamePacketTransport::clearPlayers() {
     peerPlayers_.clear();
 }
 
+Player* GamePacketTransport::resolvePlayer(const protocol::PlayerId& peerId) const {
+    // 优先走注入的 resolver（宿主维护的在线玩家表），未命中再回退到收包时登记的 Player*。
+    if (resolver_) {
+        if (Player* player = resolver_(peerId)) return player;
+    }
+    std::lock_guard lock(playersMutex_);
+    if (auto it = peerPlayers_.find(peerId); it != peerPlayers_.end()) return it->second;
+    return nullptr;
+}
+
 void GamePacketTransport::send(const protocol::PlayerId& peerId, const protocol::Message& message) {
     auto bytes = protocol::MessageCodec::pack(message, ++sendSeq_, steadyClockMs());
     if (bytes.empty()) return;

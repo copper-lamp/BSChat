@@ -54,6 +54,10 @@ public:
     void forgetPlayer(const protocol::PlayerId& peerId);
     void clearPlayers();
 
+    // 线程安全的 PlayerId → Player* 解析（优先注入的 resolver，回退到收包时登记的 Player*）。
+    // 供服务端面板中继等外部模块按玩家 UUID 取 Player*，避免另造一套玩家表。
+    Player* resolvePlayer(const protocol::PlayerId& peerId) const;
+
     TransportMode mode() const { return mode_; }
 
 private:
@@ -68,7 +72,7 @@ private:
     MessageHandler handler_;
     LogSink logSink_;
     std::mutex handlerMutex_; // 网络线程 dispatch 与主线程装配之间的保护
-    std::mutex playersMutex_; // 网络线程写入 / 主线程发送读取
+    mutable std::mutex playersMutex_; // 网络线程写入 / 主线程发送读取
     std::map<protocol::PlayerId, Player*> peerPlayers_;
     uint32_t sendSeq_ = 0;    // 信封级序号（仅主线程访问）
 };

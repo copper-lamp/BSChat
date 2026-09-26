@@ -13,6 +13,7 @@
 #include "ll/api/event/player/PlayerJoinEvent.h"
 #include "ll/api/event/world/ServerLevelTickEvent.h"
 #include "server/entry/ServerRuntime.h"
+#include "server/ui/PanelRelay.h"
 #include "shared/transport/GamePacketTransport.h"
 
 class Player;
@@ -29,6 +30,8 @@ public:
 private:
     bool loadConfig();
     bool registerCommand();
+    // 把当前 config_ 落盘（沿用 loadConfig 的写文件方式）。
+    bool persistConfig();
     // 解析 /voicechat play 的文件参数：优先绝对路径，其次 <配置目录>/audio/<name>。
     std::filesystem::path resolveAudioFile(const std::string& name) const;
     void onJoin(ll::event::player::PlayerJoinEvent& event);
@@ -42,6 +45,7 @@ private:
     config::ServerConfig config_;
     std::unique_ptr<shared::GamePacketTransport> transport_;
     std::unique_ptr<ServerRuntime> runtime_;
+    std::unique_ptr<ui::PanelRelay> panelRelay_;
     std::map<protocol::PlayerId, Player*> players_;
     ll::command::CommandHandle* smokeCommand_ = nullptr;
     std::shared_ptr<ll::event::Listener<ll::event::player::PlayerJoinEvent>> joinListener_;

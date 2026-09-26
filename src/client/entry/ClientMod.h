@@ -7,6 +7,7 @@
 #include "client/audio/WasapiAudio.h"
 #include "client/entry/SmokeTest.h"
 #include "client/hud/HudLayer.h"
+#include "client/ui/PanelRelay.h"
 #include "shared/transport/GamePacketTransport.h"
 #include "ll/api/event/Listener.h"
 #include "ll/api/event/client/ClientExitLevelEvent.h"
@@ -57,6 +58,7 @@ private:
     std::unique_ptr<IClock> clock_;
     config::ClientConfig config_;
     hud::HudLayer hudLayer_;
+    std::unique_ptr<ui::PanelRelay> panelRelay_;
     uint64_t lastMixFrames_ = 0;
     int64_t lastMixFrameMs_ = 0;
     std::shared_ptr<ll::event::Listener<ll::event::client::ClientJoinLevelEvent>> joinListener_;

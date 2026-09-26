@@ -128,6 +128,8 @@ void ServerRuntime::handleMessage(const protocol::PlayerId& peerId, const protoc
                 if (session && typedMessage.playerId == peerId && std::isfinite(typedMessage.x) && std::isfinite(typedMessage.y) && std::isfinite(typedMessage.z)) {
                     session->updatePosition(typedMessage, steadyNowMs());
                 }
+            } else if constexpr (std::is_same_v<MessageType, protocol::UiFormMessage>) {
+                if (uiFormHandler_) uiFormHandler_(peerId, typedMessage);
             }
         },
         message

@@ -22,6 +22,8 @@ public:
     using SmokeTestRequestHandler = std::function<void()>;
     // 服务端回传的转写文本；从网络线程回调，订阅方需自行保证线程安全。
     using SttTextHandler = std::function<void(protocol::SttTextMessage const&)>;
+    // 面板中继消息；从网络线程回调，订阅方需自行保证线程安全。
+    using UiFormHandler = std::function<void(protocol::UiFormMessage const&)>;
     ClientRuntime(IClientTransport&, IPlayerState&, IClock&, config::ClientConfig);
     ~ClientRuntime();
     void start(); void stop(); void tick();
@@ -32,6 +34,7 @@ public:
     void playLocalPcm(const float* samples, std::size_t count);
     void setSmokeTestRequestHandler(SmokeTestRequestHandler handler);
     void setSttTextHandler(SttTextHandler handler);
+    void setUiFormHandler(UiFormHandler handler);
     void reportPosition(); State state() const{return state_;}
     // 本端是否正在按住说话（HUD 状态覆盖层用）。
     bool talking() const { return talking_; }
@@ -55,6 +58,7 @@ private:
     audio::AgcProcessor agc_; ::vc::audio::JitterBuffer jitter_; RenderSink renderSink_; float outputVolume_=1.0F; bool outputMuted_=false;
     SmokeTestRequestHandler smokeTestRequestHandler_; std::atomic<bool> smokeTestRequested_{false};
     SttTextHandler sttTextHandler_;
+    UiFormHandler uiFormHandler_;
     std::vector<float> pcmFrame_; std::vector<uint8_t> encoded_; std::size_t pcmPending_=0;
     uint64_t playedMixFrames_=0; uint64_t receivedMixFrames_=0; uint64_t sentAudioFrames_=0;
 };

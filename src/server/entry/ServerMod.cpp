@@ -10,6 +10,7 @@
 #include "ll/api/event/player/PlayerDisconnectEvent.h"
 #include "ll/api/event/player/PlayerJoinEvent.h"
 #include "ll/api/event/world/ServerLevelTickEvent.h"
+#include "ll/api/i18n/I18n.h"
 #include "ll/api/mod/NativeMod.h"
 #include "ll/api/mod/RegisterHelper.h"
 #include "mc/server/ServerPlayer.h"
@@ -82,6 +83,11 @@ bool ServerMod::load() {
     shared::FileLog::reset(logPath_.string(), "voicechat server log started");
     shared::FileLog::info("load: server mod loading, config dir = " + self->getConfigDir().string());
 
+    // 管理员面板文案走 ll::i18n；语言文件缺失时各调用点回落到键名，不会阻塞加载。
+    if (auto loaded = ll::i18n::getInstance().load(self->getLangDir()); !loaded) {
+        shared::FileLog::warn("load: server language files unavailable, falling back to i18n keys");
+    }
+
     configPath_ = self->getConfigDir() / "voicechat.json";
     if (!loadConfig()) {
         shared::FileLog::error("load: config load failed at " + configPath_.string());
@@ -111,6 +117,12 @@ bool ServerMod::load() {
         if (isError) shared::FileLog::warn(message);
         else shared::FileLog::info(message);
     });
+
+    // 面板中继：网络线程把 UiForm(Request) 转给中继，主线程在 tick 中投递给请求者本人。
+    runtime_->setUiFormHandler([this](protocol::PlayerId const& peerId, protocol::UiFormMessage const& message) {
+        if (panelRelay_) panelRelay_->handleRequest(peerId, message);
+    });
+
     shared::FileLog::info("load: complete");
     return true;
 }
@@ -170,6 +182,28 @@ bool ServerMod::enable() {
     }
 
     runtime_->start();
+
+    // 每次启用都重建面板中继（模组可被禁用后再启用，此时按当前配置目录重新加载面板定义）。
+    panelRelay_ = std::make_unique<ui::PanelRelay>();
+    panelRelay_->initialize(
+        self->getModDir() / "panels",
+        [this](protocol::PlayerId const& peerId, protocol::Message const& message) {
+            if (transport_) transport_->send(peerId, message);
+        },
+        [this](protocol::PlayerId const& peerId) { return transport_ ? transport_->resolvePlayer(peerId) : nullptr; },
+        [this](protocol::PlayerId const& peerId) { return runtime_ && runtime_->hasSession(peerId); },
+        []() { return nowMs(); },
+        [](bool isError, std::string const& message) {
+            auto self = ll::mod::NativeMod::current();
+            if (self) {
+                if (isError) self->getLogger().warn("{}", message);
+                else self->getLogger().info("{}", message);
+            }
+            if (isError) shared::FileLog::warn(message);
+            else shared::FileLog::info(message);
+        }
+    );
+
     if (self) self->getLogger().info("voicechat server listeners enabled");
     shared::FileLog::info("enable: server listeners enabled");
     return true;
@@ -243,6 +277,36 @@ bool ServerMod::registerCommand() {
         shared::FileLog::info("command: audio file playback stopped: " + name);
     });
 
+    // /voicechat admin：仅管理员（OP）可执行；服务端本地构建管理面板并下发给本人。
+    // 面板只暴露已存在的服务端配置项（服务器语音开关），提交后写回并落盘。
+    handle.overload<>().text("admin").execute([this](CommandOrigin const& origin, CommandOutput& output) {
+        auto* entity = origin.getEntity();
+        if (!entity || !entity->isPlayer()) {
+            output.error("voicechat: /voicechat admin must be run by a player in game");
+            return;
+        }
+        auto& player = static_cast<Player&>(*entity);
+        if (!player.isOperator()) {
+            output.error("voicechat: /voicechat admin requires operator permission");
+            shared::FileLog::warn("command: admin panel denied (not an operator)");
+            return;
+        }
+        if (!panelRelay_) {
+            output.error("voicechat: admin panel is not available");
+            return;
+        }
+        bool const opened = panelRelay_->openAdminPanel(player, config_, [this] {
+            if (runtime_) runtime_->setVoiceEnabled(config_.voiceEnabled);
+            if (!persistConfig()) shared::FileLog::warn("command: failed to persist the server config");
+        });
+        if (!opened) {
+            output.error("voicechat: admin panel is unavailable (panel definition missing)");
+            return;
+        }
+        output.success("voicechat: admin panel sent");
+        shared::FileLog::info("command: admin panel sent to an operator");
+    });
+
     smokeCommand_ = &handle;
     shared::FileLog::info("enable: registered server command /voicechat test");
     return true;
@@ -272,6 +336,7 @@ bool ServerMod::disable() {
         tickListener_.reset();
     }
     if (runtime_) runtime_->stop();
+    if (panelRelay_) panelRelay_->shutdown();
     players_.clear();
     if (transport_) transport_->clearPlayers(); // 避免停用后残留失效的 Player*
     smokeCommand_ = nullptr;
@@ -280,6 +345,7 @@ bool ServerMod::disable() {
 
 bool ServerMod::unload() {
     disable();
+    panelRelay_.reset();
     runtime_.reset();
     transport_.reset();
     shared::FileLog::info("unload: server mod unloaded");
@@ -296,6 +362,10 @@ bool ServerMod::loadConfig() {
     }
     config_ = config::serverConfigFromJson(text);
     return true;
+}
+
+bool ServerMod::persistConfig() {
+    return writeText(configPath_, config::serverConfigToJson(config_));
 }
 
 void ServerMod::onJoin(ll::event::player::PlayerJoinEvent& event) {
@@ -315,6 +385,8 @@ void ServerMod::onDisconnect(ll::event::player::PlayerDisconnectEvent& event) {
 
 void ServerMod::onTick(ll::event::world::ServerLevelTickEvent&) {
     if (!runtime_ || !runtime_->running()) return;
+    // 面板中继与管理员面板投递必须在游戏主线程完成。
+    if (panelRelay_) panelRelay_->tick(nowMs());
     runtime_->tickOnce(nowMs());
     runtime_->drainPending();
 }

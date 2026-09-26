@@ -20,6 +20,8 @@
   "voicechat.opt.subtitleLines": "字幕显示行数",
   "voicechat.opt.hudEnabled": "显示状态覆盖层",
   "voicechat.panel.admin.title": "BSChat 管理面板",
+  "voicechat.panel.admin.audio": "服务器语音",
+  "voicechat.panel.admin.hint": "关闭后服务端将停止所有语音与字幕功能，保存即时生效",
   "voicechat.panel.admin.placeholder": "管理面板内容待实现",
   "voicechat.panel.rejected": "面板不可用：中继请求过于频繁或载荷过大"
 }

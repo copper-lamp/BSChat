@@ -117,6 +117,10 @@ void ClientRuntime::onMessage(const protocol::PlayerId& peerId, const protocol::
         if (sttTextHandler_) sttTextHandler_(*stt);
         return;
     }
+    if (const auto* ui = std::get_if<protocol::UiFormMessage>(&message)) {
+        if (uiFormHandler_) uiFormHandler_(*ui);
+        return;
+    }
     if (const auto* mix = std::get_if<protocol::MixStreamMessage>(&message)) {
         ++receivedMixFrames_;
         jitter_.push(mix->seq, mix->opusData, clock_.nowMs());
@@ -183,6 +187,8 @@ void ClientRuntime::setSmokeTestRequestHandler(SmokeTestRequestHandler handler) 
 }
 
 void ClientRuntime::setSttTextHandler(SttTextHandler handler) { sttTextHandler_ = std::move(handler); }
+
+void ClientRuntime::setUiFormHandler(UiFormHandler handler) { uiFormHandler_ = std::move(handler); }
 
 void ClientRuntime::drainPlayback() {
     if (!decoder_ || !renderSink_) return;

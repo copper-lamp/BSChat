@@ -52,6 +52,7 @@ struct ClientConfig {
     AudioConfig audio;
     bool voiceEnabled = true;
     uint32_t pttKey = 0x56; // 默认 V（虚拟键码）
+    uint32_t settingsKey = 0x4A; // 默认 J（虚拟键码）：打开语音设置面板
     bool vadEnabled = false;
     bool captureEnabled = true;   // 采集开关：关闭后只收听
     float playbackVolume = 1.0f;  // 播放音量 0..1

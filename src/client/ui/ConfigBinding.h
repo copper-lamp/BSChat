@@ -1,23 +1,19 @@
 #pragma once
 
 #include <cstddef>
-#include <cstdint>
 #include <string>
-#include <unordered_map>
-#include <variant>
 
 #include "core/config/Config.h"
+#include "shared/ui/FormPlan.h"
 
 namespace vc::client::ui {
 
 // 面板定义里的配置键与 ClientConfig 字段之间的映射。
 // 本模块零 LeviLamina 依赖（不含 ll::form 的类型），可 host 单测；
 // 表单结果由 FormPanelBuilder 归一化成 PanelValue 后交给这里。
-
-// 取值约定：布尔 → uint64_t(0/1)，数值 → double，文本 → std::string；
-// monostate 表示「该键不存在或不可读」。
-using PanelValue = std::variant<std::monostate, uint64_t, double, std::string>;
-using PanelValues = std::unordered_map<std::string, PanelValue>;
+// PanelValue / PanelValues 定义在 shared/ui（双端共用），这里直接复用。
+using ::vc::ui::PanelValue;
+using ::vc::ui::PanelValues;
 
 class ConfigBinding final {
 public:

@@ -143,11 +143,33 @@ bool ClientMod::enable() {
         if (self) self->getLogger().warn("HUD layer is unavailable; voice chat continues normally");
         shared::FileLog::warn("enable: HUD layer is unavailable; voice chat continues normally");
     }
+
+    // 面板定义随模组发布在模组目录的 panels/（与 lang/ 同级，由构建脚本拷入）。
+    panelRelay_ = std::make_unique<ui::PanelRelay>();
+    panelRelay_->initialize(
+        self->getModDir() / "panels",
+        [this](protocol::Message const& message) {
+            if (transport_) transport_->send({}, message);
+        },
+        [this]() -> config::ClientConfig const& { return config_; },
+        [this](config::ClientConfig const& config) { applyClientConfig(config); },
+        [this]() { return clock_ ? clock_->nowMs() : 0; },
+        [](bool isError, std::string const& message) {
+            auto self = ll::mod::NativeMod::current();
+            if (self) {
+                if (isError) self->getLogger().warn("{}", message);
+                else self->getLogger().info("{}", message);
+            }
+            if (isError) shared::FileLog::warn(message);
+            else shared::FileLog::info(message);
+        }
+    );
     return true;
 }
 
 bool ClientMod::disable() {
     hudLayer_.shutdown();
+    if (panelRelay_) panelRelay_->shutdown();
     if (audioDevice_) audioDevice_->stop();
     if (runtime_) runtime_->stop();
     auto& bus = ll::event::EventBus::getInstance();
@@ -161,6 +183,7 @@ bool ClientMod::disable() {
 bool ClientMod::unload() {
     disable();
     if (transport_) transport_->setMessageHandler({});
+    panelRelay_.reset();
     runtime_.reset();
     audioDevice_.reset();
     clock_.reset();
@@ -180,6 +203,10 @@ void ClientMod::onJoin(ll::event::client::ClientJoinLevelEvent& event) {
     // 字幕由服务端 STT 结果驱动，入队后由 HUD 在渲染事件里绘制。
     runtime_->setSttTextHandler([this](protocol::SttTextMessage const& text) {
         if (clock_) hudLayer_.pushSttText(text, clock_->nowMs());
+    });
+    // 面板中继响应：网络线程只入队，主线程 tick 里处理。
+    runtime_->setUiFormHandler([this](protocol::UiFormMessage const& message) {
+        if (panelRelay_) panelRelay_->handleMessage(message);
     });
     hudLayer_.applyConfig(config_);
     runtime_->setRenderSink([this](const float* samples, std::size_t count) {
@@ -287,6 +314,7 @@ void ClientMod::onExit(ll::event::client::ClientExitLevelEvent&) {
 }
 
 void ClientMod::onTick(ll::event::world::ClientLevelTickEvent&) {
+    if (panelRelay_ && clock_) panelRelay_->tick(clock_->nowMs());
     if (!runtime_) return;
     runtime_->tick();
     updateHudStatus();
@@ -306,7 +334,13 @@ void ClientMod::onTick(ll::event::world::ClientLevelTickEvent&) {
 }
 
 void ClientMod::onKey(ll::event::input::KeyInputEvent& event) {
-    if (!runtime_ || event.keyCode() != static_cast<int>(config_.pttKey)) return;
+    int const key = event.keyCode();
+    // 设置面板快捷键（默认 J）：按下即请求服务端中继下发设置面板。
+    if (key == static_cast<int>(config_.settingsKey)) {
+        if (event.isDown() && panelRelay_) panelRelay_->requestPanel("voicechat.settings.client");
+        return;
+    }
+    if (!runtime_ || key != static_cast<int>(config_.pttKey)) return;
     runtime_->setTalking(event.isDown());
 }
 

@@ -20,6 +20,8 @@
   "voicechat.opt.subtitleLines": "Subtitle lines",
   "voicechat.opt.hudEnabled": "Show status overlay",
   "voicechat.panel.admin.title": "BSChat Admin Panel",
+  "voicechat.panel.admin.audio": "Server voice",
+  "voicechat.panel.admin.hint": "Disabling stops all server voice and subtitle features; the change takes effect on save",
   "voicechat.panel.admin.placeholder": "Admin panel content is not implemented yet",
   "voicechat.panel.rejected": "Panel unavailable: relay request too frequent or payload too large"
 }
