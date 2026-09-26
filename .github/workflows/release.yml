@@ -1,12 +1,57 @@
+name: Release
+
 on:
+  push:
+    tags:
+      - "v*"
   release:
     types:
       - published
-  
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to build and upload (e.g. v0.1.0)"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+# 同一个 tag 的 tag 推送与 Release 发布可能同时触发（例如在 UI 上新建 tag 并直接发布），
+# 用并发组串行化，避免两个运行同时向同一个 Release 上传同名产物。
+concurrency:
+  group: release-${{ github.event.release.tag_name || github.ref_name }}
+  cancel-in-progress: false
+
 jobs:
+  resolve-tag:
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.resolve.outputs.tag }}
+    steps:
+      - id: resolve
+        name: Resolve release tag
+        run: |
+          if [ "${{ github.event_name }}" = "release" ]; then
+            tag="${{ github.event.release.tag_name }}"
+          elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            tag="${{ github.event.inputs.tag }}"
+          else
+            tag="${GITHUB_REF_NAME}"
+          fi
+          if [ -z "$tag" ]; then
+            echo "Unable to resolve release tag" >&2
+            exit 1
+          fi
+          echo "Resolved release tag: $tag"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
   build:
+    needs:
+      - resolve-tag
     runs-on: windows-latest
     strategy:
+      fail-fast: false
       matrix:
         target_type:
           - server
@@ -22,8 +67,9 @@ jobs:
         with:
           path: |
             ~/AppData/Local/.xmake
-          key: xmake-${{ hashFiles('xmake.lua') }}
+          key: xmake-${{ matrix.target_type }}-${{ hashFiles('xmake.lua') }}
           restore-keys: |
+            xmake-${{ matrix.target_type }}-
             xmake-
 
       - name: Setup LLVM
@@ -42,53 +88,52 @@ jobs:
 
       - uses: actions/upload-artifact@v7
         with:
-          name: ${{ github.event.repository.name }}-${{ github.sha }}-${{ matrix.target_type }}-windows-x64
+          name: voicechat-${{ needs.resolve-tag.outputs.tag }}-${{ matrix.target_type }}-windows-x64
           path: |
             bin/
 
-  update-release-notes:
-    permissions:
-      contents: write
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-
-      - id: extract-release-notes
-        uses: ffurrer2/extract-release-notes@v3
-
-      - uses: softprops/action-gh-release@v3
-        with:
-          body: |
-            ${{ steps.extract-release-notes.outputs.release_notes }}
-
-  upload-to-release:
+  publish-release:
     needs:
+      - resolve-tag
       - build
-      - update-release-notes
-    permissions:
-      contents: write
-    strategy:
-      matrix:
-        target_type:
-          - server
-          - client
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
 
       - uses: actions/download-artifact@v8
         with:
-          name: ${{ github.event.repository.name }}-${{ github.sha }}-${{ matrix.target_type }}-windows-x64
-          path: artifact
+          name: voicechat-${{ needs.resolve-tag.outputs.tag }}-server-windows-x64
+          path: dist/server
 
-      - run: |
-          cp CHANGELOG.md LICENSE README.md artifact/
+      - uses: actions/download-artifact@v8
+        with:
+          name: voicechat-${{ needs.resolve-tag.outputs.tag }}-client-windows-x64
+          path: dist/client
 
-      - run: |
-          zip -r ../${{ github.event.repository.name }}-${{ matrix.target_type }}-windows-x64.zip *
-        working-directory: artifact
+      - name: Attach shared release documents
+        run: |
+          cp CHANGELOG.md LICENSE README.md dist/server/
+          cp CHANGELOG.md LICENSE README.md dist/client/
+
+      - name: Package server artifact
+        working-directory: dist/server
+        run: |
+          zip -r "${GITHUB_WORKSPACE}/voicechat-server-windows-x64.zip" .
+
+      - name: Package client artifact
+        working-directory: dist/client
+        run: |
+          zip -r "${GITHUB_WORKSPACE}/voicechat-client-windows-x64.zip" .
+
+      - id: extract-release-notes
+        uses: ffurrer2/extract-release-notes@v3
 
       - uses: softprops/action-gh-release@v3
         with:
+          tag_name: ${{ needs.resolve-tag.outputs.tag }}
+          name: ${{ needs.resolve-tag.outputs.tag }}
+          body: |
+            ${{ steps.extract-release-notes.outputs.release_notes }}
           files: |
-            ${{ github.event.repository.name }}-${{ matrix.target_type }}-windows-x64.zip
+            voicechat-server-windows-x64.zip
+            voicechat-client-windows-x64.zip
