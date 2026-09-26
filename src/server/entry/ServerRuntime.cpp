@@ -1,8 +1,13 @@
 #include "server/entry/ServerRuntime.h"
 
+#include <algorithm>
 #include <chrono>
 #include <cmath>
+#include <iterator>
+#include <iomanip>
+#include <sstream>
 #include <type_traits>
+#include <vector>
 #include <utility>
 #include <variant>
 
@@ -64,14 +69,29 @@ ServerRuntime::~ServerRuntime() {
 void ServerRuntime::start() {
     if (running_) return;
     running_ = true;
+    {
+        std::lock_guard lock(speechMutex_);
+        speechLoggingStopped_ = false;
+    }
     // ServerMod 在主线程的 ServerLevelTick 中驱动 tickOnce；不要再启动
     // 第二个音频线程，否则 mixer/encoder/STT 会被并发访问。
     // mixer_.start() 保留为独立宿主的显式能力，但本运行时不启用。
 }
 
 void ServerRuntime::stop() {
-    if (!running_) return;
     running_ = false;
+    std::vector<protocol::PlayerId> activeSpeakers;
+    {
+        std::lock_guard lock(speechMutex_);
+        speechLoggingStopped_ = true;
+        activeSpeakers.reserve(speechActivities_.size());
+        for (const auto& [id, activity] : speechActivities_) {
+            (void)activity;
+            activeSpeakers.push_back(id);
+        }
+    }
+    const int64_t nowMs = steadyNowMs();
+    for (const auto& id : activeSpeakers) finishSpeechActivity(id, "runtime_stopped", nowMs);
     mixer_.stopFilePlayback();
     mixer_.stop();
 }
@@ -103,17 +123,20 @@ void ServerRuntime::tickOnce(int64_t nowMs) {
 
 void ServerRuntime::drainPending() {
     mixer_.drainPending([this](const protocol::PlayerId& peerId, const protocol::Message& message) {
+        if (std::holds_alternative<protocol::SttTextMessage>(message)) {
+            std::lock_guard lock(negotiatedCapabilitiesMutex_);
+            const auto it = negotiatedCapabilities_.find(peerId);
+            if (it == negotiatedCapabilities_.end() || (it->second & protocol::CapabilitySubtitle) == 0) return;
+        }
         transport_.send(peerId, message);
         if (std::holds_alternative<protocol::MixStreamMessage>(message)) {
             ++sentMixFrames_;
-            if (sentMixFrames_ == 1) {
-                logInfo("[smoke] downlink = PASS (server sent first MixStream to a listener)");
-            }
+            if (sentMixFrames_ == 1) logInfo("[smoke] downlink = PASS (server sent first MixStream to a listener)");
         }
     });
 }
-
 void ServerRuntime::handleMessage(const protocol::PlayerId& peerId, const protocol::Message& message) {
+    if (!std::holds_alternative<protocol::HelloMessage>(message) && !sessions_.find(peerId)) return;
     std::visit(
         [this, &peerId](const auto& typedMessage) {
             using MessageType = std::decay_t<decltype(typedMessage)>;
@@ -135,22 +158,23 @@ void ServerRuntime::handleMessage(const protocol::PlayerId& peerId, const protoc
         message
     );
 }
-
 void ServerRuntime::handleHello(const protocol::PlayerId& peerId, const protocol::HelloMessage& hello) {
     if (hello.protocolVersion != protocol::kProtocolVersion || hello.playerId != peerId) return;
-
-    if (config_.maxSessions != 0 && sessions_.size() >= config_.maxSessions && !sessions_.find(peerId)) {
-        return;
-    }
+    if (config_.maxSessions != 0 && sessions_.size() >= config_.maxSessions && !sessions_.find(peerId)) return;
+    finishSpeechActivity(peerId, "session_replaced", steadyNowMs());
     sessions_.addSession(peerId, makeSessionOptions());
-
     protocol::WelcomeMessage welcome;
     welcome.protocolVersion = protocol::kProtocolVersion;
     welcome.sampleRate = static_cast<uint16_t>(config_.audio.sampleRate);
     welcome.frameSizeMs = static_cast<uint8_t>(config_.audio.frameSizeMs);
     welcome.sttEnabled = config_.sttEnabled && stt_ && stt_->available();
+    const uint8_t supportedCapabilities = welcome.sttEnabled ? protocol::CapabilitySubtitle : protocol::CapabilityNone;
+    welcome.serverCapabilities = hello.capabilities & supportedCapabilities;
+    {
+        std::lock_guard lock(negotiatedCapabilitiesMutex_);
+        negotiatedCapabilities_[peerId] = welcome.serverCapabilities;
+    }
     transport_.send(peerId, welcome);
-
     logInfo(
         "[smoke] handshake = PASS (session established, sessions=" + std::to_string(sessions_.size())
         + " sampleRate=" + std::to_string(welcome.sampleRate)
@@ -158,33 +182,150 @@ void ServerRuntime::handleHello(const protocol::PlayerId& peerId, const protocol
     );
 }
 void ServerRuntime::handleAudio(const protocol::PlayerId& peerId, const protocol::AudioDataMessage& audio) {
+    const int64_t nowMs = steadyNowMs();
     auto session = sessions_.find(peerId);
-    if (!session || !config_.voiceEnabled) {
-        logWarn(
-            "[smoke] uplink rejected: session=" + std::string(session ? "true" : "false")
-            + " voiceEnabled=" + std::string(config_.voiceEnabled ? "true" : "false")
-        );
+    if (!session) {
+        recordAudioDiagnostic("session_missing", audio.opusData.size(), nowMs);
         return;
     }
-    const size_t pendingBefore = session->pendingFrames();
-    session->pushAudio(audio, steadyNowMs());
-    const size_t pendingAfter = session->pendingFrames();
-    if (pendingAfter > pendingBefore) {
-        ++acceptedAudioFrames_;
-        if (acceptedAudioFrames_ == 1) {
-            logInfo(
-                "[smoke] uplink = PASS (first voice frame accepted, bytes="
-                + std::to_string(audio.opusData.size()) + ")"
-            );
+    if (!config_.voiceEnabled) {
+        recordAudioDiagnostic("voice_disabled", audio.opusData.size(), nowMs);
+        return;
+    }
+
+    bool firstAccepted = false;
+    bool hasSpeechActivity = false;
+    {
+        std::lock_guard lock(speechMutex_);
+        if (speechLoggingStopped_) return;
+        const auto result = session->pushAudio(audio, nowMs);
+        if (result == PlayerSession::PushResult::Accepted || result == PlayerSession::PushResult::AcceptedWithEviction) {
+            firstAccepted = ++acceptedAudioFrames_ == 1;
         }
-    } else {
-        logWarn("[smoke] uplink frame dropped by session (rate limit or invalid frame)");
+
+        auto it = speechActivities_.find(peerId);
+        if (it != speechActivities_.end()) {
+            hasSpeechActivity = true;
+            auto& activity = it->second;
+            ++activity.receivedFrames;
+            activity.opusBytes += audio.opusData.size();
+            switch (result) {
+                case PlayerSession::PushResult::Accepted:
+                    ++activity.acceptedFrames;
+                    break;
+                case PlayerSession::PushResult::AcceptedWithEviction:
+                    ++activity.acceptedFrames;
+                    ++activity.evictedFrames;
+                    break;
+                case PlayerSession::PushResult::RateLimited:
+                    ++activity.rateLimitedFrames;
+                    break;
+                case PlayerSession::PushResult::Late:
+                    ++activity.lateFrames;
+                    break;
+                case PlayerSession::PushResult::Duplicate:
+                    ++activity.duplicateFrames;
+                    break;
+                case PlayerSession::PushResult::BufferFull:
+                    ++activity.bufferFullFrames;
+                    break;
+                case PlayerSession::PushResult::InvalidFrame:
+                    ++activity.invalidFrames;
+                    break;
+            }
+        }
+    }
+    if (!hasSpeechActivity) recordAudioDiagnostic("outside_ptt_activity", audio.opusData.size(), nowMs);
+    if (firstAccepted) {
+        logInfo("[smoke] uplink = PASS (first voice frame accepted, bytes=" + std::to_string(audio.opusData.size()) + ")");
     }
 }
 
-void ServerRuntime::handleControl(const protocol::PlayerId& /*peerId*/, const protocol::ControlMessage& /*control*/) {
+void ServerRuntime::handleControl(const protocol::PlayerId& peerId, const protocol::ControlMessage& control) {
+    if (!sessions_.find(peerId)) return;
+    const int64_t nowMs = steadyNowMs();
+    if (control.type == protocol::ControlType::PttPressed) {
+        std::lock_guard lock(speechMutex_);
+        if (speechLoggingStopped_) return;
+        if (speechActivities_.find(peerId) == speechActivities_.end()) {
+            speechActivities_.emplace(peerId, SpeechActivity{nowMs});
+        }
+    } else if (control.type == protocol::ControlType::PttReleased) {
+        finishSpeechActivity(peerId, "ptt_released", nowMs);
+    }
 }
 
+void ServerRuntime::finishSpeechActivity(const protocol::PlayerId& id, std::string const& reason, int64_t nowMs) {
+    SpeechActivity activity;
+    {
+        std::lock_guard lock(speechMutex_);
+        auto it = speechActivities_.find(id);
+        if (it == speechActivities_.end()) return;
+        activity = it->second;
+        speechActivities_.erase(it);
+    }
+    logInfo(formatSpeechSummary(id, activity, reason, nowMs));
+}
+
+std::string ServerRuntime::formatSpeechSummary(const protocol::PlayerId& id, SpeechActivity const& activity, std::string const& reason, int64_t nowMs) const {
+    std::ostringstream speaker;
+    speaker << std::hex << std::setfill('0');
+    for (uint8_t byte : id) speaker << std::setw(2) << static_cast<unsigned>(byte);
+    const int64_t durationMs = std::max<int64_t>(0, nowMs - activity.startedAtMs);
+    const double avgFps = durationMs > 0 ? static_cast<double>(activity.receivedFrames) * 1000.0 / durationMs : 0.0;
+    const uint64_t dropped = activity.rateLimitedFrames + activity.lateFrames + activity.duplicateFrames + activity.invalidFrames + activity.bufferFullFrames + activity.evictedFrames;
+    const auto options = makeSessionOptions();
+    std::ostringstream line;
+    line << "[speech] summary speaker=" << speaker.str()
+         << " reason=" << reason
+         << " duration_ms=" << durationMs
+         << " received_frames=" << activity.receivedFrames
+         << " accepted_frames=" << activity.acceptedFrames
+         << " dropped_frames=" << dropped
+         << " rate_limited=" << activity.rateLimitedFrames
+         << " late=" << activity.lateFrames
+         << " duplicate=" << activity.duplicateFrames
+         << " invalid=" << activity.invalidFrames
+         << " buffer_full=" << activity.bufferFullFrames
+         << " evicted_frames=" << activity.evictedFrames
+         << " opus_bytes=" << activity.opusBytes
+         << " avg_fps=" << std::fixed << std::setprecision(2) << avgFps
+         << " max_fps=" << options.maxFramesPerSecond
+         << " frame_size_ms=" << options.frameSizeMs
+         << " jitter_depth_frames=" << options.maxDepthFrames;
+    return line.str();
+}
+
+void ServerRuntime::recordAudioDiagnostic(std::string const& reason, size_t bytes, int64_t nowMs) {
+    static const std::array<std::string, 3> reasons = {"session_missing", "voice_disabled", "outside_ptt_activity"};
+    const auto reasonIt = std::find(reasons.begin(), reasons.end(), reason);
+    if (reasonIt == reasons.end()) return;
+    const size_t index = static_cast<size_t>(std::distance(reasons.begin(), reasonIt));
+    std::string line;
+    {
+        std::lock_guard lock(speechMutex_);
+        auto& diagnostic = audioDiagnostics_[index];
+        ++diagnostic.suppressedMessages;
+        diagnostic.suppressedBytes += bytes;
+        if (diagnostic.lastLoggedAtMs != 0 && nowMs - diagnostic.lastLoggedAtMs < 10000) return;
+        line = "[speech] audio_diagnostic reason=" + reason
+            + " aggregated_messages=" + std::to_string(diagnostic.suppressedMessages)
+            + " opus_bytes=" + std::to_string(diagnostic.suppressedBytes);
+        diagnostic.lastLoggedAtMs = nowMs;
+        diagnostic.suppressedMessages = 0;
+        diagnostic.suppressedBytes = 0;
+    }
+    logWarn(line);
+}
+
+void ServerRuntime::removeSession(const protocol::PlayerId& id) {
+    finishSpeechActivity(id, "disconnected", steadyNowMs());
+    {
+        std::lock_guard lock(negotiatedCapabilitiesMutex_);
+        negotiatedCapabilities_.erase(id);
+    }
+    sessions_.removeSession(id);
+}
 PlayerSession::Options ServerRuntime::makeSessionOptions() const {
     PlayerSession::Options options;
     options.sampleRate = config_.audio.sampleRate;

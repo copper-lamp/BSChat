@@ -38,7 +38,7 @@ public:
     JitterBuffer();
     explicit JitterBuffer(Options options);
 
-    void push(uint64_t seq, std::vector<uint8_t> payload, int64_t arrivalMs, uint8_t flags = 0);
+    PushResult push(uint64_t seq, std::vector<uint8_t> payload, int64_t arrivalMs, uint8_t flags = 0);
 
     // 取下一帧；无可放行帧返回 nullopt
     std::optional<Frame> pop(int64_t nowMs);

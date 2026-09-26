@@ -116,6 +116,84 @@ TEST(server_runtime_logs_speech_summary_once_on_ptt_release) {
     EXPECT_EQ(summaries, 1u);
 }
 
+TEST(server_runtime_stop_closes_speech_even_when_not_started) {
+    FakeTransport transport;
+    ServerRuntime runtime(transport, ServerConfig{});
+    auto id = makePlayerId(6);
+    std::vector<std::string> logs;
+    runtime.setLogSink([&](bool, const std::string& message) { logs.push_back(message); });
+    HelloMessage hello;
+    hello.playerId = id;
+    hello.protocolVersion = kProtocolVersion;
+    transport.inject(id, hello);
+    transport.inject(id, ControlMessage{ControlType::PttPressed, 0});
+    runtime.stop();
+    runtime.stop();
+    size_t summaries = 0;
+    for (const auto& log : logs) {
+        if (log.find("[speech] summary") != std::string::npos) {
+            ++summaries;
+            EXPECT_TRUE(log.find("reason=runtime_stopped") != std::string::npos);
+        }
+    }
+    EXPECT_EQ(summaries, 1u);
+}
+
+TEST(server_runtime_counts_evicted_frames_in_dropped_total) {
+    FakeTransport transport;
+    ServerConfig config;
+    config.jitterMaxDepthFrames = 1;
+    ServerRuntime runtime(transport, config);
+    auto id = makePlayerId(7);
+    std::vector<std::string> logs;
+    runtime.setLogSink([&](bool, const std::string& message) { logs.push_back(message); });
+    HelloMessage hello;
+    hello.playerId = id;
+    hello.protocolVersion = kProtocolVersion;
+    transport.inject(id, hello);
+    transport.inject(id, ControlMessage{ControlType::PttPressed, 0});
+    AudioDataMessage audio;
+    audio.seq = 1;
+    audio.opusData = {1, 2, 3};
+    transport.inject(id, audio);
+    audio.seq = 2;
+    transport.inject(id, audio);
+    transport.inject(id, ControlMessage{ControlType::PttReleased, 0});
+    bool found = false;
+    for (const auto& log : logs) {
+        if (log.find("[speech] summary") != std::string::npos) {
+            found = true;
+            EXPECT_TRUE(log.find("accepted_frames=2") != std::string::npos);
+            EXPECT_TRUE(log.find("evicted_frames=1") != std::string::npos);
+            EXPECT_TRUE(log.find("dropped_frames=1") != std::string::npos);
+        }
+    }
+    EXPECT_TRUE(found);
+}
+
+TEST(server_runtime_stop_closes_active_speech_summary) {
+    FakeTransport transport;
+    ServerRuntime runtime(transport, ServerConfig{});
+    auto id = makePlayerId(5);
+    std::vector<std::string> logs;
+    runtime.setLogSink([&](bool, const std::string& message) { logs.push_back(message); });
+    HelloMessage hello;
+    hello.playerId = id;
+    hello.protocolVersion = kProtocolVersion;
+    transport.inject(id, hello);
+    transport.inject(id, ControlMessage{ControlType::PttPressed, 0});
+    runtime.start();
+    runtime.stop();
+    size_t summaries = 0;
+    for (const auto& log : logs) {
+        if (log.find("[speech] summary") != std::string::npos) {
+            ++summaries;
+            EXPECT_TRUE(log.find("reason=runtime_stopped") != std::string::npos);
+        }
+    }
+    EXPECT_EQ(summaries, 1u);
+}
+
 TEST(server_runtime_repeated_ptt_messages_do_not_duplicate_summaries) {
     FakeTransport transport;
     ServerRuntime runtime(transport, ServerConfig{});

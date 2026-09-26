@@ -2,6 +2,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <atomic>
 #include <deque>
 #include <mutex>
 #include <optional>
@@ -42,6 +43,16 @@ public:
         uint8_t flags = 0;      // protocol::AudioFlag 位或
     };
 
+    enum class PushResult {
+        Accepted,
+        AcceptedWithEviction,
+        RateLimited,
+        Late,
+        Duplicate,
+        BufferFull,
+        InvalidFrame
+    };
+
     explicit PlayerSession(protocol::PlayerId id, Options options);
     ~PlayerSession();
     PlayerSession(const PlayerSession&) = delete;
@@ -50,8 +61,15 @@ public:
     const protocol::PlayerId& id() const { return id_; }
     const Options& options() const { return options_; }
 
+    // 客户端在 Hello 中声明的能力位（protocol::Capability 位或）。
+    // 网络线程在握手时写入，音频线程据此决定下行可选消息（如字幕）是否投递，
+    // 因此用原子量避免与抖动状态的锁产生新的争用。
+    void setClientCapabilities(uint8_t capabilities) { clientCapabilities_.store(capabilities); }
+    uint8_t clientCapabilities() const { return clientCapabilities_.load(); }
+    bool supports(uint8_t capability) const { return (clientCapabilities_.load() & capability) != 0; }
+
     // 网络线程：接收一帧上行语音（seq/flags/opusData）；nowMs 为稳态时钟毫秒。
-    void pushAudio(const protocol::AudioDataMessage& msg, int64_t nowMs);
+    PushResult pushAudio(const protocol::AudioDataMessage& msg, int64_t nowMs);
 
     // 音频线程：取下一帧解码后 PCM 与帧标志；无帧返回 nullopt。
     // pcm 为空表示该帧为静音（无数据），混音按静音处理，但仍需驱动 STT 标志。
@@ -83,6 +101,7 @@ private:
     protocol::PlayerId id_;
     Options options_;
     mutable std::mutex mutex_;
+    std::atomic<uint8_t> clientCapabilities_{0};
 
     std::deque<int64_t> arrivals_; // 限速滑动窗口（1s）
     audio::JitterBuffer jitter_;

@@ -13,12 +13,25 @@ PlayerSession::PlayerSession(protocol::PlayerId id, Options options)
 
 PlayerSession::~PlayerSession() = default;
 
-void PlayerSession::pushAudio(const protocol::AudioDataMessage& msg, int64_t nowMs) {
+PlayerSession::PushResult PlayerSession::pushAudio(const protocol::AudioDataMessage& msg, int64_t nowMs) {
     std::lock_guard lock(mutex_);
-    if (!allowFrameLocked(nowMs)) return; // 超限 → 整帧丢弃（限速）
+    if (msg.opusData.size() > 1275) return PushResult::InvalidFrame;
+    if (!allowFrameLocked(nowMs)) return PushResult::RateLimited;
 
-    // 空数据帧（静音/仅标志）也要入抖动缓冲，保证 Start/End 标志按序生效
-    jitter_.push(msg.seq, msg.opusData, nowMs, msg.flags);
+    const auto result = jitter_.push(msg.seq, msg.opusData, nowMs, msg.flags);
+    switch (result) {
+        case audio::JitterBuffer::PushResult::Accepted:
+            return PushResult::Accepted;
+        case audio::JitterBuffer::PushResult::AcceptedWithEviction:
+            return PushResult::AcceptedWithEviction;
+        case audio::JitterBuffer::PushResult::Late:
+            return PushResult::Late;
+        case audio::JitterBuffer::PushResult::Duplicate:
+            return PushResult::Duplicate;
+        case audio::JitterBuffer::PushResult::BufferFull:
+            return PushResult::BufferFull;
+    }
+    return PushResult::BufferFull;
 }
 
 std::optional<PlayerSession::FrameOut> PlayerSession::pollFrame(int64_t nowMs) {

@@ -66,6 +66,9 @@ void ClientRuntime::start() {
     seq_ = 0;
     talking_ = false;
     pcmPending_ = 0;
+    declaredCapabilities_ = protocol::CapabilityNone;
+    negotiatedCapabilities_ = protocol::CapabilityNone;
+    negotiatedSttEnabled_ = false;
     if (encoder_) encoder_->reset();
     if (decoder_) decoder_->reset();
     jitter_.clear();
@@ -76,6 +79,9 @@ void ClientRuntime::stop() {
     state_ = State::Stopped;
     talking_ = false;
     pcmPending_ = 0;
+    declaredCapabilities_ = protocol::CapabilityNone;
+    negotiatedCapabilities_ = protocol::CapabilityNone;
+    negotiatedSttEnabled_ = false;
     jitter_.clear();
 }
 
@@ -88,6 +94,7 @@ void ClientRuntime::sendHello() {
     hello.capabilities = protocol::CapabilityPtt
         | (config_.vadEnabled ? protocol::CapabilityVad : 0)
         | (config_.subtitleEnabled ? protocol::CapabilitySubtitle : 0);
+    declaredCapabilities_ = hello.capabilities;
     transport_.send({}, hello);
     nextHelloMs_ = clock_.nowMs() + std::max<int64_t>(1, config_.handshakeRetryMs);
 }
@@ -109,12 +116,21 @@ void ClientRuntime::tick() {
 
 void ClientRuntime::onMessage(const protocol::PlayerId& peerId, const protocol::Message& message) {
     if (peerId != protocol::PlayerId{}) return;
+    const auto* welcome = std::get_if<protocol::WelcomeMessage>(&message);
+    if (welcome) {
+        if (state_ != State::Handshaking) return;
+    } else if (state_ != State::Ready) {
+        return;
+    }
     if (const auto* control = std::get_if<protocol::ControlMessage>(&message)) {
         if (control->type == protocol::ControlType::SmokeTest) smokeTestRequested_.store(true);
         return;
     }
     if (const auto* stt = std::get_if<protocol::SttTextMessage>(&message)) {
-        if (sttTextHandler_) sttTextHandler_(*stt);
+        const bool subtitleNegotiated = (negotiatedCapabilities_ & protocol::CapabilitySubtitle) != 0
+            || (negotiatedCapabilities_ == protocol::CapabilityNone && negotiatedSttEnabled_);
+        if (config_.subtitleEnabled && (declaredCapabilities_ & protocol::CapabilitySubtitle) != 0
+            && subtitleNegotiated && sttTextHandler_) sttTextHandler_(*stt);
         return;
     }
     if (const auto* ui = std::get_if<protocol::UiFormMessage>(&message)) {
@@ -126,8 +142,10 @@ void ClientRuntime::onMessage(const protocol::PlayerId& peerId, const protocol::
         jitter_.push(mix->seq, mix->opusData, clock_.nowMs());
         return;
     }
-    if (const auto* welcome = std::get_if<protocol::WelcomeMessage>(&message)) {
+    if (welcome) {
         if (welcome->protocolVersion != protocol::kProtocolVersion) {
+            negotiatedCapabilities_ = protocol::CapabilityNone;
+            negotiatedSttEnabled_ = false;
             state_ = State::Failed;
             nextHelloMs_ = clock_.nowMs() + std::max<int64_t>(1, config_.handshakeRetryMs);
             return;
@@ -135,11 +153,15 @@ void ClientRuntime::onMessage(const protocol::PlayerId& peerId, const protocol::
         // 采样率必须两端一致（渲染设备格式在启动时已固定，会话中无法切换），不一致判负重试；
         // 帧长以服务端为准：客户端直接采用，避免两端手填不一致导致分包/解码错位。
         if (welcome->sampleRate != 0 && welcome->sampleRate != checkedSampleRate(config_.audio.sampleRate)) {
+            negotiatedCapabilities_ = protocol::CapabilityNone;
+            negotiatedSttEnabled_ = false;
             state_ = State::Failed;
             nextHelloMs_ = clock_.nowMs() + std::max<int64_t>(1, config_.handshakeRetryMs);
             return;
         }
         if (welcome->frameSizeMs != 0) applyNegotiatedFrameSize(checkedFrameSize(welcome->frameSizeMs));
+        negotiatedCapabilities_ = welcome->serverCapabilities & declaredCapabilities_;
+        negotiatedSttEnabled_ = welcome->sttEnabled;
         state_ = State::Ready;
         nextPositionMs_ = 0;
     }

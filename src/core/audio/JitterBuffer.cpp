@@ -6,19 +6,24 @@ JitterBuffer::JitterBuffer() : JitterBuffer(Options{}) {}
 
 JitterBuffer::JitterBuffer(Options options) : options_(options) {}
 
-void JitterBuffer::push(uint64_t seq, std::vector<uint8_t> payload, int64_t arrivalMs, uint8_t flags) {
+JitterBuffer::PushResult JitterBuffer::push(uint64_t seq, std::vector<uint8_t> payload, int64_t arrivalMs, uint8_t flags) {
     if (!started_) {
         started_ = true;
         nextExpectedSeq_ = seq;
     }
-    if (seq < nextExpectedSeq_) return; // 迟到帧 → 丢弃
+    if (seq < nextExpectedSeq_) return PushResult::Late;
+    if (frames_.find(seq) != frames_.end()) return PushResult::Duplicate;
+    if (options_.maxDepthFrames == 0) return PushResult::BufferFull;
+
+    bool evicted = false;
     if (frames_.size() >= options_.maxDepthFrames) {
         uint64_t evictedSeq = frames_.begin()->first;
-        frames_.erase(frames_.begin()); // 超深 → 丢最旧
-        // 被驱逐的队首即为等待目标（或更旧的缺口），直接推进期望，避免永久卡顿
+        frames_.erase(frames_.begin());
         nextExpectedSeq_ = evictedSeq + 1;
+        evicted = true;
     }
     frames_.emplace(seq, Entry{std::move(payload), arrivalMs, flags});
+    return evicted ? PushResult::AcceptedWithEviction : PushResult::Accepted;
 }
 
 std::optional<JitterBuffer::Frame> JitterBuffer::pop(int64_t nowMs) {

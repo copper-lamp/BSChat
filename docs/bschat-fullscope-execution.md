@@ -6,7 +6,7 @@
 ## 当前实现
 - 核心：Opus 编解码、JSON 配置、消息编解码、抖动缓冲和 host 单测已实现。
 - 协议：Hello/Welcome、AudioData、MixStream、STT 文本和位置更新消息已存在；版本常量仍由协议头维护。
-- 服务端：会话、音频队列、120ms 混音 tick、待发队列背压、STT 接口已实现。
+- 服务端：会话、音频队列、120ms 混音 tick、待发队列背压、STT 接口已实现。上行接收结果由 `JitterBuffer`/`PlayerSession` 明确返回（接受/驱逐/限速/迟到/重复/缓冲满/非法帧），`ServerRuntime` 按 PTT 划分说话段并在段末输出单条 `[speech] summary`；无活动音频走 10 秒限频的聚合诊断，取代原先易误判的逐帧 “rate limit” 警告，详见 [mixer.md](mixer.md)。
 - 空间混音：`ServerMixer` 已使用 `MixerCore`/`SpatialPolicy` 构建逐接收者混音，支持自我抑制、维度隔离、距离衰减和位置新鲜度；环境 `envFlags` 仍只保留扩展输入，未实现 DSP。
 - 管理：`AdminPolicy`/`AdminStore` 已实现线程安全策略与 JSON 持久化；LeviLamina 命令入口和运行时装配尚未完成。
 - 客户端：已接通游戏生命周期、网络载具、WASAPI shared-mode 采集/播放、PCM 有界队列、AGC、Opus 上行、MixStream 抖动缓冲/解码和播放接线；字幕 HUD 与设置面板暂不纳入本阶段。UI 载体已定性：HUD 走原生 2D 自绘（`ll::event::render::AfterUIRenderEvent`，已真机验证），面板走服务端中继下发的 LeviLamina 原生表单（`ll::form`），Dear-OreUI 与资源包方案作废。

@@ -38,6 +38,28 @@ enum Capability : uint8_t {
     CapabilitySubtitle  = 1 << 2, // 支持字幕显示
 };
 
+// 需要服务端协同的能力位：只有这些位参与 Hello→Welcome 的双方协商并在
+// Welcome.serverCapabilities 回传。CapabilityVad 是客户端本地行为（不涉及网络
+// 约束），服务端不参与，也不在协商结果里回传，避免新版服务端误关旧端 VAD。
+inline constexpr uint8_t kServerNegotiableCapabilities =
+    static_cast<uint8_t>(CapabilityPtt | CapabilitySubtitle);
+
+// 协商标记：Welcome.serverCapabilities 为 0 表示对端是未参与协商的旧服务端。
+// 此时接收端回落到 v1 既有行为（不做可选能力裁剪），保证新客户端连旧服务端时
+// 基础功能与字幕不被误关。
+inline constexpr uint8_t kCapabilitiesNotNegotiated = 0;
+
+// 双方能力协商：只保留请求方声明且服务端支持的共同能力位。
+inline constexpr uint8_t negotiateCapabilities(uint8_t clientCapabilities, uint8_t serverSupportedCapabilities) {
+    return static_cast<uint8_t>(clientCapabilities & serverSupportedCapabilities & kServerNegotiableCapabilities);
+}
+
+// 判定能力位是否可用。negotiated 为 0 视为旧对端未协商，按 v1 既有行为放行。
+inline constexpr bool capabilityEnabled(uint8_t negotiatedCapabilities, uint8_t capability) {
+    if (negotiatedCapabilities == kCapabilitiesNotNegotiated) return true;
+    return (negotiatedCapabilities & capability) != 0;
+}
+
 // 控制类型
 enum class ControlType : uint8_t {
     PttPressed   = 1, // C→S：PTT 按下

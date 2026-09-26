@@ -54,6 +54,10 @@ private:
     void applyNegotiatedFrameSize(int frameSizeMs);
     IClientTransport& transport_; IPlayerState& player_; IClock& clock_; config::ClientConfig config_;
     State state_=State::Stopped; int64_t nextHelloMs_=0; int64_t nextPositionMs_=0; uint64_t seq_=0; bool talking_=false;
+    // 能力协商：Hello 时声明本端能力，Welcome 时按服务端支持取交集，字幕仅在协商通过后放行
+    uint8_t declaredCapabilities_=protocol::CapabilityNone;
+    uint8_t negotiatedCapabilities_=protocol::CapabilityNone;
+    bool negotiatedSttEnabled_=false;
     std::unique_ptr<codec::OpusEncoder> encoder_; std::unique_ptr<codec::OpusDecoder> decoder_;
     audio::AgcProcessor agc_; ::bsc::audio::JitterBuffer jitter_; RenderSink renderSink_; float outputVolume_=1.0F; bool outputMuted_=false;
     SmokeTestRequestHandler smokeTestRequestHandler_; std::atomic<bool> smokeTestRequested_{false};
