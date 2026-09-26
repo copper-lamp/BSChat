@@ -27,6 +27,14 @@ public:
         uint8_t flags = 0;
     };
 
+    enum class PushResult {
+        Accepted,
+        AcceptedWithEviction,
+        Late,
+        Duplicate,
+        BufferFull
+    };
+
     JitterBuffer();
     explicit JitterBuffer(Options options);
 

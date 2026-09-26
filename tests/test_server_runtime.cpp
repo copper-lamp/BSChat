@@ -81,6 +81,60 @@ TEST(server_runtime_hello_creates_session_and_sends_welcome) {
     EXPECT_FALSE(welcome->sttEnabled);
 }
 
+TEST(server_runtime_logs_speech_summary_once_on_ptt_release) {
+    FakeTransport transport;
+    ServerRuntime runtime(transport, ServerConfig{});
+    auto id = makePlayerId(3);
+    std::vector<std::string> logs;
+    runtime.setLogSink([&](bool, const std::string& message) { logs.push_back(message); });
+
+    HelloMessage hello;
+    hello.playerId = id;
+    hello.protocolVersion = kProtocolVersion;
+    transport.inject(id, hello);
+    logs.clear();
+
+    transport.inject(id, ControlMessage{ControlType::PttPressed, 0});
+    AudioDataMessage audio;
+    audio.seq = 1;
+    audio.opusData = {1, 2, 3};
+    transport.inject(id, audio);
+    transport.inject(id, ControlMessage{ControlType::PttReleased, 0});
+
+    size_t summaries = 0;
+    for (const auto& log : logs) {
+        if (log.find("[speech] summary") != std::string::npos) {
+            ++summaries;
+            EXPECT_TRUE(log.find("speaker=") != std::string::npos);
+            EXPECT_TRUE(log.find("received_frames=1") != std::string::npos);
+            EXPECT_TRUE(log.find("accepted_frames=1") != std::string::npos);
+            EXPECT_TRUE(log.find("opus_bytes=3") != std::string::npos);
+            EXPECT_TRUE(log.find("reason=ptt_released") != std::string::npos);
+        }
+        EXPECT_TRUE(log.find("rate limit or invalid frame") == std::string::npos);
+    }
+    EXPECT_EQ(summaries, 1u);
+}
+
+TEST(server_runtime_repeated_ptt_messages_do_not_duplicate_summaries) {
+    FakeTransport transport;
+    ServerRuntime runtime(transport, ServerConfig{});
+    auto id = makePlayerId(4);
+    std::vector<std::string> logs;
+    runtime.setLogSink([&](bool, const std::string& message) { logs.push_back(message); });
+    HelloMessage hello;
+    hello.playerId = id;
+    hello.protocolVersion = kProtocolVersion;
+    transport.inject(id, hello);
+    transport.inject(id, ControlMessage{ControlType::PttPressed, 0});
+    transport.inject(id, ControlMessage{ControlType::PttPressed, 0});
+    transport.inject(id, ControlMessage{ControlType::PttReleased, 0});
+    transport.inject(id, ControlMessage{ControlType::PttReleased, 0});
+    size_t summaries = 0;
+    for (const auto& log : logs) summaries += log.find("[speech] summary") != std::string::npos;
+    EXPECT_EQ(summaries, 1u);
+}
+
 TEST(server_runtime_audio_reaches_mixer_without_stt) {
     FakeTransport transport;
     ServerConfig config;
