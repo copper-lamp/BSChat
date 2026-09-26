@@ -136,6 +136,23 @@ The server speech-to-text configuration supports `libraryPath` for the sherpa-on
 | nlohmann-json | JSON configuration parsing (header-only) |
 | sherpa-onnx + ONNX Runtime | Server-side streaming Zipformer speech-to-text (server build) |
 
+## Continuous integration
+
+`build.yml` and `release.yml` build both `target_type` flavors on `windows-latest`. Two rules keep the
+xmake dependency installation reproducible on those runners:
+
+- **Precompiled packages are disabled** (`xmake global --policies=package.precompiled:n`). A package
+  downloaded from upstream may be produced by a different toolchain than the runner's clang-cl / MSVC
+  combination and can be installed without a usable library file, which shows up later as
+  `ninja: error: '.../zlib/v1.3.1/<hash>/lib/zlib.lib', needed by 'src/curl.exe', missing`.
+- **Only `~/AppData/Local/.xmake/packages` is cached**, keyed on the package repository revisions and
+  `xmake.lua`, with `XMAKE_PKG_CACHEDIR` pointing at a per-run directory. The whole `.xmake` directory
+  must not be cached: `cache/packages` keeps intermediate build trees from failed runs, and restoring
+  them makes xmake treat a half-installed dependency as finished, so the failure repeats forever.
+
+If a runner still fails while installing `libcurl` / `zlib`, delete the cached entry
+(`xmake-packages-*`) in the repository's Actions cache before re-running.
+
 ## Project layout
 
 ```
