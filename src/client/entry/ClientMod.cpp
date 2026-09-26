@@ -80,8 +80,6 @@ bool ClientMod::load() {
     }
 
     transport_ = std::make_unique<shared::GamePacketTransport>(shared::TransportMode::Client);
-    auto dearOreUiPath = self->getConfigDir().parent_path().parent_path() / "mods" / "DearOreUI" / "DearOreUI.dll";
-    dearOreUiPath_ = dearOreUiPath.wstring();
     playerState_ = std::make_unique<PlayerState>();
     clock_ = std::make_unique<SteadyClock>();
     config_ = std::move(config);
@@ -106,13 +104,6 @@ bool ClientMod::enable() {
         return false;
     }
     shared::FileLog::info("enable: registering client event listeners");
-    if (!dearOreUiPath_.empty() && dearOreUi_.initialize(dearOreUiPath_)) {
-        if (self) self->getLogger().info("DearOreUI Settings integration initialized during enable");
-        shared::FileLog::info("enable: DearOreUI Settings integration initialized");
-    } else {
-        if (self) self->getLogger().info("DearOreUI Settings integration unavailable; continuing without optional UI");
-        shared::FileLog::info("enable: DearOreUI Settings integration unavailable; continuing without optional UI");
-    }
     // 事件条目由 LeviLamina.dll 的 hook 型 emitter 在加载期注册。
     // 本模组不注册 emitter，只注册监听器；事件 ID 见文件头部的 getEventId 绑定。
     auto& bus = ll::event::EventBus::getInstance();
@@ -171,8 +162,6 @@ bool ClientMod::unload() {
     clock_.reset();
     playerState_.reset();
     transport_.reset();
-    dearOreUi_.shutdown();
-    dearOreUiPath_.clear();
     shared::FileLog::info("unload: client mod unloaded");
     return true;
 }

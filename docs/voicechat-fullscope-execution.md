@@ -18,8 +18,7 @@
 3. `maxChatters` 仅保留配置字段，尚未实现按加入时间淘汰。
 4. 管理命令、OP/白名单权限来源和审计日志仍未接入；在此之前不能视为生产级封禁系统。
 5. LeviLamina 26.10.14 客户端生命周期、输入和世界事件已接入；客户端 target 与服务端/测试 target 均已成功构建，且已导出统一内存分配标记 `ll_memory_operator_overrided`，可进入真实客户端加载及双端音频测试。
-6. 已取得 `D:\BSChat\lib\Dear-OreUI` 源码并核实公开 C ABI `DearOreUI_QueryApi`、`IDearOreUIApi`、`PageScope::Settings` 和 `registerPage`/`registerPanel`；已完成可选 DLL 加载和 Settings 面板注册。客户端 enable 失败时，新版构建会输出前置对象和四类事件监听注册诊断。
-7. Dear-OreUI 方案已作废（被「原生表单 + 服务端中继」取代）：第 6 条的集成不再作为验收项，`src/client/DearOreUiIntegration.*` 与 `docs/dear-oreui.md` 待随代码一并移除（目前代码尚未删除）。
+6. Dear-OreUI 集成的历史调研（C ABI `DearOreUI_QueryApi`、`IDearOreUIApi`、`PageScope::Settings`、可选 DLL 加载与 Settings 面板注册）已被「原生表单 + 服务端中继」方案取代并**已删除**：`src/client/DearOreUiIntegration.*`、`docs/dear-oreui.md` 与 xmake 侧的 Dear-OreUI include / `VOICECHAT_HAS_DEAR_OREUI` 宏均已移除，历史记录见 git。客户端 enable 失败时仍会输出前置对象和四类事件监听注册诊断。
 
 ## 验证
 `voicechat-tests` 的测试目标已纳入配置、协议、会话、混音、STT、空间策略、管理策略和客户端核心测试，最新一次全量运行 `Total failures: 0`。两个 flavor 均可构建，产物分别落在 `artifacts/server/voicechat` 与 `artifacts/client/voicechat`，并已通过符号分离校验：服务端 DLL 含 `ServerLevelTickEvent` 且不含 `ClientJoinLevelEvent`/`KeyInputEvent`，客户端反之。构建命令与校验方法见 [building.md](building.md)，双端自检判定见 [smoke-test.md](smoke-test.md)。

@@ -76,11 +76,6 @@ target("voicechat")
         add_files("src/server/**.cpp")
     else
         add_includedirs("src/client")
-        local dear_oreui_src = path.join(os.projectdir(), "..", "lib", "Dear-OreUI", "src")
-        if os.isdir(dear_oreui_src) then
-            add_includedirs(dear_oreui_src)
-            add_defines("VOICECHAT_HAS_DEAR_OREUI=1")
-        end
         add_files("src/client/**.cpp")
         add_headerfiles("src/client/**.h")
         if is_plat("windows") then

@@ -5,7 +5,6 @@
 
 #include "client/entry/ClientRuntime.h"
 #include "client/audio/WasapiAudio.h"
-#include "client/DearOreUiIntegration.h"
 #include "client/entry/SmokeTest.h"
 #include "client/spike/UiChannelProbe.h"
 #include "shared/transport/GamePacketTransport.h"
@@ -52,8 +51,6 @@ private:
     std::unique_ptr<PlayerState> playerState_;
     std::unique_ptr<IClock> clock_;
     config::ClientConfig config_;
-    std::wstring dearOreUiPath_;
-    DearOreUiIntegration dearOreUi_;
     UiChannelProbe uiChannelProbe_;
     std::shared_ptr<ll::event::Listener<ll::event::client::ClientJoinLevelEvent>> joinListener_;
     std::shared_ptr<ll::event::Listener<ll::event::client::ClientExitLevelEvent>> exitListener_;
