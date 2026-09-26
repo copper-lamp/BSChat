@@ -55,6 +55,8 @@ void HudLayer::shutdown() {
         ll::event::EventBus::getInstance().removeListener<ll::event::render::AfterUIRenderEvent>(renderListener_);
         renderListener_.reset();
     }
+    // 贴图缓存的纹理对象由 UI 上下文/纹理组持有，退出时主动释放，避免持有到下一局。
+    statusIcons_.reset();
     subtitles_.clear();
 }
 
@@ -101,9 +103,28 @@ void HudLayer::onAfterUIRender(ll::event::render::AfterUIRenderEvent& event) {
     // 只在世界内、且没有打开菜单类界面时绘制，避免把 HUD 画到背包/设置等界面上。
     if (!client->isInWorldAndNotShowingAnyMenuScreens()) return;
 
+    // 状态图标贴图只能在渲染回调里经 UI 上下文加载（非线程安全），首次调用时加载并缓存。
+    statusIcons_.ensureLoaded(event);
+    if (statusIcons_.loadAttempted()) {
+        if (statusIcons_.ready()) {
+            if (!iconReadyLogged_) {
+                iconReadyLogged_ = true;
+                logInfo("status icon textures loaded from the bundled resource pack");
+            }
+        } else if (!iconWarningLogged_) {
+            iconWarningLogged_ = true;
+            logWarn(
+                "status icon textures unavailable; enable the bundled resource pack under "
+                "Settings > Global Resources to show HUD icons; falling back to text-only status"
+            );
+        }
+    }
+
+    AudioStatus const status = status_.status();
     HudRenderer::Frame frame;
-    frame.subtitles = subtitles_.visibleLines(nowMs());
-    frame.statusText = statusText(status_.status());
+    frame.subtitles   = subtitles_.visibleLines(nowMs());
+    frame.statusText  = statusText(status);
+    frame.statusIcon  = statusIcons_.textureFor(status);
     renderer_.draw(event, frame, layout_);
 }
 

@@ -99,9 +99,21 @@ target("voicechat")
                 os.cp(file, path.join(destination, path.filename(file)))
             end
         end
+        -- 资源包整个目录树（manifest/贴图/pack_icon）都不能靠 modpacker，需要自己递归拷贝。
+        local function copy_tree(source, destination)
+            if not os.isdir(source) then
+                return
+            end
+            for _, file in ipairs(os.files(path.join(source, "**"))) do
+                local target = path.join(destination, path.relative(file, source))
+                os.mkdir(path.directory(target))
+                os.cp(file, target)
+            end
+        end
         local modDir = path.join(os.projectdir(), "bin", target:name())
         copy_json_dir(path.join(os.projectdir(), "lang"), path.join(modDir, "lang"))
         copy_json_dir(path.join(os.projectdir(), "panels"), path.join(modDir, "panels"))
+        copy_tree(path.join(os.projectdir(), "resource_pack"), path.join(modDir, "resource_pack"))
     end)
 
 -- 单元测试：host 运行，链接 core 静态库与第三方依赖，不进入默认构建。

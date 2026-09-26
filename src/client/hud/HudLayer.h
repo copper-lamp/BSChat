@@ -10,6 +10,7 @@
 #include "ll/api/event/render/UIRenderEvent.h"
 
 #include "client/hud/HudRenderer.h"
+#include "client/hud/StatusIcons.h"
 #include "client/hud/StatusOverlay.h"
 #include "client/hud/SubtitleOverlay.h"
 
@@ -44,10 +45,13 @@ private:
     std::shared_ptr<ll::event::Listener<ll::event::render::AfterUIRenderEvent>> renderListener_;
     SubtitleOverlay subtitles_;
     StatusOverlay   status_;
+    StatusIcons     statusIcons_;
     HudRenderer     renderer_;
     HudRenderer::Layout layout_{};
     bool enabled_ = true;
     bool screenNameLogged_ = false;
+    bool iconWarningLogged_ = false;
+    bool iconReadyLogged_ = false;
 };
 
 } // namespace vc::client::hud
