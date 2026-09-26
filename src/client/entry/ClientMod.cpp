@@ -7,6 +7,7 @@
 #include <sstream>
 #include <utility>
 
+#include "client/entry/ClientEventIds.h"
 #include "ll/api/event/EventBus.h"
 #include "ll/api/mod/NativeMod.h"
 #include "ll/api/mod/RegisterHelper.h"
@@ -14,29 +15,6 @@
 #include "shared/transport/GamePacketTransport.h"
 #include "shared/util/FileLog.h"
 #include "shared/util/PlayerIdUtils.h"
-
-// LeviLamina 发布包由 MSVC 编译，内置事件 ID 取自 MSVC 的 __FUNCSIG__，形如
-// "ll::event::client::ClientJoinLevelEvent"，保留 inline namespace 前缀（client/world/input）。
-// 本模组由 clang-cl 编译，__PRETTY_FUNCTION__ 会省略 inline namespace，得到
-// "ll::event::ClientJoinLevelEvent"。两者 FNV1a 哈希不同，EventBus 中不存在对应事件条目，
-// addListener 会直接返回 false，导致启用阶段所有监听器注册失败。
-// 这里把 getEventId 显式绑定到 SDK 侧的规范 ID，使 emplaceListener/removeListener
-// 命中 LeviLamina.dll 已注册的事件条目。事件条目本身仍由 SDK 的 hook 型 emitter
-// 创建并转发游戏事件，此处不做任何替代实现。
-namespace ll::event {
-template <>
-constexpr EventIdView getEventId<client::ClientJoinLevelEvent> =
-    EventIdView{"ll::event::client::ClientJoinLevelEvent"};
-template <>
-constexpr EventIdView getEventId<client::ClientExitLevelEvent> =
-    EventIdView{"ll::event::client::ClientExitLevelEvent"};
-template <>
-constexpr EventIdView getEventId<world::ClientLevelTickEvent> =
-    EventIdView{"ll::event::world::ClientLevelTickEvent"};
-template <>
-constexpr EventIdView getEventId<input::KeyInputEvent> =
-    EventIdView{"ll::event::input::KeyInputEvent"};
-} // namespace ll::event
 
 namespace vc::client {
 
@@ -165,10 +143,16 @@ bool ClientMod::enable() {
     }
     if (self) self->getLogger().info("voicechat client listeners enabled");
     shared::FileLog::info("enable: client listeners enabled");
+    // UI 通道探针只做通道可用性取证，失败不影响语音主链路。
+    if (!uiChannelProbe_.initialize()) {
+        if (self) self->getLogger().warn("UI channel probe is unavailable; voice chat continues normally");
+        shared::FileLog::warn("enable: UI channel probe is unavailable; voice chat continues normally");
+    }
     return true;
 }
 
 bool ClientMod::disable() {
+    uiChannelProbe_.shutdown();
     if (audioDevice_) audioDevice_->stop();
     if (runtime_) runtime_->stop();
     auto& bus = ll::event::EventBus::getInstance();

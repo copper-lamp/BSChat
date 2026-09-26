@@ -1,5 +1,9 @@
 # Dear-OreUI 集成
 
+> **状态：已作废（本文档待移除）**
+> 本集成已被新的「LeviLamina 原生表单 + 服务端中继」方案取代：面板不再嵌入游戏 Settings tab，`DearOreUIApi`（`DearOreUI_QueryApi` C ABI）与运行时 `DearOreUI.dll` 依赖、`dearoreui-repo` header-only 包、以及「嵌入游戏 Settings tab」形态一律作废。代码侧 `src/client/DearOreUiIntegration.*` 与本文档待随代码一并移除（**目前代码尚未删除**）。
+> 以下历史调研内容保留，仅作参考，不代表当前方案。
+
 ## 需求
 
 在不 patch Minecraft 内部 Settings ABI 的前提下，为语音聊天提供可选的原版 OreUI 设置页面或设置面板，并在 Dear-OreUI 未安装、版本不匹配或运行时尚未就绪时保持客户端可启动。

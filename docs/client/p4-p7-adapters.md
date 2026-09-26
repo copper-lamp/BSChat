@@ -2,7 +2,7 @@
 
 ## 需求
 
-P4-P7 需要把核心音频管线接到 Windows WASAPI、LeviLamina 客户端生命周期和界面层。适配必须使用仓库中实际可见的 SDK API，不以猜测的 ImGui、Dear-OreUI 或 Bedrock 客户端类名冒充完成。
+P4-P7 需要把核心音频管线接到 Windows WASAPI、LeviLamina 客户端生命周期和界面层。适配必须使用仓库中实际可见的 SDK API，不以猜测的 ImGui、Dear-OreUI 或 Bedrock 客户端类名冒充完成。UI 载体 spike 已完成：HUD 定为**原生 2D 自绘**（挂 `ll::event::render::AfterUIRenderEvent`，已真机验证通过），客户端设置页/管理员面板定为**原生表单**（需服务端下发）；当前不再有 UI 载体阻塞项。
 
 ## 架构
 
@@ -13,6 +13,6 @@ P4-P7 后续应分别注入：真实客户端 tick/input 生命周期、WASAPI c
 ## 备注
 
 - 当前已确认的真实 API：xmake 的 `levilamina` client 配置、Windows WASAPI `IMMDeviceEnumerator`（系统 SDK）。
-- 当前未确认：`libs/third_party/SDK`（路径不存在）、LeviLamina client event/renderer、ImGui、Dear-OreUI。故没有创建假头文件或猜测符号。
-- Spike blocker：需要提供与 26.10.14 对应的客户端 SDK/headers，或锁定公开的客户端事件和渲染扩展包；拿到后才能实现加载/卸载、输入、ImGui/OreUI 绘制和真机验证。
+- 当前未确认：`libs/third_party/SDK`（路径不存在）、LeviLamina client event/renderer 的完整集合（渲染事件通道已确认可用）。UI 载体已确认：HUD 用 `AfterUIRenderEvent` 原生自绘、面板用需服务端下发的原生表单；ImGui、Dear-OreUI 均不采用，故没有创建假头文件或猜测符号。
+- Spike blocker（已解除 UI 部分）：原需提供与 26.10.14 对应的客户端 SDK/headers，或锁定公开的客户端事件和渲染扩展包；现 UI 载体 spike 已完成（HUD 原生自绘真机通过、原生表单需服务端下发），当前不再有 UI 载体阻塞项。加载/卸载、输入与真机验证仍需完成。
 - WASAPI 探测不是录放音完成证明；仍需设备格式协商、IAudioClient3/IAudioCaptureClient/IAudioRenderClient、线程退出和游戏卸载测试。
