@@ -273,9 +273,12 @@ void ClientMod::startSmokeTest() {
 }
 
 void ClientMod::applyClientConfig(config::ClientConfig const& config) {
+    bool const pttKeyChanged = config.pttKey != config_.pttKey;
     config_ = config;
     hudLayer_.applyConfig(config_);
     if (runtime_) runtime_->setOutputVolume(config_.playbackVolume);
+    // 说话键被改掉时，旧键的“松开”事件再也不会到达，必须主动结束上行，否则会一直占着麦克风。
+    if (pttKeyChanged && runtime_) runtime_->setTalking(false);
 
     auto self = ll::mod::NativeMod::current();
     if (!self) return;

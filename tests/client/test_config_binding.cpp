@@ -87,6 +87,8 @@ TEST(config_binding_rejects_unknown_and_invalid) {
 }
 
 TEST(config_binding_reports_supported_keys) {
+    EXPECT_TRUE(ConfigBinding::supported("pttKeyName"));
+    EXPECT_TRUE(ConfigBinding::supported("settingsKeyName"));
     EXPECT_TRUE(ConfigBinding::supported("voiceEnabled"));
     EXPECT_TRUE(ConfigBinding::supported("talkMode"));
     EXPECT_TRUE(ConfigBinding::supported("captureEnabled"));
@@ -123,4 +125,47 @@ TEST(config_client_volume_clamped_on_load) {
     EXPECT_NEAR(config::clientConfigFromJson(R"({"playbackVolume": 5.0})").playbackVolume, 1.0f, 1e-6);
     EXPECT_NEAR(config::clientConfigFromJson(R"({"playbackVolume": -3.0})").playbackVolume, 0.0f, 1e-6);
     EXPECT_NEAR(config::clientConfigFromJson(R"({"playbackVolume": 0.4})").playbackVolume, 0.4f, 1e-6);
+}
+
+TEST(config_binding_reads_key_names) {
+    config::ClientConfig c;
+    c.pttKey = 0x56;      // V
+    c.settingsKey = 0x4A; // J
+
+    EXPECT_EQ(std::get<std::string>(ConfigBinding::read(c, "pttKeyName")), std::string("V"));
+    EXPECT_EQ(std::get<std::string>(ConfigBinding::read(c, "settingsKeyName")), std::string("J"));
+
+    // 当前键不在收录表里 → monostate，面板只显示 placeholder
+    c.pttKey = 0xFFu;
+    EXPECT_TRUE(std::holds_alternative<std::monostate>(ConfigBinding::read(c, "pttKeyName")));
+}
+
+TEST(config_binding_applies_key_names) {
+    config::ClientConfig c;
+    c.pttKey = 0x56;      // V
+    c.settingsKey = 0x4A; // J
+
+    PanelValues values;
+    values["pttKeyName"] = std::string("b"); // 改成 B
+    values["settingsKeyName"] = std::string("F8");
+
+    auto applied = ConfigBinding::apply(c, values);
+
+    EXPECT_EQ(applied, static_cast<std::size_t>(2));
+    EXPECT_EQ(c.pttKey, 0x42u);
+    EXPECT_EQ(c.settingsKey, 0x77u);
+}
+
+TEST(config_binding_rejects_bad_or_conflicting_key_names) {
+    config::ClientConfig c; // pttKey = V(0x56)，settingsKey = J(0x4A)
+
+    PanelValues values;
+    values["pttKeyName"] = std::string("NOTAKEY"); // 未收录的键名
+    values["settingsKeyName"] = std::string("v");  // 与 PTT 键冲突
+
+    auto applied = ConfigBinding::apply(c, values);
+
+    EXPECT_EQ(applied, static_cast<std::size_t>(0));
+    EXPECT_EQ(c.pttKey, 0x56u);
+    EXPECT_EQ(c.settingsKey, 0x4Au);
 }

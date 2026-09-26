@@ -36,5 +36,8 @@ public:
 //   subtitleEnabled     bool   字幕开关
 //   maxSubtitleLines    数值   字幕行数上限 1..8
 //   hudEnabled          bool   状态覆盖层开关
+//   pttKeyName          文本   说话键名（如 V / F8），经 KeyNames 转虚拟键码
+//   settingsKeyName     文本   设置面板键名，与说话键不得相同
+// 说明：两个按键名条目会成对校验（见实现），因此它们的写入不受 PanelValues 遍历顺序影响。
 
 } // namespace vc::client::ui

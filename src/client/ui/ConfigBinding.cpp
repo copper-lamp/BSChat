@@ -1,5 +1,7 @@
 #include "client/ui/ConfigBinding.h"
 
+#include "client/input/KeyNames.h"
+
 namespace vc::client::ui {
 namespace {
 
@@ -23,7 +25,8 @@ std::string talkModeOf(config::ClientConfig const& config) {
 
 bool ConfigBinding::supported(std::string const& key) {
     return key == "voiceEnabled" || key == "talkMode" || key == "captureEnabled" || key == "playbackVolume"
-        || key == "subtitleEnabled" || key == "maxSubtitleLines" || key == "hudEnabled";
+        || key == "subtitleEnabled" || key == "maxSubtitleLines" || key == "hudEnabled" || key == "pttKeyName"
+        || key == "settingsKeyName";
 }
 
 PanelValue ConfigBinding::read(config::ClientConfig const& config, std::string const& key) {
@@ -34,15 +37,56 @@ PanelValue ConfigBinding::read(config::ClientConfig const& config, std::string c
     if (key == "subtitleEnabled") return flag(config.subtitleEnabled);
     if (key == "maxSubtitleLines") return static_cast<double>(config.maxSubtitleLines);
     if (key == "hudEnabled") return flag(config.hudEnabled);
+    if (key == "pttKeyName" || key == "settingsKeyName") {
+        // 当前键不在收录表里时返回 monostate，面板只显示 placeholder 而不塞一个错名字。
+        auto name = input::nameFromVirtualKey(key == "pttKeyName" ? config.pttKey : config.settingsKey);
+        if (name.empty()) return std::monostate{};
+        return name;
+    }
     return std::monostate{};
 }
 
 std::size_t ConfigBinding::apply(config::ClientConfig& config, PanelValues const& values) {
+    // 两个按键名条目需要成对校验（不能绑同一个键），因此先统一收集再一次性落盘，
+    // 否则 PanelValues 的遍历顺序会影响结果。
+    struct KeyChange {
+        bool     valid = false;
+        uint32_t value = 0;
+    };
+    auto collectKeyChange = [&values](std::string const& name, uint32_t current) {
+        KeyChange change;
+        auto it = values.find(name);
+        if (it == values.end()) return change;
+        change.value = current;
+        if (auto const* text = std::get_if<std::string>(&it->second)) {
+            if (auto virtualKey = input::virtualKeyFromName(*text)) {
+                change.value = *virtualKey;
+                change.valid = true;
+            }
+        }
+        return change;
+    };
+    KeyChange ptt = collectKeyChange("pttKeyName", config.pttKey);
+    KeyChange settings = collectKeyChange("settingsKeyName", config.settingsKey);
+    if (ptt.valid && settings.valid) {
+        // 两个键都被改成同一个键，无法判断该保留哪个 → 两条都拒绝
+        if (ptt.value == settings.value) {
+            ptt.valid = false;
+            settings.valid = false;
+        }
+    } else if (ptt.valid && ptt.value == config.settingsKey) {
+        ptt.valid = false;
+    } else if (settings.valid && settings.value == config.pttKey) {
+        settings.valid = false;
+    }
+
     std::size_t applied = 0;
     for (auto const& [key, value] : values) {
         bool accepted = false;
 
-        if (key == "talkMode") {
+        if (key == "pttKeyName" || key == "settingsKeyName") {
+            continue; // 已在上面成对处理
+        } else if (key == "talkMode") {
             if (auto const* text = std::get_if<std::string>(&value)) {
                 if (*text == kTalkModeDisabled) {
                     config.voiceEnabled = false;
@@ -82,6 +126,15 @@ std::size_t ConfigBinding::apply(config::ClientConfig& config, PanelValues const
         }
 
         if (accepted) ++applied;
+    }
+
+    if (ptt.valid) {
+        config.pttKey = ptt.value;
+        ++applied;
+    }
+    if (settings.valid) {
+        config.settingsKey = settings.value;
+        ++applied;
     }
     return applied;
 }

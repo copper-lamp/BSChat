@@ -131,5 +131,6 @@ target("voicechat-tests")
         "src/client/ui/ConfigBinding.cpp",
         "src/client/entry/ClientRuntime.cpp",
         "src/client/input/Triggers.cpp",
+        "src/client/input/KeyNames.cpp",
         "tests/client/**.cpp"
     )
