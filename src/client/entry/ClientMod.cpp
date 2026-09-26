@@ -107,7 +107,15 @@ bool ClientMod::load() {
     playerState_ = std::make_unique<PlayerState>();
     clock_ = std::make_unique<SteadyClock>();
     config_ = std::move(config);
-    audioDevice_ = std::make_unique<audio::WasapiAudioDevice>();
+    // 音频管线格式由配置决定，WASAPI 两端都按它 Initialize，由引擎转换到端点实际格式。
+    audio::WasapiAudioConfig audioConfig;
+    audioConfig.sampleRate = static_cast<uint32_t>(std::max(8000, config_.audio.sampleRate));
+    audioConfig.channels = static_cast<uint16_t>(std::max(1, config_.audio.channels));
+    audioConfig.frameSamples = static_cast<uint32_t>(std::max<int64_t>(
+        1,
+        static_cast<int64_t>(audioConfig.sampleRate) * std::max(1, config_.audio.frameSizeMs) / 1000
+    ));
+    audioDevice_ = std::make_unique<audio::WasapiAudioDevice>(audioConfig);
     shared::FileLog::info("load: complete");
     return true;
 }
@@ -210,8 +218,23 @@ void ClientMod::onJoin(ll::event::client::ClientJoinLevelEvent& event) {
             auto self = ll::mod::NativeMod::current();
             if (self) self->getLogger().warn("WASAPI audio unavailable; voice chat will remain silent ({})", detail);
             shared::FileLog::warn("onJoin: WASAPI audio unavailable; voice chat will remain silent (" + detail + ")");
-        } else {
+        } else if (audioDevice_->captureActive() && audioDevice_->renderActive()) {
             shared::FileLog::info("onJoin: WASAPI capture/render started");
+        } else if (!audioDevice_->captureActive()) {
+            // 没有麦克风也要能听到别人：采集降级不影响播放。
+            auto const detail = audioDevice_->lastError();
+            auto self = ll::mod::NativeMod::current();
+            if (self) self->getLogger().warn("WASAPI microphone unavailable, you can still hear others ({})", detail);
+            shared::FileLog::warn(
+                "onJoin: WASAPI microphone unavailable, you can still hear others (" + detail + ")"
+            );
+        } else {
+            auto const detail = audioDevice_->lastError();
+            auto self = ll::mod::NativeMod::current();
+            if (self) self->getLogger().warn("WASAPI playback unavailable, others can still hear you ({})", detail);
+            shared::FileLog::warn(
+                "onJoin: WASAPI playback unavailable, others can still hear you (" + detail + ")"
+            );
         }
     }
     runtime_->start();

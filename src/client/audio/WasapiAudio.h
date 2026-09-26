@@ -25,6 +25,11 @@ struct WasapiPcmFrame {
 };
 
 struct WasapiAudioConfig {
+    // 管线统一格式，取自 core/config 的 audio.*：两端都用它 Initialize，由音频引擎
+    // （AUTOCONVERTPCM|SRC_DEFAULT_QUALITY）转换到端点实际采样率与声道。
+    uint32_t sampleRate = 48000;
+    uint16_t channels = 1;
+    uint32_t frameSamples = 2880; // sampleRate * frameSizeMs / 1000，渲染端按整帧写入
     uint32_t captureQueueCapacity = 32;
     uint32_t renderQueueCapacity = 64;
 };
@@ -55,8 +60,13 @@ public:
     bool tryDequeueCapture(WasapiPcmFrame& frame);
     void setCaptureCallback(CaptureCallback callback);
 
-    // start() 失败时给出具体失败步骤与 HRESULT；成功或未启动时为空串。
+    // start() 失败时给出具体失败步骤与 HRESULT；单侧降级时给出降级原因；全部正常时为空串。
     std::string lastError() const;
+
+    // 采集/渲染各自独立：没有麦克风的玩家仍能听到别人，反之亦然。
+    // start() 返回 true 表示至少一侧可用，具体哪一侧看这两个标志。
+    bool captureActive() const noexcept;
+    bool renderActive() const noexcept;
 
     // Retained for callers that only need endpoint discovery.
     static WasapiProbeResult probeDefaultDevices();
