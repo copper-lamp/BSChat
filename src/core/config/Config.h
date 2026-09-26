@@ -8,13 +8,13 @@
 
 namespace vc::config {
 
-// 音频参数（客户端采集/编码、服务端解码/混音共用同一基线）
+// 音频参数（客户端采集/编码、服务端解码/混音共用同一基线；服务端为权威）
 struct AudioConfig {
     int sampleRate = audio::kDefaultSampleRate;
     int channels = audio::kDefaultChannels;
     int frameSizeMs = audio::kDefaultFrameSizeMs;
     int bitrateKbps = audio::kDefaultBitrateKbps;
-    bool enableDtx = true;
+    bool enableDtx = false;
     int complexity = 10;
 };
 

@@ -12,7 +12,7 @@ struct OpusEncoder::Impl {
     int frameSamples = 0;
 };
 
-OpusEncoder::OpusEncoder(int sampleRate, int channels, int frameSamples, int bitrateKbps, int complexity)
+OpusEncoder::OpusEncoder(int sampleRate, int channels, int frameSamples, int bitrateKbps, int complexity, bool dtx)
     : impl_(new Impl) {
     int error = OPUS_OK;
     impl_->enc = opus_encoder_create(sampleRate, channels, OPUS_APPLICATION_VOIP, &error);
@@ -23,7 +23,9 @@ OpusEncoder::OpusEncoder(int sampleRate, int channels, int frameSamples, int bit
     impl_->frameSamples = frameSamples;
     opus_encoder_ctl(impl_->enc, OPUS_SET_BITRATE(bitrateKbps * 1000));
     opus_encoder_ctl(impl_->enc, OPUS_SET_COMPLEXITY(std::clamp(complexity, 0, 10)));
-    opus_encoder_ctl(impl_->enc, OPUS_SET_DTX(1));  // 静音时输出超低码率包，配合"静音不推流"
+    // DTX 由调用方决定：开启时静音段只发 1~2 字节，配合"静音不推流"省带宽；
+    // 关闭时安静段也照常出帧，连续音频（录音/音乐回放）听感更好。
+    opus_encoder_ctl(impl_->enc, OPUS_SET_DTX(dtx ? 1 : 0));
     opus_encoder_ctl(impl_->enc, OPUS_SET_VBR(1));
     opus_encoder_ctl(impl_->enc, OPUS_SET_SIGNAL(OPUS_SIGNAL_VOICE));
 }

@@ -31,6 +31,8 @@ public:
         int channels = audio::kDefaultChannels;
         int frameSizeMs = audio::kDefaultFrameSizeMs;
         int bitrateKbps = audio::kDefaultBitrateKbps;
+        int complexity = 10;      // Opus 编码复杂度（0-10），与客户端配置同源
+        bool enableDtx = true;    // 静音时只发超低码率包；连续音频/音乐回放建议关闭
         int tickMs = audio::kMixTickMs;
         size_t maxPending = 1024;
         audio::SpatialPolicyConfig spatial;

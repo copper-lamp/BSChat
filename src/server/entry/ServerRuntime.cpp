@@ -24,6 +24,8 @@ ServerMixer::Config mixerConfigFrom(const config::ServerConfig& config) {
     mixerConfig.channels = config.audio.channels;
     mixerConfig.frameSizeMs = config.audio.frameSizeMs;
     mixerConfig.bitrateKbps = config.audio.bitrateKbps;
+    mixerConfig.complexity = config.audio.complexity;
+    mixerConfig.enableDtx = config.audio.enableDtx;
     mixerConfig.maxPending = config.maxPending;
     mixerConfig.spatial.mode = config.spatialMode == "proximity"
         ? audio::MixMode::Proximity : audio::MixMode::Global;
@@ -188,6 +190,10 @@ PlayerSession::Options ServerRuntime::makeSessionOptions() const {
     options.frameSizeMs = config_.audio.frameSizeMs;
     options.maxDepthFrames = static_cast<size_t>(config_.jitterMaxDepthFrames);
     options.maxWaitMs = config_.jitterMaxWaitMs;
+    // 防刷包上限必须跟着帧长走：20ms 帧的正常上行是 50 帧/秒，固定 40 上限会把正常语音
+    // 当洪水丢掉（听感直接崩）。这里按 2 倍标称速率设下限，60ms 帧仍是原来的 40。
+    const int frameMs = std::max(1, config_.audio.frameSizeMs);
+    options.maxFramesPerSecond = std::max<size_t>(40, static_cast<size_t>(1000 / frameMs) * 2);
     return options;
 }
 

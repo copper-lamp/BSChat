@@ -4,7 +4,7 @@
 为 Windows shared client 提供真实的默认设备 capture/render 流式边界，同时保持 `probeDefaultDevices()` 兼容。要求 start/stop 可跨线程安全调用，不能让音频线程因消费者暂时不可用而阻塞。
 
 ## 架构
-`WasapiAudioDevice` 在独立 worker 中初始化 COM、MMDeviceEnumerator 和共享模式 `IAudioClient`。两端都以调用方给的管线统一格式（`WasapiAudioConfig` 的 sampleRate/channels/frameSamples，取自 `core/config` 的 audio 段）调用 `Initialize`，并用 `AUDCLNT_STREAMFLAGS_AUTOCONVERTPCM | AUDCLNT_STREAMFLAGS_SRC_DEFAULT_QUALITY` 把采样率/声道转换交给音频引擎，因此边界内不需要自己做重采样或声道布局转换。capture 使用 `IAudioCaptureClient` 把数据读成归一化交错 float PCM，写入有界 capture queue，并可同步调用捕获回调；render 从有界 PCM queue 取帧，使用 `IAudioRenderClient` 按“整帧”写入（缓冲时长也取一帧，只在能容下一整帧时才写），队列为空时补静音。队列溢出策略是丢弃最旧 capture 或拒绝新 render，避免阻塞实时线程。Windows 以外保留不可运行但可编译的边界。
+`WasapiAudioDevice` 在独立 worker 中初始化 COM、MMDeviceEnumerator 和共享模式 `IAudioClient`。两端都以调用方给的管线统一格式（`WasapiAudioConfig` 的 sampleRate/channels，取自 `core/config` 的 audio 段）调用 `Initialize`，并用 `AUDCLNT_STREAMFLAGS_AUTOCONVERTPCM | AUDCLNT_STREAMFLAGS_SRC_DEFAULT_QUALITY` 把采样率/声道转换交给音频引擎，因此边界内不需要自己做重采样或声道布局转换。渲染缓冲固定取 Opus 单帧上限（60ms），写入长度**跟随到达帧的实际长度**（帧长由服务端协商，20/40/60ms 都可整帧写入）——空间不足或取缓冲失败时把该帧放回队首，不丢音频。capture 使用 `IAudioCaptureClient` 把数据读成归一化交错 float PCM，写入有界 capture queue，并可同步调用捕获回调。队列溢出策略是丢弃最旧 capture 或拒绝新 render，避免阻塞实时线程。Windows 以外保留不可运行但可编译的边界。
 
 采集与渲染两条链路**分别启动**：任一端点不可用只降级该侧，`start()` 只要一侧可用就返回 true，`captureActive()`/`renderActive()` 表明具体状态，`lastError()` 给出失败步骤 + HRESULT 或降级原因。这样没有麦克风的玩家仍能听到别人，反之亦然。
 

@@ -1,5 +1,7 @@
 #include "core/config/Config.h"
 
+#include <algorithm>
+
 #include <nlohmann/json.hpp>
 
 namespace vc::config {
@@ -27,6 +29,10 @@ AudioConfig audioFromJson(const nlohmann::json& j) {
         c.bitrateKbps = valueOr(j, "bitrateKbps", c.bitrateKbps);
         c.enableDtx = valueOr(j, "enableDtx", c.enableDtx);
         c.complexity = valueOr(j, "complexity", c.complexity);
+        // 手填配置兜底：帧长必须是 Opus 支持的范围，码率不能超出合理区间
+        c.frameSizeMs = std::clamp(c.frameSizeMs, audio::kMinFrameSizeMs, audio::kMaxFrameSizeMs);
+        c.bitrateKbps = std::clamp(c.bitrateKbps, audio::kMinBitrateKbps, audio::kMaxBitrateKbps);
+        c.complexity = std::clamp(c.complexity, 0, 10);
     }
     return c;
 }

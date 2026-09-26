@@ -137,7 +137,7 @@ void ServerMixer::tickOnce(int64_t nowMs) {
 
         for (const auto& receiver : sessions) {
             auto& encoder = encoders_[receiver->id()];
-            if (!encoder) encoder = std::make_unique<codec::OpusEncoder>(config_.sampleRate, config_.channels, frameSamples, config_.bitrateKbps);
+            if (!encoder) encoder = std::make_unique<codec::OpusEncoder>(config_.sampleRate, config_.channels, frameSamples, config_.bitrateKbps, config_.complexity, config_.enableDtx);
             auto& sequence = mixSeqs_[receiver->id()];
             std::vector<uint8_t> packet(static_cast<size_t>(encoder->maxPacketSize()));
             mixer_.computeMix(receiver->id(), mixed.data());

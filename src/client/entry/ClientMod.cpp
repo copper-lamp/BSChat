@@ -84,13 +84,10 @@ bool ClientMod::load() {
     clock_ = std::make_unique<SteadyClock>();
     config_ = std::move(config);
     // 音频管线格式由配置决定，WASAPI 两端都按它 Initialize，由引擎转换到端点实际格式。
+    // 帧长不在这里固定：渲染写长度跟随到达帧（服务端协商帧长）。
     audio::WasapiAudioConfig audioConfig;
     audioConfig.sampleRate = static_cast<uint32_t>(std::max(8000, config_.audio.sampleRate));
     audioConfig.channels = static_cast<uint16_t>(std::max(1, config_.audio.channels));
-    audioConfig.frameSamples = static_cast<uint32_t>(std::max<int64_t>(
-        1,
-        static_cast<int64_t>(audioConfig.sampleRate) * std::max(1, config_.audio.frameSizeMs) / 1000
-    ));
     audioDevice_ = std::make_unique<audio::WasapiAudioDevice>(audioConfig);
     shared::FileLog::info("load: complete");
     return true;
@@ -134,16 +131,16 @@ bool ClientMod::enable() {
     }
     if (self) self->getLogger().info("voicechat client listeners enabled");
     shared::FileLog::info("enable: client listeners enabled");
-    // UI 通道探针只做通道可用性取证，失败不影响语音主链路。
-    if (!uiChannelProbe_.initialize()) {
-        if (self) self->getLogger().warn("UI channel probe is unavailable; voice chat continues normally");
-        shared::FileLog::warn("enable: UI channel probe is unavailable; voice chat continues normally");
+    hudLayer_.applyConfig(config_);
+    if (!hudLayer_.initialize()) {
+        if (self) self->getLogger().warn("HUD layer is unavailable; voice chat continues normally");
+        shared::FileLog::warn("enable: HUD layer is unavailable; voice chat continues normally");
     }
     return true;
 }
 
 bool ClientMod::disable() {
-    uiChannelProbe_.shutdown();
+    hudLayer_.shutdown();
     if (audioDevice_) audioDevice_->stop();
     if (runtime_) runtime_->stop();
     auto& bus = ll::event::EventBus::getInstance();
@@ -173,6 +170,11 @@ void ClientMod::onJoin(ll::event::client::ClientJoinLevelEvent& event) {
     runtime_ = std::make_unique<ClientRuntime>(*transport_, *playerState_, *clock_, config_);
     // 自检由服务端 /voicechat test 命令经 Control(SmokeTest) 请求，回调在主线程 tick 中触发。
     runtime_->setSmokeTestRequestHandler([this] { startSmokeTest(); });
+    // 字幕由服务端 STT 结果驱动，入队后由 HUD 在渲染事件里绘制。
+    runtime_->setSttTextHandler([this](protocol::SttTextMessage const& text) {
+        if (clock_) hudLayer_.pushSttText(text, clock_->nowMs());
+    });
+    hudLayer_.applyConfig(config_);
     runtime_->setRenderSink([this](const float* samples, std::size_t count) {
         if (!samples || count == 0) return;
         if (!audioDevice_) return;
@@ -184,6 +186,7 @@ void ClientMod::onJoin(ll::event::client::ClientJoinLevelEvent& event) {
     });
     if (audioDevice_) {
         audioDevice_->setCaptureCallback([this](const audio::WasapiPcmFrame& frame) {
+            if (!config_.captureEnabled) return; // 采集开关：关闭后只收听
             if (runtime_ && !frame.samples.empty()) runtime_->submitPcm(frame.samples.data(), frame.samples.size());
         });
         if (!audioDevice_->start()) {
@@ -235,8 +238,40 @@ void ClientMod::startSmokeTest() {
     smokeTest_->begin();
 }
 
+void ClientMod::applyClientConfig(config::ClientConfig const& config) {
+    config_ = config;
+    hudLayer_.applyConfig(config_);
+    if (runtime_) runtime_->setOutputVolume(config_.playbackVolume);
+
+    auto self = ll::mod::NativeMod::current();
+    if (!self) return;
+    if (!writeText(self->getConfigDir() / "voicechat.json", config::clientConfigToJson(config_))) {
+        shared::FileLog::warn("applyClientConfig: failed to persist the client config");
+    }
+}
+
+void ClientMod::updateHudStatus() {
+    if (!runtime_) return;
+    int64_t const now = clock_ ? clock_->nowMs() : 0;
+
+    // 「正在放音」以近 500ms 内是否收到过下行混音帧判定，避免逐帧计数抖动。
+    uint64_t const frames = runtime_->receivedMixFrames();
+    if (frames != lastMixFrames_) {
+        lastMixFrames_ = frames;
+        lastMixFrameMs_ = now;
+    }
+
+    hud::StatusInputs inputs;
+    inputs.inSession = runtime_->state() == ClientRuntime::State::Ready;
+    inputs.talking = runtime_->talking();
+    inputs.muted = false; // 本端麦克风静音尚未实现，预留状态位
+    inputs.playing = lastMixFrameMs_ != 0 && (now - lastMixFrameMs_) < 500;
+    hudLayer_.setStatusInputs(inputs);
+}
+
 void ClientMod::onExit(ll::event::client::ClientExitLevelEvent&) {
     shared::FileLog::info("onExit: ClientExitLevelEvent received, stopping client runtime");
+    hudLayer_.clearSubtitles();
     smokeTest_.reset();
     if (audioDevice_) audioDevice_->stop();
     if (runtime_) runtime_->stop();
@@ -247,6 +282,7 @@ void ClientMod::onExit(ll::event::client::ClientExitLevelEvent&) {
 void ClientMod::onTick(ll::event::world::ClientLevelTickEvent&) {
     if (!runtime_) return;
     runtime_->tick();
+    updateHudStatus();
     if (smokeTest_) {
         smokeTest_->tick(clock_->nowMs());
         if (smokeTest_->finished() && !smokeTestReported_) {

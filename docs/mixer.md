@@ -10,6 +10,8 @@
 
 **节拍与帧调度修正**（用真实音频回放才暴露出来）：`tickOnce` 由 `ServerLevelTickEvent`（50ms）驱动，却按 `tickMs`（默认 120ms）设计——每个服务器 tick 都产出 `framesPerTick=2` 帧 60ms 音频，下行被放大到 ~2.4 倍实时速率（实测 96 秒回放客户端收到 3404 帧 ≈ 2.13 倍），客户端抖动缓冲与渲染队列持续溢出丢帧。现在 `tickOnce` 按 `config_.tickMs` 限流；同时上行帧改为按说话者排队（`uploadQueues_`），同一 tick 内的多个子帧各取一段不同音频——此前 `drain` 后直接 `addSpeakerFrame`（覆盖语义）会把同一帧编码多次并丢掉其余上行帧。
 
+**音频参数与服务端权威**：服务端配置里的 `audio.*` 是下行编码的权威值（`bitrateKbps` / `complexity` / `enableDtx` / `frameSizeMs`），编码器按它们创建。注意 `enableDtx` 以前只存在于配置里、编码器被硬编码为开，现已接线；关掉 DTX 后安静段落也照常出帧，连续音频听感明显更好。帧长由服务端在 `Welcome` 里下发，客户端采用（客户端只强制采样率一致）。
+
 ## 风险与 TODO
 - 编码、混音和待发队列仍需长时压测。
 - `maxPending` 是消息条目上限，不是按玩家公平配额。

@@ -28,15 +28,30 @@ ClientRuntime::ClientRuntime(
 )
     : transport_(transport), player_(player), clock_(clock), config_(std::move(config)) {
     transport_.setMessageHandler([this](const auto& id, const auto& message) { onMessage(id, message); });
+    rebuildCodecs();
+    jitter_ = ::vc::audio::JitterBuffer({static_cast<std::size_t>(std::max(1, config_.jitterMaxDepthFrames)),
+                                   std::max<int64_t>(0, config_.jitterMaxWaitMs)});
+}
+
+void ClientRuntime::rebuildCodecs() {
     const int rate = std::max(8000, config_.audio.sampleRate);
     const int frameSamples = std::max(1, rate * std::max(1, config_.audio.frameSizeMs) / 1000);
     encoder_ = std::make_unique<codec::OpusEncoder>(rate, config_.audio.channels, frameSamples,
-        config_.audio.bitrateKbps, config_.audio.complexity);
+        config_.audio.bitrateKbps, config_.audio.complexity, config_.audio.enableDtx);
     decoder_ = std::make_unique<codec::OpusDecoder>(rate, config_.audio.channels, frameSamples);
-    pcmFrame_.resize(static_cast<std::size_t>(frameSamples) * std::max(1, config_.audio.channels));
-    encoded_.resize(static_cast<std::size_t>(encoder_->maxPacketSize()));
-    jitter_ = ::vc::audio::JitterBuffer({static_cast<std::size_t>(std::max(1, config_.jitterMaxDepthFrames)),
-                                   std::max<int64_t>(0, config_.jitterMaxWaitMs)});
+    pcmFrame_.assign(static_cast<std::size_t>(frameSamples) * std::max(1, config_.audio.channels), 0.0F);
+    encoded_.assign(static_cast<std::size_t>(encoder_->maxPacketSize()), 0);
+    pcmPending_ = 0;
+}
+
+void ClientRuntime::applyNegotiatedFrameSize(int frameSizeMs) {
+    const int clamped = std::clamp(frameSizeMs, ::vc::audio::kMinFrameSizeMs, ::vc::audio::kMaxFrameSizeMs);
+    if (clamped == config_.audio.frameSizeMs) return;
+    config_.audio.frameSizeMs = clamped;
+    rebuildCodecs();
+    jitter_.clear();
+    talking_ = false;
+    seq_ = 0;
 }
 
 ClientRuntime::~ClientRuntime() {
@@ -98,6 +113,10 @@ void ClientRuntime::onMessage(const protocol::PlayerId& peerId, const protocol::
         if (control->type == protocol::ControlType::SmokeTest) smokeTestRequested_.store(true);
         return;
     }
+    if (const auto* stt = std::get_if<protocol::SttTextMessage>(&message)) {
+        if (sttTextHandler_) sttTextHandler_(*stt);
+        return;
+    }
     if (const auto* mix = std::get_if<protocol::MixStreamMessage>(&message)) {
         ++receivedMixFrames_;
         jitter_.push(mix->seq, mix->opusData, clock_.nowMs());
@@ -109,12 +128,16 @@ void ClientRuntime::onMessage(const protocol::PlayerId& peerId, const protocol::
             nextHelloMs_ = clock_.nowMs() + std::max<int64_t>(1, config_.handshakeRetryMs);
             return;
         }
-        state_ = State::Ready;
-        nextPositionMs_ = 0;
+        // 采样率必须两端一致（渲染设备格式在启动时已固定，会话中无法切换），不一致判负重试；
+        // 帧长以服务端为准：客户端直接采用，避免两端手填不一致导致分包/解码错位。
         if (welcome->sampleRate != 0 && welcome->sampleRate != checkedSampleRate(config_.audio.sampleRate)) {
             state_ = State::Failed;
             nextHelloMs_ = clock_.nowMs() + std::max<int64_t>(1, config_.handshakeRetryMs);
+            return;
         }
+        if (welcome->frameSizeMs != 0) applyNegotiatedFrameSize(checkedFrameSize(welcome->frameSizeMs));
+        state_ = State::Ready;
+        nextPositionMs_ = 0;
     }
 }
 
@@ -158,6 +181,8 @@ void ClientRuntime::setOutputMuted(bool muted) { outputMuted_ = muted; }
 void ClientRuntime::setSmokeTestRequestHandler(SmokeTestRequestHandler handler) {
     smokeTestRequestHandler_ = std::move(handler);
 }
+
+void ClientRuntime::setSttTextHandler(SttTextHandler handler) { sttTextHandler_ = std::move(handler); }
 
 void ClientRuntime::drainPlayback() {
     if (!decoder_ || !renderSink_) return;

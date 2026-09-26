@@ -12,8 +12,9 @@ namespace vc::codec {
 class OpusEncoder {
 public:
     // sampleRate: 48000; channels: 1; frameSamples: 采样率*帧长/1000
-    // bitrateKbps: 目标码率（12-24），complexity: 0-10
-    OpusEncoder(int sampleRate, int channels, int frameSamples, int bitrateKbps, int complexity = 10);
+    // bitrateKbps: 目标码率；complexity: 0-10；dtx: 静音时是否只发超低码率包（省带宽，
+    // 但会让安静段落变成"无数据"，对连续音频/音乐听感不利）
+    OpusEncoder(int sampleRate, int channels, int frameSamples, int bitrateKbps, int complexity = 10, bool dtx = true);
     ~OpusEncoder();
     OpusEncoder(const OpusEncoder&) = delete;
     OpusEncoder& operator=(const OpusEncoder&) = delete;

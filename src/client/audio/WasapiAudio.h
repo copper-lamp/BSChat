@@ -27,9 +27,9 @@ struct WasapiPcmFrame {
 struct WasapiAudioConfig {
     // 管线统一格式，取自 core/config 的 audio.*：两端都用它 Initialize，由音频引擎
     // （AUTOCONVERTPCM|SRC_DEFAULT_QUALITY）转换到端点实际采样率与声道。
+    // 帧长不在这里配置：渲染写长度跟随到达帧的实际长度（服务端协商决定）。
     uint32_t sampleRate = 48000;
     uint16_t channels = 1;
-    uint32_t frameSamples = 2880; // sampleRate * frameSizeMs / 1000，渲染端按整帧写入
     uint32_t captureQueueCapacity = 32;
     uint32_t renderQueueCapacity = 64;
 };

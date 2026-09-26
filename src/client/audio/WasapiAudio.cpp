@@ -10,6 +10,8 @@
 #include <thread>
 #include <utility>
 
+#include "core/audio/AudioTypes.h"
+
 #ifdef _WIN32
 #include <audioclient.h>
 #include <combaseapi.h>
@@ -106,10 +108,10 @@ struct WasapiAudioDevice::Impl {
         requested.nBlockAlign     = static_cast<WORD>(requested.nChannels * requested.wBitsPerSample / 8);
         requested.nAvgBytesPerSec = requested.nSamplesPerSec * requested.nBlockAlign;
         requested.cbSize          = 0;
-        // 缓冲时长取一帧，渲染端即可按“整帧写入”维持稳定节拍。
+        // 缓冲时长固定取 Opus 允许的最大帧长：帧长由服务端协商（20/40/60ms），缓冲取上界后
+        // 任意合法帧长都能整帧写入，写入长度直接跟随到达帧的实际长度。
         const REFERENCE_TIME bufferDuration =
-            static_cast<REFERENCE_TIME>(std::max<uint32_t>(1, config.frameSamples)) * 10000000
-            / static_cast<REFERENCE_TIME>(requested.nSamplesPerSec);
+            static_cast<REFERENCE_TIME>(::vc::audio::kMaxFrameSizeMs) * 10000; // ms → 100ns 单位
 
         ComPtr enumerator;
         HRESULT hr = CoCreateInstance(__uuidof(MMDeviceEnumerator), nullptr, CLSCTX_ALL,
@@ -183,7 +185,6 @@ struct WasapiAudioDevice::Impl {
         const bool isFloat = requested.wFormatTag == WAVE_FORMAT_IEEE_FLOAT;
         const size_t bytesPerSample = requested.wBitsPerSample / 8;
         const WORD channels = requested.nChannels;
-        const size_t frameSamples = static_cast<size_t>(config.frameSamples) * channels; // 一帧的交错采样数
         IAudioClient* cap = captureAudio.get<IAudioClient>();
         IAudioClient* ren = renderAudio.get<IAudioClient>();
         while (true) {
@@ -217,23 +218,35 @@ struct WasapiAudioDevice::Impl {
             if (renderOk) {
                 auto* rc = renderClient.get<IAudioRenderClient>();
                 UINT32 padding = 0;
-                const UINT32 framesPerWrite = static_cast<UINT32>(std::max<uint32_t>(1, config.frameSamples));
-                // 只在缓冲能容下“一整帧”时才写：固定节拍、不切帧，也不因大缓冲一次性灌满静音。
-                if (SUCCEEDED(ren->GetCurrentPadding(&padding)) && renderFrames - padding >= framesPerWrite) {
-                    WasapiPcmFrame frame; bool have = false;
-                    {
-                        std::lock_guard lock(mutex);
-                        if (!renderQueue.empty()) { frame = std::move(renderQueue.front()); renderQueue.pop_front(); have = true; }
+                // 写入长度跟随队列里那一帧的实际长度（帧长由服务端协商），缓冲取 60ms 上界，
+                // 因此 20/40/60ms 帧都能整帧写入，不会切帧或灌静音。
+                WasapiPcmFrame frame; bool have = false;
+                {
+                    std::lock_guard lock(mutex);
+                    if (!renderQueue.empty()) {
+                        frame = std::move(renderQueue.front());
+                        renderQueue.pop_front();
+                        have = true;
                     }
+                }
+                if (have) {
+                    const UINT32 framesPerWrite = static_cast<UINT32>(
+                        std::max<std::size_t>(1, frame.samples.size() / std::max<uint16_t>(1, channels))
+                    );
+                    const bool roomEnough =
+                        SUCCEEDED(ren->GetCurrentPadding(&padding)) && renderFrames - padding >= framesPerWrite;
                     BYTE* out = nullptr;
-                    if (SUCCEEDED(rc->GetBuffer(framesPerWrite, &out))) {
-                        for (size_t i = 0; i < frameSamples; ++i) {
-                            const float sample = have && i < frame.samples.size() ? frame.samples[i] : 0.0F;
-                            writeSample(out + i * bytesPerSample, requested.wBitsPerSample, isFloat, sample);
+                    if (roomEnough && SUCCEEDED(rc->GetBuffer(framesPerWrite, &out))) {
+                        for (size_t i = 0; i < frame.samples.size(); ++i) {
+                            writeSample(out + i * bytesPerSample, requested.wBitsPerSample, isFloat, frame.samples[i]);
                         }
                         rc->ReleaseBuffer(framesPerWrite, 0);
                         std::lock_guard lock(mutex);
                         renderFramesWritten += framesPerWrite;
+                    } else {
+                        // 空间不足或取缓冲失败：放回队首，下轮再写，避免丢音频
+                        std::lock_guard lock(mutex);
+                        renderQueue.push_front(std::move(frame));
                     }
                 }
             }
