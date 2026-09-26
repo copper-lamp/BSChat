@@ -61,6 +61,7 @@ public:
 
 private:
     void threadMain();
+    bool feedFilePlaybackFrame(int frameSamples);
     void enqueueToAll(const protocol::Message& message);
     void enqueueTo(const protocol::PlayerId& peerId, const protocol::Message& message);
 
@@ -69,9 +70,14 @@ private:
     std::thread thread_;
     std::atomic<bool> running_{false};
     std::atomic<uint64_t> tickCount_{0};
+    int64_t lastTickMs_ = 0; // 上次混音时刻：tickOnce 可能被更快的服务器 tick 驱动，需要按 tickMs 限流
+    bool hasMixedOnce_ = false;
     pipeline::IStt* stt_ = nullptr;
     std::mutex pendingMutex_;
     std::deque<std::pair<protocol::PlayerId, protocol::Message>> pending_;
+    // 每个说话者的待混音帧队列：同一 tick 内 framesPerTick 个子帧各取一段不同音频
+    // （直接 addSpeakerFrame 是覆盖语义，会把同一帧编码多次且丢掉其余上行帧）。
+    std::map<protocol::PlayerId, std::deque<std::vector<float>>> uploadQueues_;
     audio::MixerCore mixer_;
     audio::SpatialPolicy spatialPolicy_;
     FilePlaybackSource filePlayback_;

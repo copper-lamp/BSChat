@@ -243,3 +243,53 @@ TEST(mixer_file_playback_reaches_receiver_without_uplink) {
 
     std::filesystem::remove(path);
 }
+
+// 混音节拍按 config_.tickMs 限流：驱动器（服务器 tick 50ms）比混音周期快时不能被放大下行速率。
+TEST(mixer_tick_gated_by_configured_period) {
+    SessionManager sessions;
+    sessions.addSession(makePlayerId(1), {});
+    ServerMixer mixer(sessions, {});
+
+    std::vector<float> samples(static_cast<size_t>(kFrameSamples) * 8, 0.4F);
+    auto bytes = vc::test::buildWavBytes(kSampleRate, 1, true, samples);
+    auto path = vc::test::writeTempWav(bytes, "voicechat-test-mixer-pacing.wav");
+    std::string error;
+    EXPECT_TRUE(mixer.startFilePlayback(path, error));
+
+    mixer.tickOnce(0);
+    EXPECT_TRUE(!collect(mixer).empty()); // 首次立即混音
+
+    mixer.tickOnce(50); // 未到下一个混音周期（默认 120ms）
+    EXPECT_TRUE(collect(mixer).empty());
+
+    mixer.tickOnce(120);
+    EXPECT_TRUE(!collect(mixer).empty());
+
+    std::filesystem::remove(path);
+}
+
+// 同一 tick 内的多个子帧必须各用一段不同音频：此前 drain 后覆盖式喂入会把同一帧编码多次。
+TEST(mixer_sub_frames_use_distinct_audio) {
+    SessionManager sessions;
+    sessions.addSession(makePlayerId(1), {});
+    ServerMixer mixer(sessions, {});
+
+    // 第 1 帧恒 +0.4、第 2 帧恒 -0.4：两帧内容不同，编码结果也必须不同
+    std::vector<float> samples;
+    samples.insert(samples.end(), static_cast<size_t>(kFrameSamples), 0.4F);
+    samples.insert(samples.end(), static_cast<size_t>(kFrameSamples), -0.4F);
+    auto bytes = vc::test::buildWavBytes(kSampleRate, 1, true, samples);
+    auto path = vc::test::writeTempWav(bytes, "voicechat-test-mixer-subframes.wav");
+    std::string error;
+    EXPECT_TRUE(mixer.startFilePlayback(path, error));
+
+    mixer.tickOnce(0);
+    std::vector<std::vector<uint8_t>> payloads;
+    for (auto const& [peer, message] : collect(mixer)) {
+        if (auto const* mix = std::get_if<MixStreamMessage>(&message)) payloads.push_back(mix->opusData);
+    }
+    EXPECT_EQ(payloads.size(), static_cast<size_t>(kMixTickMs / kFrameSizeMs));
+    if (payloads.size() == 2u) EXPECT_TRUE(payloads[0] != payloads[1]);
+
+    std::filesystem::remove(path);
+}
