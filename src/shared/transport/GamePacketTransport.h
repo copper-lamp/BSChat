@@ -2,7 +2,9 @@
 
 #include <cstdint>
 #include <functional>
+#include <map>
 #include <mutex>
+#include <string>
 #include <vector>
 
 #include "core/pipeline/ITransport.h"
@@ -35,12 +37,22 @@ public:
     // 服务端注入：PlayerId → Player*（在线校验 + 路由）；客户端模式恒为 null。
     using PlayerResolver = std::function<Player*(const protocol::PlayerId&)>;
 
+    // 诊断日志（与 ctx 一致的签名）；下行找不到收件人时给出明确告警。
+    using LogSink = std::function<void(bool isError, const std::string&)>;
+
     explicit GamePacketTransport(TransportMode mode, PlayerResolver resolver = {});
     ~GamePacketTransport();
 
     void send(const protocol::PlayerId& peerId, const protocol::Message& message) override;
     void setMessageHandler(MessageHandler handler) override;
     void clearMessageHandler() override;
+    void setLogSink(LogSink sink);
+
+    // 服务端路由兜底：PlayerJoinEvent 触发晚于客户端首个 Hello，只靠它填 Player* 会让
+    // 握手期的下行被丢弃（实测握手被拖后约 30 秒）。首个数据包到达时自动 rememberPlayer，
+    // 玩家离线/模组停用时由 ServerMod 注销。
+    void forgetPlayer(const protocol::PlayerId& peerId);
+    void clearPlayers();
 
     TransportMode mode() const { return mode_; }
 
@@ -49,11 +61,15 @@ private:
 
     void onPacketReceived(const std::vector<uint8_t>& payload, const protocol::PlayerId& peerId);
     void dispatch(const protocol::PlayerId& peerId, const protocol::Message& message);
+    void rememberPlayer(const protocol::PlayerId& peerId, Player* player);
 
     TransportMode mode_;
     PlayerResolver resolver_;
     MessageHandler handler_;
+    LogSink logSink_;
     std::mutex handlerMutex_; // 网络线程 dispatch 与主线程装配之间的保护
+    std::mutex playersMutex_; // 网络线程写入 / 主线程发送读取
+    std::map<protocol::PlayerId, Player*> peerPlayers_;
     uint32_t sendSeq_ = 0;    // 信封级序号（仅主线程访问）
 };
 

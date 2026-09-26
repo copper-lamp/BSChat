@@ -82,8 +82,11 @@ public:
         protocol::PlayerId peerId = kServerPlayerId;
         if (transport->mode() == TransportMode::Server) {
             if (auto snh = ll::service::getServerNetworkHandler()) {
-                if (auto* player = snh->_getServerPlayer(netId, ::SubClientId::PrimaryClient)) peerId = playerIdFromUuid(player->getUuid());
-                else return;
+                if (auto* player = snh->_getServerPlayer(netId, ::SubClientId::PrimaryClient)) {
+                    peerId = playerIdFromUuid(player->getUuid());
+                    // 首个包即登记回发目标：PlayerJoinEvent 触发晚于客户端首个 Hello。
+                    transport->rememberPlayer(peerId, player);
+                } else return;
             } else return;
         }
         transport->onPacketReceived(packet.payload, peerId);
@@ -123,6 +126,23 @@ GamePacketTransport::GamePacketTransport(TransportMode mode, PlayerResolver reso
 GamePacketTransport::~GamePacketTransport() { if (g_transport == this) g_transport = nullptr; }
 void GamePacketTransport::setMessageHandler(MessageHandler handler) { std::lock_guard lock(handlerMutex_); handler_ = std::move(handler); }
 void GamePacketTransport::clearMessageHandler() { std::lock_guard lock(handlerMutex_); handler_ = {}; }
+void GamePacketTransport::setLogSink(LogSink sink) { logSink_ = std::move(sink); }
+
+void GamePacketTransport::rememberPlayer(const protocol::PlayerId& peerId, Player* player) {
+    if (mode_ != TransportMode::Server || !player) return;
+    std::lock_guard lock(playersMutex_);
+    peerPlayers_.insert_or_assign(peerId, player);
+}
+
+void GamePacketTransport::forgetPlayer(const protocol::PlayerId& peerId) {
+    std::lock_guard lock(playersMutex_);
+    peerPlayers_.erase(peerId);
+}
+
+void GamePacketTransport::clearPlayers() {
+    std::lock_guard lock(playersMutex_);
+    peerPlayers_.clear();
+}
 
 void GamePacketTransport::send(const protocol::PlayerId& peerId, const protocol::Message& message) {
     auto bytes = protocol::MessageCodec::pack(message, ++sendSeq_, steadyClockMs());
@@ -139,8 +159,23 @@ void GamePacketTransport::send(const protocol::PlayerId& peerId, const protocol:
     }
     if (mode_ == TransportMode::Client) { packet.sendToServer(); return; }
     auto* player = resolver_ ? resolver_(peerId) : nullptr;
-    if (!player) return;
-    packet.sendToClient(player->getNetworkIdentifier(), ::SubClientId::PrimaryClient);
+    if (player) {
+        packet.sendToClient(player->getNetworkIdentifier(), ::SubClientId::PrimaryClient);
+        return;
+    }
+    // Player* 尚未建立（PlayerJoinEvent 之前）时回退到收包时登记的 Player*，避免静默丢包。
+    Player* cached = nullptr;
+    {
+        std::lock_guard lock(playersMutex_);
+        if (auto it = peerPlayers_.find(peerId); it != peerPlayers_.end()) cached = it->second;
+    }
+    if (cached) {
+        packet.sendToClient(cached->getNetworkIdentifier(), ::SubClientId::PrimaryClient);
+        return;
+    }
+    if (logSink_) {
+        logSink_(true, "transport: downlink dropped, peer has no online player nor recorded network id");
+    }
 }
 
 void GamePacketTransport::onPacketReceived(const std::vector<uint8_t>& payload, const protocol::PlayerId& peerId) {
