@@ -10,7 +10,7 @@
 - 空间混音：`ServerMixer` 已使用 `MixerCore`/`SpatialPolicy` 构建逐接收者混音，支持自我抑制、维度隔离、距离衰减和位置新鲜度；环境 `envFlags` 仍只保留扩展输入，未实现 DSP。
 - 管理：`AdminPolicy`/`AdminStore` 已实现线程安全策略与 JSON 持久化；LeviLamina 命令入口和运行时装配尚未完成。
 - 客户端：已接通游戏生命周期、网络载具、WASAPI shared-mode 采集/播放、PCM 有界队列、AGC、Opus 上行、MixStream 抖动缓冲/解码和播放接线；字幕 HUD 与 Dear-OreUI 页面暂不纳入本阶段。
-- 双端自检：客户端进服后待命，玩家在聊天栏输入 `/voicechat test` 手动触发 `SmokeTest`（客户端命令由 `CommandRegistrar::getClientInstance()` 注册），服务端 `ServerRuntime` 通过 `LogSink` 输出同一套 `[smoke]` 判定行，单设备即可验证握手、上行、下行完整闭环。详见 [单设备自动冒烟测试](smoke-test.md)。
+- 双端自检：客户端进服后待命，玩家输入服务端命令 `/voicechat test`（由服务端 `CommandRegistrar::getServerInstance()` 注册）触发，服务端以 `Control(SmokeTest)` 通知发起者客户端启动 `SmokeTest`；服务端 `ServerRuntime` 通过 `LogSink` 输出同一套 `[smoke]` 判定行，单设备即可验证握手、上行、下行完整闭环。详见 [单设备自动冒烟测试](smoke-test.md)。
 
 ## 风险与 TODO
 1. 服务端 Config 新增 `maxSessions`、`maxPending` 用于资源上限；负值/极端值的数值校验仍需补齐。

@@ -1,4 +1,5 @@
 #pragma once
+#include <atomic>
 #include <cstdint>
 #include <functional>
 #include <memory>
@@ -17,12 +18,15 @@ class ClientRuntime final {
 public:
     enum class State { Stopped, Handshaking, Ready, Failed };
     using RenderSink = std::function<void(const float*, std::size_t)>;
+    // 服务端命令触发的自检请求回调；只会从主线程（tick）回调，便于直接驱动 UI/日志。
+    using SmokeTestRequestHandler = std::function<void()>;
     ClientRuntime(IClientTransport&, IPlayerState&, IClock&, config::ClientConfig);
     ~ClientRuntime();
     void start(); void stop(); void tick();
     void onMessage(const protocol::PlayerId&, const protocol::Message&);
     void setTalking(bool); void submitAudio(std::vector<uint8_t>); void submitPcm(const float*, std::size_t);
     void setRenderSink(RenderSink sink); void setOutputVolume(float volume); void setOutputMuted(bool muted);
+    void setSmokeTestRequestHandler(SmokeTestRequestHandler handler);
     void reportPosition(); State state() const{return state_;}
     const config::ClientConfig& config() const { return config_; }
     // Number of MixStream frames handed to the render sink so far.
@@ -37,6 +41,7 @@ private:
     State state_=State::Stopped; int64_t nextHelloMs_=0; int64_t nextPositionMs_=0; uint64_t seq_=0; bool talking_=false;
     std::unique_ptr<codec::OpusEncoder> encoder_; std::unique_ptr<codec::OpusDecoder> decoder_;
     audio::AgcProcessor agc_; ::vc::audio::JitterBuffer jitter_; RenderSink renderSink_; float outputVolume_=1.0F; bool outputMuted_=false;
+    SmokeTestRequestHandler smokeTestRequestHandler_; std::atomic<bool> smokeTestRequested_{false};
     std::vector<float> pcmFrame_; std::vector<uint8_t> encoded_; std::size_t pcmPending_=0;
     uint64_t playedMixFrames_=0; uint64_t receivedMixFrames_=0; uint64_t sentAudioFrames_=0;
 };

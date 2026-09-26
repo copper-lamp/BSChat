@@ -5,6 +5,7 @@
 #include <sstream>
 #include <utility>
 
+#include "ll/api/command/CommandRegistrar.h"
 #include "ll/api/event/EventBus.h"
 #include "ll/api/event/player/PlayerDisconnectEvent.h"
 #include "ll/api/event/player/PlayerJoinEvent.h"
@@ -12,6 +13,9 @@
 #include "ll/api/mod/NativeMod.h"
 #include "ll/api/mod/RegisterHelper.h"
 #include "mc/server/ServerPlayer.h"
+#include "mc/server/commands/CommandOrigin.h"
+#include "mc/server/commands/CommandOutput.h"
+#include "mc/world/actor/player/Player.h"
 #include "ll/api/service/Bedrock.h"
 #include "shared/util/FileLog.h"
 #include "shared/util/PlayerIdUtils.h"
@@ -82,6 +86,15 @@ bool ServerMod::load() {
         shared::TransportMode::Server,
         [this](const protocol::PlayerId& id) { return resolvePlayer(id); }
     );
+    transport_->setLogSink([](bool isError, std::string const& message) {
+        auto self = ll::mod::NativeMod::current();
+        if (self) {
+            if (isError) self->getLogger().warn("{}", message);
+            else self->getLogger().info("{}", message);
+        }
+        if (isError) shared::FileLog::warn(message);
+        else shared::FileLog::info(message);
+    });
     runtime_ = std::make_unique<ServerRuntime>(*transport_, config_);
     runtime_->setLogSink([](bool isError, std::string const& message) {
         auto self = ll::mod::NativeMod::current();
@@ -143,9 +156,49 @@ bool ServerMod::enable() {
         return false;
     }
 
+    if (!registerCommand()) {
+        if (self) self->getLogger().error("failed to register voicechat smoke test command");
+        shared::FileLog::error("enable: command registration failed");
+        disable();
+        return false;
+    }
+
     runtime_->start();
     if (self) self->getLogger().info("voicechat server listeners enabled");
     shared::FileLog::info("enable: server listeners enabled");
+    return true;
+}
+
+bool ServerMod::registerCommand() {
+    auto self = ll::mod::NativeMod::current();
+    if (!self) return false;
+
+    // 专用服务器下客户端注册的命令会被服务端下发的命令表覆盖（实测提示“未知命令”），
+    // 所以自检触发命令注册在服务端：服务端收到命令后，通过 Control(SmokeTest) 通知
+    // 发起者自己的客户端开始端到端自检，结果仍只落在客户端日志里。
+    auto& registrar = ll::command::CommandRegistrar::getServerInstance();
+    auto& handle    = registrar.getOrCreateCommand(
+        "voicechat",
+        "Betterlanguagechat voice chat diagnostics",
+        CommandPermissionLevel::Any,
+        CommandFlagValue::NotCheat,
+        self
+    );
+    handle.overload<>().text("test").execute([this](CommandOrigin const& origin, CommandOutput& output) {
+        auto* entity = origin.getEntity();
+        if (!entity || !entity->isPlayer()) {
+            output.error("voicechat: /voicechat test must be run by a player in game");
+            return;
+        }
+        auto& player = static_cast<Player&>(*entity);
+        protocol::ControlMessage control;
+        control.type = protocol::ControlType::SmokeTest;
+        transport_->send(playerId(player), control);
+        output.success("voicechat: smoke test requested on your client, see the client log for results");
+        shared::FileLog::info("command: smoke test requested by player");
+    });
+    smokeCommand_ = &handle;
+    shared::FileLog::info("enable: registered server command /voicechat test");
     return true;
 }
 
@@ -164,6 +217,8 @@ bool ServerMod::disable() {
     }
     if (runtime_) runtime_->stop();
     players_.clear();
+    if (transport_) transport_->clearPlayers(); // 避免停用后残留失效的 Player*
+    smokeCommand_ = nullptr;
     return true;
 }
 
@@ -197,6 +252,7 @@ void ServerMod::onJoin(ll::event::player::PlayerJoinEvent& event) {
 void ServerMod::onDisconnect(ll::event::player::PlayerDisconnectEvent& event) {
     auto id = playerId(event.self());
     players_.erase(id);
+    if (transport_) transport_->forgetPlayer(id);
     if (runtime_) runtime_->removeSession(id);
     shared::FileLog::info("onDisconnect: player left, active players = " + std::to_string(players_.size()));
 }

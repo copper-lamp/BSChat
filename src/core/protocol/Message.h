@@ -43,6 +43,7 @@ enum class ControlType : uint8_t {
     ClientMute   = 3, // C→S：本端静音
     ForceMute    = 4, // S→C：服务器强制静音
     SyncState    = 5, // S→C：状态同步
+    SmokeTest    = 6, // S→C：请求该客户端开始端到端链路自检（服务端命令触发）
 };
 
 // 语音帧标志（AudioData.flags）

@@ -79,6 +79,8 @@ void ClientRuntime::sendHello() {
 
 void ClientRuntime::tick() {
     const auto now = clock_.nowMs();
+    // 自检请求来自网络线程，这里（主线程）再取用，避免跨线程驱动运行时/日志。
+    if (smokeTestRequested_.exchange(false) && smokeTestRequestHandler_) smokeTestRequestHandler_();
     if ((state_ == State::Handshaking || state_ == State::Failed) && now >= nextHelloMs_) {
         state_ = State::Handshaking;
         sendHello();
@@ -92,6 +94,10 @@ void ClientRuntime::tick() {
 
 void ClientRuntime::onMessage(const protocol::PlayerId& peerId, const protocol::Message& message) {
     if (peerId != protocol::PlayerId{}) return;
+    if (const auto* control = std::get_if<protocol::ControlMessage>(&message)) {
+        if (control->type == protocol::ControlType::SmokeTest) smokeTestRequested_.store(true);
+        return;
+    }
     if (const auto* mix = std::get_if<protocol::MixStreamMessage>(&message)) {
         ++receivedMixFrames_;
         jitter_.push(mix->seq, mix->opusData, clock_.nowMs());
@@ -146,6 +152,9 @@ void ClientRuntime::submitPcm(const float* pcm, std::size_t samples) {
 void ClientRuntime::setRenderSink(RenderSink sink) { renderSink_ = std::move(sink); }
 void ClientRuntime::setOutputVolume(float volume) { outputVolume_ = std::clamp(volume, 0.0F, 1.0F); }
 void ClientRuntime::setOutputMuted(bool muted) { outputMuted_ = muted; }
+void ClientRuntime::setSmokeTestRequestHandler(SmokeTestRequestHandler handler) {
+    smokeTestRequestHandler_ = std::move(handler);
+}
 
 void ClientRuntime::drainPlayback() {
     if (!decoder_ || !renderSink_) return;

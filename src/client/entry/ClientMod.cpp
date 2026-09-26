@@ -7,7 +7,6 @@
 #include <sstream>
 #include <utility>
 
-#include "ll/api/command/CommandRegistrar.h"
 #include "ll/api/event/EventBus.h"
 #include "ll/api/mod/NativeMod.h"
 #include "ll/api/mod/RegisterHelper.h"
@@ -158,12 +157,6 @@ bool ClientMod::enable() {
     }
     if (self) self->getLogger().info("voicechat client listeners enabled");
     shared::FileLog::info("enable: client listeners enabled");
-    if (!registerCommand()) {
-        if (self) self->getLogger().error("failed to register voicechat smoke test command");
-        shared::FileLog::error("enable: command registration failed");
-        disable();
-        return false;
-    }
     return true;
 }
 
@@ -175,7 +168,6 @@ bool ClientMod::disable() {
     if (exitListener_) { bus.removeListener<ll::event::client::ClientExitLevelEvent>(exitListener_); exitListener_.reset(); }
     if (tickListener_) { bus.removeListener<ll::event::world::ClientLevelTickEvent>(tickListener_); tickListener_.reset(); }
     if (keyListener_) { bus.removeListener<ll::event::input::KeyInputEvent>(keyListener_); keyListener_.reset(); }
-    smokeCommand_ = nullptr;
     return true;
 }
 
@@ -198,6 +190,8 @@ void ClientMod::onJoin(ll::event::client::ClientJoinLevelEvent& event) {
     playerState_->set(&event.player());
     runtime_.reset();
     runtime_ = std::make_unique<ClientRuntime>(*transport_, *playerState_, *clock_, config_);
+    // 自检由服务端 /voicechat test 命令经 Control(SmokeTest) 请求，回调在主线程 tick 中触发。
+    runtime_->setSmokeTestRequestHandler([this] { startSmokeTest(); });
     runtime_->setRenderSink([this](const float* samples, std::size_t count) {
         if (!samples || count == 0) return;
         if (!audioDevice_) return;
@@ -221,30 +215,8 @@ void ClientMod::onJoin(ll::event::client::ClientJoinLevelEvent& event) {
     }
     runtime_->start();
     shared::FileLog::info(
-        "onJoin: client runtime started; smoke test is now armed, type /voicechat test to run it"
+        "onJoin: client runtime started; smoke test is now armed, run /voicechat test on the server to start it"
     );
-}
-
-bool ClientMod::registerCommand() {
-    auto self = ll::mod::NativeMod::current();
-    if (!self) return false;
-
-    // 客户端命令：进入服务器后由玩家手动输入 /voicechat test 触发双端链路自检。
-    auto& registrar = ll::command::CommandRegistrar::getClientInstance();
-    auto& handle = registrar.getOrCreateCommand(
-        "voicechat",
-        "Betterlanguagechat voice chat diagnostics",
-        CommandPermissionLevel::Any,
-        CommandFlagValue::NotCheat,
-        self
-    );
-    handle.overload<>().text("test").execute([this](CommandOrigin const&, CommandOutput& output) {
-        output.success("voicechat: starting end-to-end smoke test, see the client log for results");
-        startSmokeTest();
-    });
-    smokeCommand_ = &handle;
-    shared::FileLog::info("enable: registered client command /voicechat test");
-    return true;
 }
 
 void ClientMod::startSmokeTest() {

@@ -7,6 +7,7 @@
 
 #include "core/config/Config.h"
 #include "core/protocol/Message.h"
+#include "ll/api/command/CommandHandle.h"
 #include "ll/api/event/Listener.h"
 #include "ll/api/event/player/PlayerDisconnectEvent.h"
 #include "ll/api/event/player/PlayerJoinEvent.h"
@@ -27,6 +28,7 @@ public:
 
 private:
     bool loadConfig();
+    bool registerCommand();
     void onJoin(ll::event::player::PlayerJoinEvent& event);
     void onDisconnect(ll::event::player::PlayerDisconnectEvent& event);
     void onTick(ll::event::world::ServerLevelTickEvent& event);
@@ -39,6 +41,7 @@ private:
     std::unique_ptr<shared::GamePacketTransport> transport_;
     std::unique_ptr<ServerRuntime> runtime_;
     std::map<protocol::PlayerId, Player*> players_;
+    ll::command::CommandHandle* smokeCommand_ = nullptr;
     std::shared_ptr<ll::event::Listener<ll::event::player::PlayerJoinEvent>> joinListener_;
     std::shared_ptr<ll::event::Listener<ll::event::player::PlayerDisconnectEvent>> disconnectListener_;
     std::shared_ptr<ll::event::Listener<ll::event::world::ServerLevelTickEvent>> tickListener_;
