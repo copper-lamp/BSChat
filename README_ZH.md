@@ -4,7 +4,7 @@
   <p><strong>进服开麦，即刻畅聊。</strong></p>
   <p>面向 LeviLamina 的开源 Minecraft 基岩版游戏内实时语音聊天模组，服务端混音、客户端收发，可选实时语音转写字幕。</p>
   <p>
-    <img src="https://img.shields.io/badge/release-v0.0.0-4c8bf5?style=flat-square" alt="BSChat v0.0.0">
+    <img src="https://img.shields.io/badge/release-v0.1.0-4c8bf5?style=flat-square" alt="BSChat v0.1.0">
     <img src="https://img.shields.io/badge/Minecraft%20Bedrock-Windows%20x64-62b47a?style=flat-square" alt="Windows x64 Minecraft 基岩版">
     <a href="LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0-blue?style=flat-square" alt="AGPL-3.0 许可证"></a>
   </p>
@@ -37,7 +37,7 @@ Better Speech Chat 将你在游戏里的语音带到身边——按住按键说�
 1. 在服务器上安装 [LeviLamina](https://lamina.levimc.org/)（基线 26.10.14）。
 2. 在每位玩家的基岩版客户端安装 LeviLamina 客户端。
 3. 安装对应构建：服务端 → `plugins/bschat/`，客户端 → `mods/bschat/`。
-4. 重启后进服，按住 **V** 说话，松开结束。
+4. 重启后进服，按住 **V** 说话，松开结束；按 **J** 打开语音设置面板。
 
 完整安装与配置说明见[快速上手指南](../docs/getting-started.md)。
 
@@ -54,7 +54,7 @@ Better Speech Chat 将你在游戏里的语音带到身边——按住按键说�
 
 ## 本版更新
 
-`v0.0.0` 是首个开发版。当前已完成核心语音引擎、协议与单元测试，服务端与客户端适配层正在推进。完整历史见[更新日志](CHANGELOG.md)。
+`v0.1.0` 是首个开发版。核心语音引擎、协议、单元测试与双端适配层（服务端插件 + 客户端模组）均已落地：服务端逐接收者混音、客户端采集与播放、按键说话、状态与字幕 HUD、设置面板与管理员面板，以及可选的实时语音转写。完整历史见[更新日志](CHANGELOG.md)。
 
 > [!IMPORTANT]
 > 目前发布的仍是测试版本，可能在后续直接进行破坏性的配置或协议更新。请在使用后及时关注更新日志。
@@ -76,6 +76,13 @@ Better Speech Chat 将你在游戏里的语音带到身边——按住按键说�
 使用 xmake 在 Windows x64 上构建，通过 `--target_type` 产出服务端或客户端版本。构建命令、输出结构与依赖说明见[源码构建指南](../docs/building.md)。
 
 ## 命令
+
+| 命令 | 说明 |
+| -------------------------------- | ---------------------------------- |
+| `/bsc test` | 在本人客户端跑一次端到端自检，结果写入客户端日志。 |
+| `/bsc play <file>` | 把一段 WAV 经语音下行播放（文件放在 `<服务端配置目录>/audio/`，或直接给绝对路径）。 |
+| `/bsc stop` | 停止正在播放的 WAV。 |
+| `/bsc admin` | 打开管理员面板，仅管理员（OP）可用。 |
 
 以下命令随开发进度逐步提供（规划中）：
 
@@ -108,12 +115,11 @@ Better Speech Chat 将你在游戏里的语音带到身边——按住按键说�
 在服务端开启 `sttEnabled`，并按 `sttModel.libraryPath`、`encoderPath`、`decoderPath`、`joinerPath`、`tokensPath` 提供 sherpa-onnx 流式 Zipformer 模型文件，客户端保持开启字幕即可。模型缺失时语音转文字自动停用，语音主链路不受影响。
 
 ### 可以更换说话按键吗？
-可以。在客户端 `config.json` 中修改 `pttKey` 即可更改按键说话绑定。
+可以。进服后按 **J** 打开语音设置面板即可改绑按键；也可以直接修改客户端 `config.json` 中的 `pttKey` 与 `settingsKey`。
 
 ## 开发状态与计划
 
-- 核心语音引擎、协议与单元测试已完成；服务端/客户端适配层开发中。
-- 后续将重点完善双端真实环境下的延迟与音频质量，欢迎测试并反馈。
+- 核心语音引擎、协议、双端适配层与单元测试均已实现；下一步是真实设备下的延迟与音频质量调优。
 - 后续计划包括近聊/距离音频、环境混响、VAD 自动语音检测与多人房间体系。
 
 > [!TIP]
@@ -122,6 +128,8 @@ Better Speech Chat 将你在游戏里的语音带到身边——按住按键说�
 ## 已知限制
 
 - 仍未正式发布，版本之间可能发生破坏性变更。
+- 字幕只显示文本，不显示说话者名字。
+- 管理员面板目前只暴露服务端语音开关。
 - 当前不提供位置/距离衰减与环境混响（接口已预留，后续版本实现）。
 - VAD 自动语音检测接口已就位，但默认关闭。
 - 暂无独立 UDP 通道，暂无多人房间/频道体系。

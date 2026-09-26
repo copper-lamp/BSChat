@@ -4,7 +4,7 @@
   <p><strong>Join the world and Start talking.</strong></p>
   <p>An open-source in-game real-time voice chat mod for Minecraft Bedrock on LeviLamina — server-side mixing, client-side capture and playback, with optional live speech-to-text subtitles.</p>
   <p>
-    <img src="https://img.shields.io/badge/release-v0.0.0-4c8bf5?style=flat-square" alt="BSChat v0.0.0">
+    <img src="https://img.shields.io/badge/release-v0.1.0-4c8bf5?style=flat-square" alt="BSChat v0.1.0">
     <img src="https://img.shields.io/badge/Minecraft%20Bedrock-Windows%20x64-62b47a?style=flat-square" alt="Windows x64 Minecraft Bedrock">
     <a href="LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0-blue?style=flat-square" alt="AGPL-3.0 License"></a>
   </p>
@@ -48,7 +48,8 @@ server plugin and a client mod, delivering a consistent experience from server t
 1. Install [LeviLamina](https://lamina.levimc.org/) on your server (baseline 26.10.14).
 2. Install LeviLamina client on each player's Bedrock client.
 3. Install the matching build: server → `plugins/bschat/`, client → `mods/bschat/`.
-4. Restart, join the world, and **hold V** to talk; release to go quiet.
+4. Restart, join the world, and **hold V** to talk; release to go quiet. Press **J** to open the voice
+   settings panel.
 
 Full installation and configuration steps are in the [Getting Started guide](../docs/getting-started.md).
 
@@ -70,9 +71,11 @@ Full installation and configuration steps are in the [Getting Started guide](../
 
 ## This Release
 
-`v0.0.0` is the first development release. The core voice engine, protocol, and unit tests
-are complete, and the server/client adaptation layers are in progress. Full history is in
-the [Changelog](CHANGELOG.md).
+`v0.1.0` is the first development release. The core voice engine, the wire protocol, the unit tests and
+both adaptation layers — the server plugin and the client mod — are implemented: server-side
+per-receiver mixing, client capture and playback, push-to-talk, the HUD with status and subtitles, the
+settings and admin panels, and optional speech-to-text. Full history is in the
+[Changelog](CHANGELOG.md).
 
 > [!IMPORTANT]
 > This is still a test release and may apply breaking config or protocol changes later.
@@ -97,6 +100,13 @@ Build on Windows x64 with xmake; use `--target_type` to produce the server or cl
 build. Commands, output layout, and dependencies are in the [Building guide](../docs/building.md).
 
 ## Commands
+
+| Command | Description |
+| -------------------------------- | ---------------------------------- |
+| `/bsc test` | Run the end-to-end self-check on your client; the result goes to its log. |
+| `/bsc play <file>` | Play a WAV file through the voice downlink (files under `<server config>/audio/`, or an absolute path). |
+| `/bsc stop` | Stop the running WAV playback. |
+| `/bsc admin` | Open the admin panel; operators only. |
 
 The following commands are planned and will ship as development proceeds:
 
@@ -134,13 +144,13 @@ Enable `sttEnabled` on the server and provide the sherpa-onnx streaming Zipforme
 in the client. If the model is missing, speech-to-text is disabled without affecting voice.
 
 ### Can I change the talk key?
-Yes — edit `pttKey` in the client `config.json`.
+Yes — press **J** in game to open the voice settings panel and bind another key, or edit `pttKey` and
+`settingsKey` in the client `config.json`.
 
 ## Development Status and Roadmap
 
-- The core voice engine, protocol, and unit tests are complete; server/client adaptation
-  layers are under active development.
-- Focus next is real-world latency and audio quality over live server + client setups.
+- The core voice engine, protocol, both adaptation layers and the unit tests are implemented; real
+  device tuning of latency and audio quality is the next step.
 - Planned later: proximity/distance audio, environmental reverb, VAD voice detection, and
   multi-room channels.
 
@@ -151,6 +161,8 @@ Yes — edit `pttKey` in the client `config.json`.
 ## Known Limitations
 
 - No stable release yet; breaking changes may occur between versions.
+- Subtitles show the text only, without the speaker's name.
+- The admin panel exposes the server voice switch only.
 - No proximity/distance attenuation or environmental reverb yet (interfaces reserved for
   later versions).
 - VAD automatic voice detection is wired but off by default.

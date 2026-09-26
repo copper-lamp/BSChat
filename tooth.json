@@ -2,7 +2,7 @@
   "format_version": 3,
   "format_uuid": "289f771f-2c9a-4d73-9f3f-8492495a924d",
   "tooth": "github.com/copper-lamp/BSChat",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "info": {
     "name": "Better Speech Chat",
     "description": "实时语音聊天：支持服务端混音并本地语音转文字，混合音频流与字幕回传客户端",
