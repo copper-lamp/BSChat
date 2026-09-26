@@ -12,6 +12,12 @@ option_end()
 add_requires("levilamina 26.10.14", {configs = {target_type = get_config("target_type")}})
 add_requires("levibuildscript")
 
+-- 26.10.14 把 rapidjson 钉在 v1.1.0，而该版本的 GenericStringRef::operator= 会给 const 成员赋值；
+-- clang 20+ 直接判为错误，且 MC 头文件链（mc/_HeaderOutputPredefine.h 第 101 行）必然引入 rapidjson，
+-- 于是任何包含 MC 头的 TU 都编不过（MemoryOperators.cpp 首当其冲）。上游从 2022.x 起已把该赋值运算
+-- 改为“只声明不定义”。这里覆盖成上游修复版本：rapidjson 是纯头文件库，接口不变，不影响其它依赖。
+add_requireconfs("levilamina.rapidjson", {version = "2025.02.05", override = true})
+
 -- 核心引擎依赖：Opus 编解码（静态链接）、nlohmann-json（header-only，配置序列化）
 add_requires("libopus v1.5.2", {configs = {shared = false}})
 add_requires("nlohmann_json")

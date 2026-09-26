@@ -136,6 +136,24 @@ The server speech-to-text configuration supports `libraryPath` for the sherpa-on
 | nlohmann-json | JSON configuration parsing (header-only) |
 | sherpa-onnx + ONNX Runtime | Server-side streaming Zipformer speech-to-text (server build) |
 
+> [!IMPORTANT]
+> `xmake.lua` overrides LeviLamina's `rapidjson` dependency to `2025.02.05` with
+> `add_requireconfs("levilamina.rapidjson", {version = "2025.02.05", override = true})`.
+> The `rapidjson v1.1.0` that LeviLamina `26.10.14` pins has a `GenericStringRef::operator=` that assigns
+> to its `const SizeType length` member. Modern clang rejects that outright, and the MC header chain
+> (`ll/api/memory/MemoryOperators.h` → `mc/deps/core/memory/IMemoryAllocator.h` →
+> `mc/_HeaderOutputPredefine.h:101` → `rapidjson/document.h`) pulls rapidjson into every translation unit
+> that touches an MC type, so `MemoryOperators.cpp` fails first:
+>
+> ```
+> rapidjson/document.h(319,82): error: cannot assign to non-static data member 'length'
+>     with const-qualified type 'const SizeType'
+> ```
+>
+> `rapidjson` is header-only, and upstream removed that assignment from `2022.x` on. Do not
+> "fix" this by hand-editing the installed package under `%LOCALAPPDATA%\.xmake\packages`: that patch is
+> invisible to CI, which installs a pristine `v1.1.0` and fails again.
+
 ## Continuous integration
 
 `build.yml` and `release.yml` build both `target_type` flavors on `windows-latest`. Two rules keep the
