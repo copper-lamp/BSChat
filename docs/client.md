@@ -8,7 +8,7 @@
 
 当前已完成麦克风采集、播放和设备管理的最小真实链路：WASAPI shared-mode 采集/渲染线程、浮点 PCM 有界队列、AGC、Opus 上行、MixStream 抖动缓冲/解码和渲染接线均已接入。字幕 UI 与设备热切换仍未完成，真实双端设备联调待执行。Dear-OreUI Settings 面板保持可选动态加载，暂不作为本阶段验收项。
 
-客户端内置进服自检 `vc::client::SmokeTest`（`src/client/entry/SmokeTest.{h,cpp}`）：`ClientJoinLevelEvent` 时武装，握手完成后自动走一次真实上行（`setTalking(true)` + 定时 `submitPcm` 合成正弦）并等待服务端回传，把 `handshake`/`uplink`/`downlink`/`overall` 四行 `[smoke]` 结果写入客户端日志；`ClientExitLevelEvent` 时销毁。该类零 LeviLamina 依赖，日志经 `setLogSink` 注入的 `std::function` 输出，并由 `ClientMod` 同时写入宿主日志和 `<模组配置目录>/voicechat-client.log`，便于无控制台环境取证。详见 [单设备自动冒烟测试](smoke-test.md)。
+客户端内置进服自检 `vc::client::SmokeTest`（`src/client/entry/SmokeTest.{h,cpp}`）：进入世界后处于待命状态，玩家在聊天栏输入 `/voicechat test`（客户端命令由 `ll::command::CommandRegistrar::getClientInstance()` 在 `ClientMod::enable()` 中注册）后手动触发，走一次真实上行（`setTalking(true)` + 定时 `submitPcm` 合成正弦）并等待服务端回传，把 `handshake`/`uplink`/`downlink`/`overall` 四行 `[smoke]` 结果写入客户端日志；`ClientExitLevelEvent` 时销毁。该类零 LeviLamina 依赖，日志经 `setLogSink` 注入的 `std::function` 输出，并由 `ClientMod` 同时写入宿主日志和 `<模组配置目录>/voicechat-client.log`，便于无控制台环境取证。详见 [单设备自动冒烟测试](smoke-test.md)。
 
 ## 风险与 TODO
 - Ninja 锁和 ATL 头文件阻塞已排除；客户端 DLL 已加入 LeviLamina `MemoryOperators.h` 的统一内存分配操作符，并导出 `ll_memory_operator_overrided`，已用 `dumpbin` 验证。

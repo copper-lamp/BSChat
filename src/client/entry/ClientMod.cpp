@@ -7,14 +7,37 @@
 #include <sstream>
 #include <utility>
 
+#include "ll/api/command/CommandRegistrar.h"
 #include "ll/api/event/EventBus.h"
-#include "ll/api/event/EmitterBase.h"
 #include "ll/api/mod/NativeMod.h"
 #include "ll/api/mod/RegisterHelper.h"
 #include "mc/world/actor/player/Player.h"
 #include "shared/transport/GamePacketTransport.h"
 #include "shared/util/FileLog.h"
 #include "shared/util/PlayerIdUtils.h"
+
+// LeviLamina 发布包由 MSVC 编译，内置事件 ID 取自 MSVC 的 __FUNCSIG__，形如
+// "ll::event::client::ClientJoinLevelEvent"，保留 inline namespace 前缀（client/world/input）。
+// 本模组由 clang-cl 编译，__PRETTY_FUNCTION__ 会省略 inline namespace，得到
+// "ll::event::ClientJoinLevelEvent"。两者 FNV1a 哈希不同，EventBus 中不存在对应事件条目，
+// addListener 会直接返回 false，导致启用阶段所有监听器注册失败。
+// 这里把 getEventId 显式绑定到 SDK 侧的规范 ID，使 emplaceListener/removeListener
+// 命中 LeviLamina.dll 已注册的事件条目。事件条目本身仍由 SDK 的 hook 型 emitter
+// 创建并转发游戏事件，此处不做任何替代实现。
+namespace ll::event {
+template <>
+constexpr EventIdView getEventId<client::ClientJoinLevelEvent> =
+    EventIdView{"ll::event::client::ClientJoinLevelEvent"};
+template <>
+constexpr EventIdView getEventId<client::ClientExitLevelEvent> =
+    EventIdView{"ll::event::client::ClientExitLevelEvent"};
+template <>
+constexpr EventIdView getEventId<world::ClientLevelTickEvent> =
+    EventIdView{"ll::event::world::ClientLevelTickEvent"};
+template <>
+constexpr EventIdView getEventId<input::KeyInputEvent> =
+    EventIdView{"ll::event::input::KeyInputEvent"};
+} // namespace ll::event
 
 namespace vc::client {
 
@@ -105,20 +128,10 @@ bool ClientMod::enable() {
         if (self) self->getLogger().info("DearOreUI Settings integration unavailable; continuing without optional UI");
         shared::FileLog::info("enable: DearOreUI Settings integration unavailable; continuing without optional UI");
     }
+    // 事件条目由 LeviLamina.dll 的 hook 型 emitter 在加载期注册。
+    // 本模组不注册 emitter，只注册监听器；事件 ID 见文件头部的 getEventId 绑定。
     auto& bus = ll::event::EventBus::getInstance();
     auto mod = std::weak_ptr<ll::mod::Mod>(self);
-    // The client event hooks are owned by LeviLamina, while the event stream
-    // is created lazily by EventBus. Register a stream factory for SDK builds
-    // that do not eagerly create the stream during client startup.
-    auto ensureEventStream = [&]<typename Event>() {
-        if (!bus.hasEvent(ll::event::getEventId<Event>)) {
-            bus.setEventEmitter<Event>([] { return std::make_unique<ll::event::EmitterBase>(); }, mod);
-        }
-    };
-    ensureEventStream.operator()<ll::event::client::ClientJoinLevelEvent>();
-    ensureEventStream.operator()<ll::event::client::ClientExitLevelEvent>();
-    ensureEventStream.operator()<ll::event::world::ClientLevelTickEvent>();
-    ensureEventStream.operator()<ll::event::input::KeyInputEvent>();
     joinListener_ = bus.emplaceListener<ll::event::client::ClientJoinLevelEvent>([this](auto& event) { onJoin(event); }, ll::event::EventPriority::Normal, mod);
     if (!joinListener_) self->getLogger().error("failed to register ClientJoinLevelEvent listener");
     exitListener_ = bus.emplaceListener<ll::event::client::ClientExitLevelEvent>([this](auto& event) { onExit(event); }, ll::event::EventPriority::Normal, mod);
@@ -129,11 +142,15 @@ bool ClientMod::enable() {
     if (!keyListener_) self->getLogger().error("failed to register KeyInputEvent listener");
     if (!joinListener_ || !exitListener_ || !tickListener_ || !keyListener_) {
         self->getLogger().error(
-            "voicechat client listener registration failed: join={} exit={} tick={} key={}",
+            "voicechat client listener registration failed: join={} exit={} tick={} key={} eventIds=[{}|{}|{}|{}]",
             static_cast<bool>(joinListener_),
             static_cast<bool>(exitListener_),
             static_cast<bool>(tickListener_),
-            static_cast<bool>(keyListener_)
+            static_cast<bool>(keyListener_),
+            ll::event::getEventId<ll::event::client::ClientJoinLevelEvent>.name,
+            ll::event::getEventId<ll::event::client::ClientExitLevelEvent>.name,
+            ll::event::getEventId<ll::event::world::ClientLevelTickEvent>.name,
+            ll::event::getEventId<ll::event::input::KeyInputEvent>.name
         );
         shared::FileLog::error("enable: listener registration failed");
         disable();
@@ -141,6 +158,12 @@ bool ClientMod::enable() {
     }
     if (self) self->getLogger().info("voicechat client listeners enabled");
     shared::FileLog::info("enable: client listeners enabled");
+    if (!registerCommand()) {
+        if (self) self->getLogger().error("failed to register voicechat smoke test command");
+        shared::FileLog::error("enable: command registration failed");
+        disable();
+        return false;
+    }
     return true;
 }
 
@@ -152,6 +175,7 @@ bool ClientMod::disable() {
     if (exitListener_) { bus.removeListener<ll::event::client::ClientExitLevelEvent>(exitListener_); exitListener_.reset(); }
     if (tickListener_) { bus.removeListener<ll::event::world::ClientLevelTickEvent>(tickListener_); tickListener_.reset(); }
     if (keyListener_) { bus.removeListener<ll::event::input::KeyInputEvent>(keyListener_); keyListener_.reset(); }
+    smokeCommand_ = nullptr;
     return true;
 }
 
@@ -196,10 +220,38 @@ void ClientMod::onJoin(ll::event::client::ClientJoinLevelEvent& event) {
         }
     }
     runtime_->start();
-    shared::FileLog::info("onJoin: client runtime started, beginning smoke test");
+    shared::FileLog::info(
+        "onJoin: client runtime started; smoke test is now armed, type /voicechat test to run it"
+    );
+}
 
-    // Automatic end-to-end smoke test: exercises the real uplink codec path and
-    // reports each stage to the log so a single client can validate the link.
+bool ClientMod::registerCommand() {
+    auto self = ll::mod::NativeMod::current();
+    if (!self) return false;
+
+    // 客户端命令：进入服务器后由玩家手动输入 /voicechat test 触发双端链路自检。
+    auto& registrar = ll::command::CommandRegistrar::getClientInstance();
+    auto& handle = registrar.getOrCreateCommand(
+        "voicechat",
+        "Betterlanguagechat voice chat diagnostics",
+        CommandPermissionLevel::Any,
+        CommandFlagValue::NotCheat,
+        self
+    );
+    handle.overload<>().text("test").execute([this](CommandOrigin const&, CommandOutput& output) {
+        output.success("voicechat: starting end-to-end smoke test, see the client log for results");
+        startSmokeTest();
+    });
+    smokeCommand_ = &handle;
+    shared::FileLog::info("enable: registered client command /voicechat test");
+    return true;
+}
+
+void ClientMod::startSmokeTest() {
+    if (!runtime_) {
+        shared::FileLog::warn("startSmokeTest: client runtime is not running; join a world first");
+        return;
+    }
     smokeTest_ = std::make_unique<SmokeTest>(*runtime_);
     smokeTest_->setLogSink([](bool isError, std::string const& message) {
         auto self = ll::mod::NativeMod::current();

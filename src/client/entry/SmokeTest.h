@@ -10,7 +10,7 @@
 
 namespace vc::client {
 
-// 进入服务器后自动执行的双端链路自检。
+// 进入服务器后由玩家手动触发的双端链路自检。
 //
 // 目标：在没有第二个真实客户端的前提下，用真实合成的语音音调走通
 //   客户端采集缓冲 -> AGC -> Opus 编码 -> 协议上行 -> 服务端解码/混音
@@ -36,7 +36,7 @@ public:
     using LogSink = std::function<void(bool isError, std::string const& message)>;
     void setLogSink(LogSink sink) { logSink_ = std::move(sink); }
 
-    // 进服后调用，开始一次自检。
+    // 由 /voicechat test 命令触发，开始一次自检。
     void begin();
 
     // 由 ClientLevelTickEvent 驱动推进；nowMs 为单调毫秒时钟。

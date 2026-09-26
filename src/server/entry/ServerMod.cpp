@@ -6,7 +6,6 @@
 #include <utility>
 
 #include "ll/api/event/EventBus.h"
-#include "ll/api/event/EmitterBase.h"
 #include "ll/api/event/player/PlayerDisconnectEvent.h"
 #include "ll/api/event/player/PlayerJoinEvent.h"
 #include "ll/api/event/world/ServerLevelTickEvent.h"
@@ -16,6 +15,26 @@
 #include "ll/api/service/Bedrock.h"
 #include "shared/util/FileLog.h"
 #include "shared/util/PlayerIdUtils.h"
+
+// LeviLamina 发布包由 MSVC 编译，内置事件 ID 取自 MSVC 的 __FUNCSIG__，形如
+// "ll::event::player::PlayerJoinEvent"，保留 inline namespace 前缀（player/world/...）。
+// 本模组由 clang-cl 编译，__PRETTY_FUNCTION__ 会省略 inline namespace，得到
+// "ll::event::PlayerJoinEvent"。两者 FNV1a 哈希不同，EventBus 中不存在对应事件条目，
+// addListener 会直接返回 false，导致启用阶段所有监听器注册失败。
+// 这里把 getEventId 显式绑定到 SDK 侧的规范 ID，使 emplaceListener/removeListener
+// 命中 LeviLamina.dll 已注册的事件条目。事件条目本身仍由 SDK 的 hook 型 emitter
+// 创建并转发游戏事件，此处不做任何替代实现。
+namespace ll::event {
+template <>
+constexpr EventIdView getEventId<player::PlayerJoinEvent> =
+    EventIdView{"ll::event::player::PlayerJoinEvent"};
+template <>
+constexpr EventIdView getEventId<player::PlayerDisconnectEvent> =
+    EventIdView{"ll::event::player::PlayerDisconnectEvent"};
+template <>
+constexpr EventIdView getEventId<world::ServerLevelTickEvent> =
+    EventIdView{"ll::event::world::ServerLevelTickEvent"};
+} // namespace ll::event
 
 namespace vc::server {
 
@@ -88,17 +107,8 @@ bool ServerMod::enable() {
 
     auto& bus = ll::event::EventBus::getInstance();
 
-    // LeviLamina only creates an event's stream when something registers it first.
-    // Register a stream factory for any stream this SDK build did not create
-    // eagerly, otherwise every listener below silently returns null.
-    auto ensureEventStream = [&]<typename Event>() {
-        if (!bus.hasEvent(ll::event::getEventId<Event>)) {
-            bus.setEventEmitter<Event>([] { return std::make_unique<ll::event::EmitterBase>(); }, self);
-        }
-    };
-    ensureEventStream.operator()<ll::event::player::PlayerJoinEvent>();
-    ensureEventStream.operator()<ll::event::player::PlayerDisconnectEvent>();
-    ensureEventStream.operator()<ll::event::world::ServerLevelTickEvent>();
+    // 事件条目由 LeviLamina.dll 的 hook 型 emitter 在加载期注册。
+    // 本模组不注册 emitter，只注册监听器；事件 ID 见文件头部的 getEventId 绑定。
 
     joinListener_ = bus.emplaceListener<ll::event::player::PlayerJoinEvent>(
         [this](auto& event) { onJoin(event); },
@@ -119,10 +129,13 @@ bool ServerMod::enable() {
     if (!joinListener_ || !disconnectListener_ || !tickListener_) {
         if (self) {
             self->getLogger().error(
-                "voicechat server listener registration failed: join={} disconnect={} tick={}",
+                "voicechat server listener registration failed: join={} disconnect={} tick={} eventIds=[{}|{}|{}]",
                 static_cast<bool>(joinListener_),
                 static_cast<bool>(disconnectListener_),
-                static_cast<bool>(tickListener_)
+                static_cast<bool>(tickListener_),
+                ll::event::getEventId<ll::event::player::PlayerJoinEvent>.name,
+                ll::event::getEventId<ll::event::player::PlayerDisconnectEvent>.name,
+                ll::event::getEventId<ll::event::world::ServerLevelTickEvent>.name
             );
         }
         shared::FileLog::error("enable: listener registration failed");

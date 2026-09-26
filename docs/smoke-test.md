@@ -45,7 +45,7 @@ pwsh -File scripts/Invoke-VoiceChatSmokeTest.ps1 `
 3. 启动 BDS，确认日志中出现 `voicechat` 加载成功以及 `voicechat server listeners`/等价启用日志。
 4. 启动客户端并连接本机 BDS 地址。
 5. 确认客户端加载并启用；由于 GUI 客户端通常没有可见控制台，可直接查看客户端纯文本日志（见下文）。
-6. 客户端连接 BDS 后，确认双方的日志均出现 `onJoin`/玩家加入记录及 `[smoke]` 阶段结果。
+6. 客户端连接 BDS 后，确认双方的日志均出现 `onJoin`/玩家加入记录；随后在客户端聊天栏输入 `/voicechat test`，再确认日志出现 `[smoke]` 阶段结果。
 7. 在客户端按住 PTT 键（默认 `V`），持续说话后释放；观察日志中的音频设备状态和异常信息。
 8. 由于只有一个真实客户端，无法验证“另一名玩家听到声音”。可以先使用已有 host/loopback 测试验证协议和服务端混音，再进行单客户端设备采集/播放检查。
 9. 检查 `smoke-results/<timestamp>/result.json`、`bds.stdout.log`、`bds.stderr.log`、`client.stdout.log` 和 `client.stderr.log`；模组本身的诊断日志请查看对应的 `voicechat-*.log` 文件。
@@ -59,11 +59,17 @@ pwsh -File scripts/Invoke-VoiceChatSmokeTest.ps1 `
 
 日志采用 UTF-8 文本，每行格式为 `[Unix毫秒时间戳] [级别] 消息`。每条消息立即 flush，以便崩溃后保留已写入的诊断；即使没有控制台，也能读取加载、事件监听器、玩家加入、WASAPI、自检结果及卸载记录。路径无法写入时日志功能静默停用，不影响语音模组运行。
 
-## 模组内置自检（进入服务器后自动跑）
+## 模组内置自检（进入服务器后手动输入指令触发）
 
-`scripts/Invoke-VoiceChatSmokeTest.ps1` 只覆盖“部署 + 启动 + 日志采集”。链路本身是否通畅由模组内置的 `vc::client::SmokeTest` 自动判定：客户端进入世界后立即武装，握手完成即开始，全程在客户端主线程由 `ClientLevelTickEvent` 推进，不额外起线程。
+`scripts/Invoke-VoiceChatSmokeTest.ps1` 只覆盖“部署 + 启动 + 日志采集”。链路本身是否通畅由模组内置的 `vc::client::SmokeTest` 判定：客户端进入世界后处于待命状态，需要玩家在聊天栏手动输入 `/voicechat test` 才会开始，全程在客户端主线程由 `ClientLevelTickEvent` 推进，不额外起线程。
 
-执行步骤（时间轴相对客户端打开自检的时刻）：
+触发方式：
+
+1. 客户端连接 BDS 并进入世界。
+2. 在聊天栏输入 `/voicechat test` 并回车。
+3. 命令回调立即调用 `SmokeTest::begin()`；若此时客户端运行时尚未就绪（未进世界），只写一条警告日志并忽略。
+
+执行步骤（时间轴相对命令触发的时刻）：
 
 1. `WaitingForReady`：等待 `ClientRuntime` 进入 `Ready`（即收到服务端 `Welcome`）。超时 5000 ms 判定 `handshake = FAIL`；进入 `Failed` 状态立即判负。
 2. `Uploading`：调用 `ClientRuntime::setTalking(true)` 打开上行闸门，然后每 20 ms 合成一帧 440 Hz、幅度 0.25 的正弦 PCM 交给 `submitPcm`，持续 1500 ms。该路径与真实按键完全一致，走的是 **AGC → Opus 编码 → 协议上行**，不绕过编解码器。
@@ -92,7 +98,8 @@ pwsh -File scripts/Invoke-VoiceChatSmokeTest.ps1 `
 
 - `ServerRuntime` 与 `SmokeTest` 均零 LeviLamina 依赖，诊断日志经 `LogSink`（`std::function<void(bool, std::string const&)>`）由外层 `ServerMod`/`ClientMod` 注入；未注入时全部诊断静默丢弃，所以宿主单测不受影响。
 - 自检只发合成正弦音，不涉及麦克风采集，因此 WASAPI 采集设备不可用不会让自检失败；但此时 `playedMixFrames_` 仍会计数（渲染 sink 是运行时回调），真实听感仍需人工确认。
-- 自检在 `ClientExitLevelEvent` 时随 `smokeTest_` 销毁，重进世界会重新武装并重跑一次。
+- 自检在 `ClientExitLevelEvent` 时随 `smokeTest_` 销毁；重进世界后需要再次手动输入 `/voicechat test` 触发。
+- 客户端命令 `/voicechat test` 通过 `ll::command::CommandRegistrar::getClientInstance()` 注册（权限 `Any`，flag `NotCheat`），只在客户端本地执行，不依赖服务端模组；服务端未安装 voicechat 时命令仍可触发，但 `handshake` 会因等待不到 `Welcome` 而超时判负。
 - 脚本不会自动修改版本号，也不会创建 tag。
 - 脚本会移动已有安装目录为带时间戳的 `.smoke-backup-*` 目录；测试结束后的恢复/清理应由操作者根据结果决定。
 - 自动判断“能否听到声音”需要第二个真实客户端或音频回环设备。单设备、单客户端场景下，内置自检已能自动覆盖协议与编解码链路，仅听感需人工确认。

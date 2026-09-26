@@ -39,7 +39,7 @@ void SmokeTest::begin() {
     uplinkFrames_ = 0;
     tonePhase_ = 0.0;
     reportedHandshake_ = false;
-    log("automatic smoke test armed; it runs as soon as the handshake completes");
+    log("smoke test triggered by command; it runs as soon as the handshake completes");
 }
 
 void SmokeTest::reset() {

@@ -8,6 +8,7 @@
 #include "client/DearOreUiIntegration.h"
 #include "client/entry/SmokeTest.h"
 #include "shared/transport/GamePacketTransport.h"
+#include "ll/api/command/CommandHandle.h"
 #include "ll/api/event/Listener.h"
 #include "ll/api/event/client/ClientExitLevelEvent.h"
 #include "ll/api/event/client/ClientJoinLevelEvent.h"
@@ -36,6 +37,8 @@ public:
     bool unload();
 
 private:
+    bool registerCommand();
+    void startSmokeTest();
     void onJoin(class ll::event::client::ClientJoinLevelEvent& event);
     void onExit(class ll::event::client::ClientExitLevelEvent& event);
     void onTick(class ll::event::world::ClientLevelTickEvent& event);
@@ -44,6 +47,7 @@ private:
     std::filesystem::path logPath_;
     std::unique_ptr<ClientRuntime> runtime_;
     std::unique_ptr<SmokeTest> smokeTest_;
+    ll::command::CommandHandle* smokeCommand_ = nullptr;
     std::unique_ptr<audio::WasapiAudioDevice> audioDevice_;
     std::unique_ptr<shared::GamePacketTransport> transport_;
     std::unique_ptr<PlayerState> playerState_;

@@ -13,6 +13,15 @@ This guide explains how to build Betterlanguagechat from source with xmake.
 > server build or a client build depending on the `--target_type` option (default:
 > `server`).
 
+> [!IMPORTANT]
+> The module is compiled with clang-cl while the LeviLamina release package is built with
+> MSVC. LeviLamina derives built-in event IDs from compiler-specific type names
+> (`ll::event::player::PlayerJoinEvent`), so this module binds the SDK's canonical IDs
+> explicitly through `ll::event::getEventId<T>` specializations in
+> `src/server/entry/ServerMod.cpp` and `src/client/entry/ClientMod.cpp`. Without those
+> bindings every listener registration returns false and the module fails to enable. Add
+> the same binding when subscribing to a new built-in event.
+
 ## Build the module
 
 Configure and build the **server** version (default):
