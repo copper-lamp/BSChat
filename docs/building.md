@@ -114,6 +114,15 @@ After a successful build, place the output in the correct directory:
 | `server` | `plugins/voicechat/` |
 | `client` | `mods/voicechat/` |
 
+> [!IMPORTANT]
+> Deploy the **whole module directory**, not just the DLL. Besides `voicechat.dll` and `manifest.json`,
+> the module needs `lang/` (i18n), `panels/` (settings and admin panel definitions) and `icons/` (HUD status
+> icon PNGs). `xmake`'s `after_build` copies all of them into `bin/voicechat/`, but a deploy step that copies
+> only the DLL plus manifest silently produces a hollow module: panels fail to open, text falls back to raw
+> i18n keys, and the HUD shows text only. `scripts/Invoke-VoiceChatSmokeTest.ps1` copies the full tree and
+> fails loudly when any of the three directories is missing. When updating an existing install, keep its
+> `config/` directory.
+
 ## Configuration
 
 The server speech-to-text configuration supports `libraryPath` for the sherpa-onnx shared library.

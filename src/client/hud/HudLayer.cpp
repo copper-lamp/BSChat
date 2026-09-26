@@ -103,20 +103,17 @@ void HudLayer::onAfterUIRender(ll::event::render::AfterUIRenderEvent& event) {
     // 只在世界内、且没有打开菜单类界面时绘制，避免把 HUD 画到背包/设置等界面上。
     if (!client->isInWorldAndNotShowingAnyMenuScreens()) return;
 
-    // 状态图标贴图只能在渲染回调里经 UI 上下文加载（非线程安全），首次调用时加载并缓存。
-    statusIcons_.ensureLoaded(event);
+    // 状态图标贴图只能在渲染回调里解码并上传进纹理组（非线程安全），首次调用时加载并缓存。
+    statusIcons_.ensureLoaded();
     if (statusIcons_.loadAttempted()) {
         if (statusIcons_.ready()) {
             if (!iconReadyLogged_) {
                 iconReadyLogged_ = true;
-                logInfo("status icon textures loaded from the bundled resource pack");
+                logInfo("status icon textures uploaded from the bundled icons directory");
             }
         } else if (!iconWarningLogged_) {
             iconWarningLogged_ = true;
-            logWarn(
-                "status icon textures unavailable; enable the bundled resource pack under "
-                "Settings > Global Resources to show HUD icons; falling back to text-only status"
-            );
+            logWarn("status icon textures unavailable; falling back to text-only status");
         }
     }
 

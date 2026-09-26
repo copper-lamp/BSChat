@@ -1,20 +1,19 @@
-﻿#Requires -Version 5.1
+#Requires -Version 5.1
 <#
 .SYNOPSIS
-    生成 BSChat 语音聊天 HUD 的状态图标与资源包图标。
+    生成 BSChat 语音聊天 HUD 的状态图标。
 
 .DESCRIPTION
     使用 .NET System.Drawing 以纯几何图形绘制 64x64、带透明通道的 PNG，
     不依赖任何第三方素材（尤其不使用 lib/simple-voice-chat 下的图片，其 license 为
     "All Rights Reserved"，不可用于本项目）。
 
-    输出：
-      resource_pack/textures/ui/voicechat/status_idle.png      灰色话筒轮廓
-      resource_pack/textures/ui/voicechat/status_speaking.png  亮绿实心话筒
-      resource_pack/textures/ui/voicechat/status_muted.png     灰色话筒 + 红色斜杠
-      resource_pack/textures/ui/voicechat/status_playing.png   喇叭 + 声波弧线
-      resource_pack/textures/ui/voicechat/status_silent.png    喇叭（无声波）
-      resource_pack/pack_icon.png                              资源包图标
+    输出（HUD 在运行期读这些 PNG 并直接上传进引擎纹理组，不经过资源包）：
+      icons/status_idle.png      灰色话筒轮廓
+      icons/status_speaking.png  亮绿实心话筒
+      icons/status_muted.png     灰色话筒 + 红色斜杠
+      icons/status_playing.png   喇叭 + 声波弧线
+      icons/status_silent.png    喇叭（无声波）
 
     脚本可重复执行，会覆盖同名文件。默认输出到脚本所在仓库根目录，
     也可用 -RepoRoot 指定。
@@ -36,8 +35,7 @@ else {
     $RepoRoot = (Resolve-Path -LiteralPath $RepoRoot).Path
 }
 
-$iconDir  = Join-Path $RepoRoot 'resource_pack/textures/ui/voicechat'
-$packRoot = Join-Path $RepoRoot 'resource_pack'
+$iconDir = Join-Path $RepoRoot 'icons'
 New-Item -ItemType Directory -Force -Path $iconDir | Out-Null
 
 $size = 64
@@ -47,7 +45,6 @@ $gray   = [System.Drawing.Color]::FromArgb(255, 176, 184, 196) # B0B8C4
 $green  = [System.Drawing.Color]::FromArgb(255, 107, 224, 107) # 6BE06B
 $red    = [System.Drawing.Color]::FromArgb(255, 224, 75, 75)   # E04B4B
 $bright = [System.Drawing.Color]::FromArgb(255, 242, 246, 255) # F2F6FF
-$slate  = [System.Drawing.Color]::FromArgb(255, 30, 36, 48)    # 1E2430
 
 function New-RoundedRectPath {
     param([float]$X, [float]$Y, [float]$W, [float]$H, [float]$R)
@@ -181,21 +178,6 @@ $written.Add($path)
 $canvas = New-IconCanvas
 Draw-SpeakerShape -Graphics $canvas.Graphics -Color $gray
 $path = Join-Path $iconDir 'status_silent.png'
-Save-IconCanvas -Canvas $canvas -Path $path
-$written.Add($path)
-
-# pack_icon：深色圆角底 + 亮色话筒 + 绿色圆点
-$canvas = New-IconCanvas
-$bgPath = New-RoundedRectPath -X 2 -Y 2 -W 60 -H 60 -R 12
-$bgBrush = New-Object System.Drawing.SolidBrush($slate)
-$canvas.Graphics.FillPath($bgBrush, $bgPath)
-$bgBrush.Dispose()
-$bgPath.Dispose()
-Draw-MicShape -Graphics $canvas.Graphics -Color $bright
-$dot = New-Object System.Drawing.SolidBrush($green)
-$canvas.Graphics.FillEllipse($dot, 44, 12, 12, 12)
-$dot.Dispose()
-$path = Join-Path $packRoot 'pack_icon.png'
 Save-IconCanvas -Canvas $canvas -Path $path
 $written.Add($path)
 

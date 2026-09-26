@@ -1,8 +1,10 @@
 #pragma once
 
 #include <cstdint>
+#include <filesystem>
 #include <memory>
 #include <string>
+#include <utility>
 
 #include "core/config/Config.h"
 #include "core/protocol/Message.h"
@@ -28,6 +30,9 @@ public:
 
     bool initialize();
     void shutdown();
+
+    // 状态图标所在目录（模组目录下的 icons/），由装配层在初始化时注入。
+    void setIconDirectory(std::filesystem::path directory) { statusIcons_.setIconDirectory(std::move(directory)); }
 
     // 配置热生效：字幕开关/行数/淡出、覆盖层总开关。
     void applyConfig(config::ClientConfig const& config);

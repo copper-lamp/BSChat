@@ -2,12 +2,20 @@
 
 #include <chrono>
 #include <string>
+#include <utility>
 
-#include "ll/api/event/render/UIRenderEvent.h"
+#include "ll/api/service/TargetedBedrock.h"
 
-#include "mc/client/renderer/screen/MinecraftUIRenderContext.h"
+#include "mc/client/game/ClientInstance.h"
+#include "mc/client/renderer/TextureGroup.h"
+#include "mc/deps/application/AppPlatform.h"
+#include "mc/deps/core/file/Path.h"
 #include "mc/deps/core/file/PathView.h"
+#include "mc/deps/core/image/Image.h"
 #include "mc/deps/core/resource/ResourceLocation.h"
+#include "mc/deps/core_graphics/ImageBuffer.h"
+#include "mc/deps/core_graphics/TextureSetLayerType.h"
+#include "mc/deps/minecraft_renderer/renderer/BedrockTexture.h"
 
 namespace vc::client::hud {
 namespace {
@@ -28,10 +36,10 @@ constexpr StatusIconSpec kIconSpecs[] = {
 
 static_assert(sizeof(kIconSpecs) / sizeof(kIconSpecs[0]) == 5);
 
-// 资源包内目录（相对资源包根）。资源包需在「设置 -> 全局资源」中启用。
-constexpr char kIconPathPrefix[] = "textures/ui/voicechat/status_";
+// 上传进纹理组时使用的键。它只作为纹理组内部的缓存键，不参与资源包解析，因此不带 .png 后缀。
+constexpr char kTextureKeyPrefix[] = "textures/ui/voicechat/status_";
 
-// 加载失败后的重试冷却，避免逐帧向纹理组请求不存在的贴图。
+// 加载失败后的重试冷却，避免逐帧重复解码 PNG。
 constexpr int64_t kRetryCooldownMs = 2000;
 
 int64_t steadyNowMs() {
@@ -41,6 +49,12 @@ int64_t steadyNowMs() {
 
 } // namespace
 
+void StatusIcons::setIconDirectory(std::filesystem::path directory) {
+    if (directory == iconDirectory_) return;
+    iconDirectory_ = std::move(directory);
+    reset();
+}
+
 std::size_t StatusIcons::indexOf(AudioStatus status) {
     for (std::size_t i = 0; i < kStatusCount; ++i) {
         if (kIconSpecs[i].status == status) return i;
@@ -48,28 +62,39 @@ std::size_t StatusIcons::indexOf(AudioStatus status) {
     return 0;
 }
 
-void StatusIcons::ensureLoaded(ll::event::render::AfterUIRenderEvent& event) {
-    if (ready_) return;
+void StatusIcons::ensureLoaded() {
+    if (ready_ || iconDirectory_.empty()) return;
 
     int64_t const now = steadyNowMs();
     if (attempted_ && now - lastAttemptMs_ < kRetryCooldownMs) return;
     attempted_     = true;
     lastAttemptMs_ = now;
 
-    auto& context = event.uiRenderContext();
+    auto client = ll::service::getClientInstance();
+    if (!client) return;
+    auto appPlatform = ll::service::getAppPlatform();
+    if (!appPlatform) return;
+    auto textureGroup = client->getTextureGroup();
+    if (!textureGroup) return;
 
     bool allLoaded = true;
     for (std::size_t i = 0; i < kStatusCount; ++i) {
-        std::string const base = std::string(kIconPathPrefix) + kIconSpecs[i].name;
-        // ResourceLocation 的路径是否带 .png 后缀在 SDK 头文件里没有权威说明（路径由运行时资源包解析），
-        // 这里先试带后缀、再试不带后缀，任一命中即用；真机需验证哪一种才真正生效。
-        textures_[i] = context.getTexture(ResourceLocation(Core::PathView(base + ".png")), false);
-        if (!textures_[i].mClientTexture) {
-            textures_[i] = context.getTexture(ResourceLocation(Core::PathView(base)), false);
-        }
-        if (!textures_[i].mClientTexture) {
+        // 已成功的贴图不重复上传；逐个跳过可让「部分成功」在补齐文件后增量恢复。
+        if (textures_[i].mClientTexture) continue;
+
+        std::filesystem::path const file =
+            iconDirectory_ / (std::string("status_") + kIconSpecs[i].name + ".png");
+        mce::Image image = appPlatform->loadTexture(Core::Path(file));
+        if (image.isEmpty()) {
             allLoaded = false;
+            continue;
         }
+
+        std::string const  key = std::string(kTextureKeyPrefix) + kIconSpecs[i].name;
+        ResourceLocation   location{Core::PathView(std::string_view(key))};
+        BedrockTexture&    uploaded = textureGroup->uploadTexture(location, cg::ImageBuffer(std::move(image)));
+        textures_[i]                = mce::TexturePtr(uploaded, location, cg::TextureSetLayerType::Color);
+        if (!textures_[i].mClientTexture) allLoaded = false;
     }
     ready_ = allLoaded;
 }

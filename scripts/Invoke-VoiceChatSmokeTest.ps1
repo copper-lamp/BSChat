@@ -38,9 +38,17 @@ function Copy-ModArtifact([string]$Artifact, [string]$Destination, [string]$Side
     $manifest = Join-Path $artifactRoot 'manifest.json'
     if (!(Test-Path -LiteralPath $dll)) { throw "$Side artifact is missing voicechat.dll: $artifactRoot" }
     if (!(Test-Path -LiteralPath $manifest)) { throw "$Side artifact is missing manifest.json: $artifactRoot" }
-    New-Item -ItemType Directory -Force -Path $Destination | Out-Null
-    Copy-Item -LiteralPath $dll -Destination (Join-Path $Destination 'voicechat.dll') -Force
-    Copy-Item -LiteralPath $manifest -Destination (Join-Path $Destination 'manifest.json') -Force
+    # 模组目录是「整目录」交付物：dll/manifest 之外还有 lang（i18n）、panels（设置/管理面板）
+    # 和 icons（HUD 状态图标）。只拷 dll+manifest 会让这些目录变空，面板不可用、文案回落键名、
+    # HUD 图标缺失。这里按目录树整体拷贝，缺哪个就在日志里点名。
+    foreach ($required in @('lang', 'panels', 'icons')) {
+        if (!(Test-Path -LiteralPath (Join-Path $artifactRoot $required))) {
+            throw "$Side artifact is missing the '$required' directory: $artifactRoot"
+        }
+    }
+    if (!(Test-Path -LiteralPath $Destination)) { New-Item -ItemType Directory -Force -Path $Destination | Out-Null }
+    # 不整目录删除：安装目录里的 config/（客户端配置与日志）必须保留。
+    Copy-Item -Path (Join-Path $artifactRoot '*') -Destination $Destination -Recurse -Force
 }
 
 function New-Backup([string]$Path) {

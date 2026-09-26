@@ -139,6 +139,8 @@ bool ClientMod::enable() {
     if (self) self->getLogger().info("voicechat client listeners enabled");
     shared::FileLog::info("enable: client listeners enabled");
     hudLayer_.applyConfig(config_);
+    // 状态图标 PNG 随模组发布在模组目录的 icons/（由构建脚本拷入），运行期解码后直接上传进纹理组。
+    hudLayer_.setIconDirectory(self->getModDir() / "icons");
     if (!hudLayer_.initialize()) {
         if (self) self->getLogger().warn("HUD layer is unavailable; voice chat continues normally");
         shared::FileLog::warn("enable: HUD layer is unavailable; voice chat continues normally");

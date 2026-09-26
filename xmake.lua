@@ -87,8 +87,8 @@ target("voicechat")
             add_links("LeviLamina", {wholearchive = true})
         end
     end
-    -- modpacker 只搬运 dll/pdb/manifest.json，语言文件与面板定义需要自己拷贝，
-    -- 否则 ll::i18n 与面板加载在运行时拿不到内容（HUD/面板文案会回落到键名，面板不可用）。
+    -- modpacker 只搬运 dll/pdb/manifest.json，语言文件、面板定义与图标需要自己拷贝，
+    -- 否则 ll::i18n / 面板加载 / HUD 图标在运行时拿不到内容（文案回落键名、面板不可用、图标缺失）。
     after_build(function (target)
         local function copy_json_dir(source, destination)
             if not os.isdir(source) then
@@ -99,7 +99,7 @@ target("voicechat")
                 os.cp(file, path.join(destination, path.filename(file)))
             end
         end
-        -- 资源包整个目录树（manifest/贴图/pack_icon）都不能靠 modpacker，需要自己递归拷贝。
+        -- 图标目录是普通 PNG 资源（不是资源包），整个目录树都要拷。
         local function copy_tree(source, destination)
             if not os.isdir(source) then
                 return
@@ -113,7 +113,7 @@ target("voicechat")
         local modDir = path.join(os.projectdir(), "bin", target:name())
         copy_json_dir(path.join(os.projectdir(), "lang"), path.join(modDir, "lang"))
         copy_json_dir(path.join(os.projectdir(), "panels"), path.join(modDir, "panels"))
-        copy_tree(path.join(os.projectdir(), "resource_pack"), path.join(modDir, "resource_pack"))
+        copy_tree(path.join(os.projectdir(), "icons"), path.join(modDir, "icons"))
     end)
 
 -- 单元测试：host 运行，链接 core 静态库与第三方依赖，不进入默认构建。
