@@ -7,7 +7,10 @@
 #include "core/protocol/MessageCodec.h"
 #include "mc/deps/core/utility/optional_ref.h"
 #include "ll/api/network/packet/Packet.h"
+#include "ll/api/network/packet/PacketRegistrar.h"
+#include "ll/api/reflection/TypeName.h"
 #include "ll/api/service/Bedrock.h"
+#include "ll/api/utils/HashUtils.h"
 #include "mc/common/SubClientId.h"
 #include "mc/deps/core/utility/BinaryStream.h"
 #include "mc/deps/core/utility/ReadOnlyBinaryStream.h"
@@ -21,8 +24,11 @@
 // LeviLamina 26.10.14's public packet header declares this virtual API but its
 // package import library does not export the fallback implementation. The
 // concrete packet below overrides it; this definition only satisfies the base
-// vtable emitted by clang-cl for PacketBase.
-ll::network::PacketRuntimeId ll::network::Packet::getRuntimeId() const { return 0; }
+// vtable emitted by clang-cl for PacketBase. 语义与 SDK 实现保持一致
+// （SDK: doHash(getName())），返回 0 会让未覆写该函数的包拿到非法 runtimeId。
+ll::network::PacketRuntimeId ll::network::Packet::getRuntimeId() const {
+    return ll::hash_utils::doHash(getName());
+}
 
 namespace vc::shared {
 
@@ -84,7 +90,36 @@ public:
     }
 };
 
-GamePacketTransport::GamePacketTransport(TransportMode mode, PlayerResolver resolver) : mode_(mode), resolver_(std::move(resolver)) { g_transport = this; }
+namespace {
+
+// 自定义包与处理器的显式注册。
+// 不能依赖 PacketBase / PacketHandlerBase 的 `inline static sRegistered` 自注册：
+// clang-cl 不会为类模板的静态数据成员实例化定义，注册因此从未发生（产物导入表里只有
+// sendToServer/sendToClient，没有 registerPacket/registerHandler）。后果是客户端发出的
+// RuntimePacket 在服务端 PacketRegistrar::createPacket 中找不到工厂，BDS 反序列化失败并
+// 直接断开客户端，表现为进服后立刻掉线。此处显式注册，保证双端运行时 ID 与处理器一致。
+void registerVoiceChatPacket() {
+    static bool const registered = [] {
+        auto&      registrar = ll::network::PacketRegistrar::getInstance();
+        auto const name      = ll::reflection::type_unprefix_name_v<VoiceChatPacket>;
+        auto const id        = ll::hash_utils::doHash(name);
+        registrar.registerPacket(name, id, []() -> std::unique_ptr<ll::network::Packet> {
+            return std::make_unique<VoiceChatPacket>();
+        });
+        static VoiceChatPacketHandler handler; // 注册表只存引用，处理器需静态存储期
+        registrar.registerHandler(name, id, handler);
+        return true;
+    }();
+    (void)registered;
+}
+
+} // namespace
+
+GamePacketTransport::GamePacketTransport(TransportMode mode, PlayerResolver resolver) : mode_(mode), resolver_(std::move(resolver)) {
+    // 先注册包类型，再对外暴露 transport，避免收到未注册的 runtimeId。
+    registerVoiceChatPacket();
+    g_transport = this;
+}
 GamePacketTransport::~GamePacketTransport() { if (g_transport == this) g_transport = nullptr; }
 void GamePacketTransport::setMessageHandler(MessageHandler handler) { std::lock_guard lock(handlerMutex_); handler_ = std::move(handler); }
 void GamePacketTransport::clearMessageHandler() { std::lock_guard lock(handlerMutex_); handler_ = {}; }
