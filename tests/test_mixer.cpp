@@ -171,7 +171,8 @@ TEST(mixer_drives_stt_and_broadcasts_text) {
             }
         }
     }
-    EXPECT_EQ(mixCount, 2u);  // 120ms tick = 2 × 60ms 混音帧
+    // 3 帧上行 → 3 个下行帧（每个子帧各取一帧、不重复编码）；队列取空后不再出帧
+    EXPECT_EQ(mixCount, 3u);
     EXPECT_EQ(textCount, 2u);
 }
 
@@ -274,10 +275,14 @@ TEST(mixer_sub_frames_use_distinct_audio) {
     sessions.addSession(makePlayerId(1), {});
     ServerMixer mixer(sessions, {});
 
-    // 第 1 帧恒 +0.4、第 2 帧恒 -0.4：两帧内容不同，编码结果也必须不同
-    std::vector<float> samples;
-    samples.insert(samples.end(), static_cast<size_t>(kFrameSamples), 0.4F);
-    samples.insert(samples.end(), static_cast<size_t>(kFrameSamples), -0.4F);
+    // 第 1 帧恒 +0.4、第 2 帧恒 -0.4（其余静音）：两帧内容不同，编码结果也必须不同。
+    // 长度要够本 tick 的每个子帧各取一帧，否则后面几个子帧没有声源、不会出帧。
+    const size_t framesPerTick = static_cast<size_t>(kMixTickMs / kFrameSizeMs);
+    std::vector<float> samples(static_cast<size_t>(kFrameSamples) * framesPerTick, 0.0F);
+    for (int i = 0; i < kFrameSamples; ++i) {
+        samples[static_cast<size_t>(i)] = 0.4F;
+        samples[static_cast<size_t>(kFrameSamples) + static_cast<size_t>(i)] = -0.4F;
+    }
     auto bytes = vc::test::buildWavBytes(kSampleRate, 1, true, samples);
     auto path = vc::test::writeTempWav(bytes, "voicechat-test-mixer-subframes.wav");
     std::string error;
@@ -288,8 +293,8 @@ TEST(mixer_sub_frames_use_distinct_audio) {
     for (auto const& [peer, message] : collect(mixer)) {
         if (auto const* mix = std::get_if<MixStreamMessage>(&message)) payloads.push_back(mix->opusData);
     }
-    EXPECT_EQ(payloads.size(), static_cast<size_t>(kMixTickMs / kFrameSizeMs));
-    if (payloads.size() == 2u) EXPECT_TRUE(payloads[0] != payloads[1]);
+    EXPECT_EQ(payloads.size(), framesPerTick);
+    if (payloads.size() == framesPerTick) EXPECT_TRUE(payloads[0] != payloads[1]);
 
     std::filesystem::remove(path);
 }
