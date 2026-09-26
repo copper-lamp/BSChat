@@ -99,6 +99,19 @@ pwsh -File scripts/Invoke-VoiceChatSmokeTest.ps1 `
 
 单客户端场景下，服务端 `downlink = PASS` 与客户端 `downlink = PASS` 同时出现，即证明“上行 → 服务端解码 → 混音 → 回传 → 客户端解码播放”的完整闭环成立，无需第二名玩家。真正的“另一名玩家听感”仍需第二个真实客户端确认。
 
+## 用真实音频做听感验证（`/voicechat play`）
+
+自检的判定都是链路级的（`downlink` 单客户端必然静音、`localTone` 只覆盖本机扬声器）。要用真实音频判断传输质量：
+
+1. 准备一段 WAV（推荐 48kHz；其它采样率/声道也可以，服务端会下混单声道并线性重采样），放到 `<voicechat 配置目录>/audio/`，或直接用绝对路径。
+2. 进服后输入 `/voicechat play music.wav`（或 `/voicechat play D:\path\to\music.wav`）：音频会作为独立声源混入下行，你会直接从扬声器听到。
+3. `/voicechat stop` 停止回放。
+
+实现要点：文件声源用虚拟声源标识（全 `0xFF`）参与混音，不等于任何接收者本人，因此不受自我抑制影响；走的是与真人语音完全相同的「混音 → Opus 编码 → MixStream 下发」链路，协议无改动。详见 `voicechat-server-playback.md`。
+
+> 默认编码参数是**语音档**（单声道 20kbps + DTX），音乐听感会明显发闷、高频丢失。要评估音乐质量，请临时把 `bitrateKbps` 调高（如 64~96）并关闭 `enableDtx`——那是参数造成的，不是链路缺陷。
+> 只支持 WAV，mp3 需要先外部转码。
+
 ## 备注与限制
 
 - `ServerRuntime` 与 `SmokeTest` 均零 LeviLamina 依赖，诊断日志经 `LogSink`（`std::function<void(bool, std::string const&)>`）由外层 `ServerMod`/`ClientMod` 注入；未注入时全部诊断静默丢弃，所以宿主单测不受影响。

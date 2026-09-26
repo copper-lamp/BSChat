@@ -42,6 +42,12 @@ constexpr EventIdView getEventId<world::ServerLevelTickEvent> =
 
 namespace vc::server {
 
+// /voicechat play <file> 的命令参数结构（成员名即参数名）。
+// 注意：必须定义在匿名命名空间之外——boost::pfr 反射依赖类型具有外部链接。
+struct PlayAudioParams {
+    std::string file;
+};
+
 namespace {
 
 int64_t nowMs() {
@@ -197,9 +203,59 @@ bool ServerMod::registerCommand() {
         output.success("voicechat: smoke test requested on your client, see the client log for results");
         shared::FileLog::info("command: smoke test requested by player");
     });
+    // /voicechat play <file>：把一段 WAV 当独立声源混入下行，用真实音频验证听感。
+    // 文件优先按给定路径查找，否则取 <配置目录>/audio/<file>。
+    handle.overload<PlayAudioParams>()
+        .text("play")
+        .required("file")
+        .execute([this](CommandOrigin const& origin, CommandOutput& output, PlayAudioParams const& params) {
+            auto* entity = origin.getEntity();
+            if (!entity || !entity->isPlayer()) {
+                output.error("voicechat: /voicechat play must be run by a player in game");
+                return;
+            }
+            auto const path = resolveAudioFile(params.file);
+            if (path.empty()) {
+                output.error(
+                    "voicechat: audio file not found; put a 48kHz wav under <voicechat config>/audio/ "
+                    "or pass an absolute path"
+                );
+                return;
+            }
+            std::string error;
+            if (!runtime_->playAudioFile(path.string(), error)) {
+                output.error("voicechat: playback failed - " + error);
+                shared::FileLog::error("command: audio playback failed: " + error);
+                return;
+            }
+            output.success("voicechat: playing " + path.filename().string() + " through the voice chat downlink");
+            shared::FileLog::info("command: audio file playback started: " + path.string());
+        });
+
+    handle.overload<>().text("stop").execute([this](CommandOrigin const&, CommandOutput& output) {
+        if (!runtime_->audioFilePlaying()) {
+            output.success("voicechat: no audio file playback is running");
+            return;
+        }
+        auto const name = runtime_->audioFileName();
+        runtime_->stopAudioFilePlayback();
+        output.success("voicechat: stopped playing " + name);
+        shared::FileLog::info("command: audio file playback stopped: " + name);
+    });
+
     smokeCommand_ = &handle;
     shared::FileLog::info("enable: registered server command /voicechat test");
     return true;
+}
+
+std::filesystem::path ServerMod::resolveAudioFile(const std::string& name) const {
+    std::error_code error;
+    std::filesystem::path candidate(name);
+    if (candidate.is_absolute() && std::filesystem::exists(candidate, error)) return candidate;
+    if (!candidate.is_absolute() && std::filesystem::exists(candidate, error)) return candidate;
+    auto inConfig = configPath_.parent_path() / "audio" / candidate;
+    if (std::filesystem::exists(inConfig, error)) return inConfig;
+    return {};
 }
 
 bool ServerMod::disable() {

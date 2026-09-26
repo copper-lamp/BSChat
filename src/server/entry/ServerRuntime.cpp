@@ -70,8 +70,29 @@ void ServerRuntime::start() {
 void ServerRuntime::stop() {
     if (!running_) return;
     running_ = false;
+    mixer_.stopFilePlayback();
     mixer_.stop();
 }
+
+bool ServerRuntime::playAudioFile(std::string const& path, std::string& error) {
+    if (!config_.voiceEnabled) {
+        error = "voice chat is disabled in the server config";
+        return false;
+    }
+    if (!mixer_.startFilePlayback(path, error)) return false;
+    logInfo("[audio] file playback started: " + mixer_.filePlaybackName());
+    return true;
+}
+
+void ServerRuntime::stopAudioFilePlayback() {
+    if (!mixer_.filePlaybackActive()) return;
+    mixer_.stopFilePlayback();
+    logInfo("[audio] file playback stopped");
+}
+
+bool ServerRuntime::audioFilePlaying() const { return mixer_.filePlaybackActive(); }
+
+std::string ServerRuntime::audioFileName() const { return mixer_.filePlaybackName(); }
 
 void ServerRuntime::tickOnce(int64_t nowMs) {
     if (!config_.voiceEnabled) return;

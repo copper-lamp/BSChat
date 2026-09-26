@@ -29,6 +29,8 @@ public:
 private:
     bool loadConfig();
     bool registerCommand();
+    // 解析 /voicechat play 的文件参数：优先绝对路径，其次 <配置目录>/audio/<name>。
+    std::filesystem::path resolveAudioFile(const std::string& name) const;
     void onJoin(ll::event::player::PlayerJoinEvent& event);
     void onDisconnect(ll::event::player::PlayerDisconnectEvent& event);
     void onTick(ll::event::world::ServerLevelTickEvent& event);

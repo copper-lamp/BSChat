@@ -1,7 +1,9 @@
 #include "Harness.h"
+#include "WavBytes.h"
 
 #include <cmath>
 #include <cstdint>
+#include <filesystem>
 #include <vector>
 
 #include "core/audio/AudioTypes.h"
@@ -207,4 +209,37 @@ TEST(mixer_backpressure_drops_oldest) {
     mixer.tickOnce(1000);
     auto out = collect(mixer);
     EXPECT_TRUE(out.size() <= 2u); // 队列上限生效
+}
+
+// 文件声源是独立声源：即使接收者自己没有上行，也应收到带音频的 MixStream
+// （即不被“不把自己的声音混给自己”的自我抑制影响）。
+TEST(mixer_file_playback_reaches_receiver_without_uplink) {
+    SessionManager sessions;
+    auto id = makePlayerId(1);
+    sessions.addSession(id, {});
+    ServerMixer mixer(sessions, {});
+
+    std::vector<float> samples(static_cast<size_t>(kFrameSamples) * 2, 0.4F);
+    auto bytes = vc::test::buildWavBytes(kSampleRate, 1, true, samples);
+    auto path = vc::test::writeTempWav(bytes, "voicechat-test-mixer-playback.wav");
+
+    std::string error;
+    EXPECT_TRUE(mixer.startFilePlayback(path, error));
+    EXPECT_TRUE(mixer.filePlaybackActive());
+
+    mixer.tickOnce(0);
+    auto out = collect(mixer);
+    size_t mixStreams = 0;
+    for (auto const& [peer, message] : out) {
+        if (std::holds_alternative<MixStreamMessage>(message)) {
+            ++mixStreams;
+            EXPECT_TRUE(peer == id);
+        }
+    }
+    EXPECT_TRUE(mixStreams > 0u);
+
+    mixer.stopFilePlayback();
+    EXPECT_FALSE(mixer.filePlaybackActive());
+
+    std::filesystem::remove(path);
 }

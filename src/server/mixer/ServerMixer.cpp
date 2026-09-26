@@ -43,6 +43,16 @@ void ServerMixer::setStt(pipeline::IStt* stt) {
     });
 }
 
+bool ServerMixer::startFilePlayback(const std::filesystem::path& path, std::string& error) {
+    return filePlayback_.load(path, config_.sampleRate, error);
+}
+
+void ServerMixer::stopFilePlayback() { filePlayback_.stop(); }
+
+bool ServerMixer::filePlaybackActive() const { return filePlayback_.active(); }
+
+std::string ServerMixer::filePlaybackName() const { return filePlayback_.fileName(); }
+
 void ServerMixer::tickOnce(int64_t nowMs) {
     ++tickCount_;
     auto sessions = sessions_.snapshot();
@@ -54,6 +64,17 @@ void ServerMixer::tickOnce(int64_t nowMs) {
                 if (frame->flags & protocol::AudioFlagEnd) stt_->endUtterance(session->id());
             }
             if (!frame->pcm.empty()) mixer_.addSpeakerFrame(session->id(), std::move(frame->pcm));
+        }
+    }
+
+    // 文件声源：本 tick 取一帧作为独立声源加入混音。它不是任何接收者本人，
+    // 因此不会被自我抑制跳过；增益在下面按接收者固定为 1.0（广播语义）。
+    bool fileFrameFed = false;
+    if (filePlayback_.active()) {
+        auto frame = filePlayback_.nextFrame(static_cast<std::size_t>(mixer_.frameSamples()));
+        if (!frame.empty()) {
+            mixer_.addSpeakerFrame(kFilePlaybackSourceId, std::move(frame));
+            fileFrameFed = true;
         }
     }
 
@@ -83,6 +104,7 @@ void ServerMixer::tickOnce(int64_t nowMs) {
                 ++selected;
             }
         }
+        if (fileFrameFed) mixer_.setGain(receiver->id(), kFilePlaybackSourceId, 1.0f);
     }
     if (!mixer_.hasActiveTalker()) return;
 

@@ -39,6 +39,13 @@ public:
     void removeSession(const protocol::PlayerId& id) { sessions_.removeSession(id); }
     const config::ServerConfig& config() const { return config_; }
 
+    // 真实音频回放自检：把一段 WAV 作为独立声源混入下行，供玩家听感验证传输质量。
+    // 与真人语音走同一条「混音 → Opus 编码 → MixStream 下发」链路，只是不受自我抑制影响。
+    bool playAudioFile(std::string const& path, std::string& error);
+    void stopAudioFilePlayback();
+    bool audioFilePlaying() const;
+    std::string audioFileName() const;
+
 private:
     void handleHello(const protocol::PlayerId& peerId, const protocol::HelloMessage& hello);
     void handleAudio(const protocol::PlayerId& peerId, const protocol::AudioDataMessage& audio);
