@@ -4,8 +4,8 @@
   "tooth": "github.com/copper-lamp/BSChat",
   "version": "0.0.0",
   "info": {
-    "name": "BSChat",
-    "description": "游戏内实时语音聊天：客户端采集语音上行，服务端混音并可本地语音转文字，混合音频流与字幕回传客户端",
+    "name": "Better Speech Chat",
+    "description": "实时语音聊天：支持服务端混音并本地语音转文字，混合音频流与字幕回传客户端",
     "tags": [
       "platform:levilamina",
       "type:mod"

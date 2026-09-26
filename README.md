@@ -1,6 +1,6 @@
 
 <div align="center">
-  <h1>BSChat</h1>
+  <h1>Better Speech Chat</h1>
   <p><strong>Join the world and Start talking.</strong></p>
   <p>An open-source in-game real-time voice chat mod for Minecraft Bedrock on LeviLamina — server-side mixing, client-side capture and playback, with optional live speech-to-text subtitles.</p>
   <p>
@@ -26,12 +26,12 @@
 </div>
 
 > [!WARNING]
-> BSChat is still in early development, and all current builds are test
+> mod is still in early development, and all current builds are test
 > builds. Please back up your important worlds and client/server data; after a Minecraft,
 > LeviLamina, or mod version change, compatibility with previous versions is not
 > guaranteed.
 
-BSChat brings your voice into the game 
+Better Speech Chat brings your voice into the game 
 
 hold a key to talk, and your audio
 travels over the game's built-in data channel to everyone on the server in real time; the
