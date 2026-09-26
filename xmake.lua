@@ -101,12 +101,16 @@ target("voicechat-tests")
     add_includedirs("src", "tests", "third_party/sherpa-onnx")
     add_files(
         "tests/**.cpp",
+        "src/shared/ui/*.cpp",
         "src/server/session/*.cpp",
         "src/server/mixer/*.cpp",
         "src/server/stt/*.cpp",
         "src/server/entry/ServerRuntime.cpp",
         "src/server/admin/*.cpp",
         "src/client/audio/AgcProcessor.cpp",
+        "src/client/hud/SubtitleOverlay.cpp",
+        "src/client/hud/StatusOverlay.cpp",
+        "src/client/ui/ConfigBinding.cpp",
         "src/client/entry/ClientRuntime.cpp",
         "src/client/input/Triggers.cpp",
         "tests/client/**.cpp"

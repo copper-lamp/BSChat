@@ -53,9 +53,12 @@ struct ClientConfig {
     bool voiceEnabled = true;
     uint32_t pttKey = 0x56; // 默认 V（虚拟键码）
     bool vadEnabled = false;
+    bool captureEnabled = true;   // 采集开关：关闭后只收听
+    float playbackVolume = 1.0f;  // 播放音量 0..1
     bool subtitleEnabled = true;
     int maxSubtitleLines = 4;
     int subtitleFadeMs = 5000;
+    bool hudEnabled = true; // 状态覆盖层开关
     int jitterMaxDepthFrames = 6;
     int64_t jitterMaxWaitMs = 200;
     int handshakeRetryMs = 5000;

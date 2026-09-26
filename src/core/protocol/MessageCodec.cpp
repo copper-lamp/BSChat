@@ -223,6 +223,15 @@ std::pair<MessageType, std::vector<uint8_t>> MessageCodec::serializePayload(cons
                 w.u8(m.envFlags);
                 w.u64(m.sendAtMs);
                 return {MessageType::PosUpdate, std::move(w).take()};
+
+            } else if constexpr (std::is_same_v<M, UiFormMessage>) {
+                BufferWriter w;
+                if (m.payload.size() > kUiFormPayloadMaxBytes) return {MessageType::UiForm, {}};
+                w.u8(static_cast<uint8_t>(m.kind));
+                w.u32(m.requestId);
+                w.i32(m.cancelReason);
+                w.string(m.payload);
+                return {MessageType::UiForm, std::move(w).take()};
             }
         },
         message
@@ -300,6 +309,17 @@ std::optional<Message> MessageCodec::deserializePayload(MessageType type, std::s
         if (!r.i32(m.dimensionId)) return std::nullopt;
         if (!r.u8(m.envFlags)) return std::nullopt;
         if (!r.u64(m.sendAtMs)) return std::nullopt;
+        return m;
+    }
+    case MessageType::UiForm: {
+        UiFormMessage m;
+        uint8_t kindRaw = 0;
+        if (!r.u8(kindRaw)) return std::nullopt;
+        m.kind = static_cast<UiFormKind>(kindRaw);
+        if (!r.u32(m.requestId)) return std::nullopt;
+        if (!r.i32(m.cancelReason)) return std::nullopt;
+        if (!r.string(m.payload)) return std::nullopt;
+        if (m.payload.size() > kUiFormPayloadMaxBytes) return std::nullopt;
         return m;
     }
     default:

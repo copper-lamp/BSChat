@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <cstddef>
 #include <cstdint>
 #include <string>
 #include <variant>
@@ -26,6 +27,7 @@ enum class MessageType : uint8_t {
     SttText    = 5, // S→C 转写文字（字幕）
     Control    = 6, // 双向控制
     PosUpdate  = 7, // C→S 位置/环境更新（空间混音选路输入）
+    UiForm     = 8, // 双向：面板表单中继（客户端构表单 JSON，服务端投递并回传结果）
 };
 
 // 客户端能力位（Hello.capabilities）
@@ -107,6 +109,23 @@ struct PosUpdateMessage {
     uint64_t sendAtMs = 0;          // 客户端发送时刻（服务器时钟）
 };
 
+// 面板表单中继方向。表单本身只能由服务端下发给客户端（Bedrock 表单走
+// ModalFormRequest/Response 网络包），因此客户端设置面板经服务端中继。
+enum class UiFormKind : uint8_t {
+    Request  = 1, // C→S：请求服务端把 payload 里的表单 JSON 投递给本玩家
+    Response = 2, // S→C：本玩家对某次 Request 的提交/取消结果
+};
+
+// 中继载荷上限：服务端据此拒绝异常大的表单 JSON，避免形成滥用面。
+inline constexpr std::size_t kUiFormPayloadMaxBytes = 32 * 1024;
+
+struct UiFormMessage {
+    UiFormKind kind = UiFormKind::Request;
+    uint32_t requestId = 0;     // 关联 Request/Response，避免并发面板串味
+    int32_t cancelReason = -1;  // Response 专用：-1 表示正常提交
+    std::string payload;        // Request：表单 JSON；Response：响应 JSON（取消时为空）
+};
+
 using Message = std::variant<
     HelloMessage,
     WelcomeMessage,
@@ -114,6 +133,7 @@ using Message = std::variant<
     MixStreamMessage,
     SttTextMessage,
     ControlMessage,
-    PosUpdateMessage>;
+    PosUpdateMessage,
+    UiFormMessage>;
 
 } // namespace vc::protocol

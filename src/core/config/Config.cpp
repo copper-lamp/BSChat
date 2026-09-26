@@ -119,9 +119,15 @@ ClientConfig clientConfigFromJson(const std::string& json) {
         c.voiceEnabled = valueOr(j, "voiceEnabled", c.voiceEnabled);
         c.pttKey = valueOr(j, "pttKey", c.pttKey);
         c.vadEnabled = valueOr(j, "vadEnabled", c.vadEnabled);
+        c.captureEnabled = valueOr(j, "captureEnabled", c.captureEnabled);
+        // 音量手改后可能越界，加载即收敛，避免非法值直接进入播放设备。
+        c.playbackVolume = valueOr(j, "playbackVolume", c.playbackVolume);
+        if (c.playbackVolume < 0.0f) c.playbackVolume = 0.0f;
+        if (c.playbackVolume > 1.0f) c.playbackVolume = 1.0f;
         c.subtitleEnabled = valueOr(j, "subtitleEnabled", c.subtitleEnabled);
         c.maxSubtitleLines = valueOr(j, "maxSubtitleLines", c.maxSubtitleLines);
         c.subtitleFadeMs = valueOr(j, "subtitleFadeMs", c.subtitleFadeMs);
+        c.hudEnabled = valueOr(j, "hudEnabled", c.hudEnabled);
         c.jitterMaxDepthFrames = valueOr(j, "jitterMaxDepthFrames", c.jitterMaxDepthFrames);
         c.jitterMaxWaitMs = valueOr(j, "jitterMaxWaitMs", c.jitterMaxWaitMs);
         c.handshakeRetryMs = valueOr(j, "handshakeRetryMs", c.handshakeRetryMs);
@@ -137,9 +143,12 @@ std::string clientConfigToJson(const ClientConfig& c) {
     j["voiceEnabled"] = c.voiceEnabled;
     j["pttKey"] = c.pttKey;
     j["vadEnabled"] = c.vadEnabled;
+    j["captureEnabled"] = c.captureEnabled;
+    j["playbackVolume"] = c.playbackVolume;
     j["subtitleEnabled"] = c.subtitleEnabled;
     j["maxSubtitleLines"] = c.maxSubtitleLines;
     j["subtitleFadeMs"] = c.subtitleFadeMs;
+    j["hudEnabled"] = c.hudEnabled;
     j["jitterMaxDepthFrames"] = c.jitterMaxDepthFrames;
     j["jitterMaxWaitMs"] = c.jitterMaxWaitMs;
     j["handshakeRetryMs"] = c.handshakeRetryMs;

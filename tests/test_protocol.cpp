@@ -179,3 +179,55 @@ TEST(protocol_pos_update_roundtrip) {
     auto truncated = std::vector<uint8_t>(packed.begin(), packed.end() - 1);
     EXPECT_FALSE(MessageCodec::unpack(truncated).has_value());
 }
+
+TEST(protocol_ui_form_roundtrip) {
+    UiFormMessage request;
+    request.kind = UiFormKind::Request;
+    request.requestId = 4242;
+    request.cancelReason = -1;
+    request.payload = "{\"type\":\"custom_form\",\"title\":\"voicechat\"}";
+
+    auto unpacked = MessageCodec::unpack(MessageCodec::pack(request, 11, 2222));
+    EXPECT_TRUE(unpacked.has_value());
+    auto& [info, msg] = *unpacked;
+    EXPECT_EQ(info.type, MessageType::UiForm);
+    EXPECT_EQ(info.seq, 11u);
+    auto& out = std::get<UiFormMessage>(msg);
+    EXPECT_EQ(static_cast<uint8_t>(out.kind), static_cast<uint8_t>(UiFormKind::Request));
+    EXPECT_EQ(out.requestId, 4242u);
+    EXPECT_EQ(out.cancelReason, -1);
+    EXPECT_EQ(out.payload, request.payload);
+
+    UiFormMessage response;
+    response.kind = UiFormKind::Response;
+    response.requestId = 4242;
+    response.cancelReason = 2;
+    response.payload = "[true,1]";
+    auto unpackedResponse = MessageCodec::unpack(MessageCodec::pack(response, 12, 0));
+    EXPECT_TRUE(unpackedResponse.has_value());
+    auto& outResponse = std::get<UiFormMessage>(unpackedResponse->second);
+    EXPECT_EQ(static_cast<uint8_t>(outResponse.kind), static_cast<uint8_t>(UiFormKind::Response));
+    EXPECT_EQ(outResponse.requestId, 4242u);
+    EXPECT_EQ(outResponse.cancelReason, 2);
+    EXPECT_EQ(outResponse.payload, response.payload);
+
+    // 取消场景：payload 为空也要能正常往返
+    UiFormMessage cancelled;
+    cancelled.kind = UiFormKind::Response;
+    cancelled.requestId = 9;
+    cancelled.cancelReason = 0;
+    auto unpackedCancelled = MessageCodec::unpack(MessageCodec::pack(cancelled, 13, 0));
+    EXPECT_TRUE(unpackedCancelled.has_value());
+    EXPECT_EQ(std::get<UiFormMessage>(unpackedCancelled->second).payload, std::string{});
+
+    // 载荷截断损坏 → 越界检查返回 nullopt
+    auto packed = MessageCodec::pack(request, 11, 2222);
+    auto truncated = std::vector<uint8_t>(packed.begin(), packed.end() - 1);
+    EXPECT_FALSE(MessageCodec::unpack(truncated).has_value());
+
+    // 超出上限的载荷被拒绝：打包侧不产出载荷，解包侧同样不接受
+    UiFormMessage oversized;
+    oversized.kind = UiFormKind::Request;
+    oversized.payload.assign(kUiFormPayloadMaxBytes + 1, 'x');
+    EXPECT_FALSE(MessageCodec::unpack(MessageCodec::pack(oversized, 14, 0)).has_value());
+}
