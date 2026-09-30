@@ -361,6 +361,17 @@ bool ServerMod::loadConfig() {
         return writeText(configPath_, config::serverConfigToJson(config_));
     }
     config_ = config::serverConfigFromJson(text);
+    const auto modRoot = configPath_.parent_path().parent_path();
+    auto resolve = [&modRoot](std::string& value) {
+        if (value.empty()) return;
+        std::filesystem::path path(value);
+        if (!path.is_absolute()) value = (modRoot / path).lexically_normal().string();
+    };
+    resolve(config_.sttModel.libraryPath);
+    resolve(config_.sttModel.encoderPath);
+    resolve(config_.sttModel.decoderPath);
+    resolve(config_.sttModel.joinerPath);
+    resolve(config_.sttModel.tokensPath);
     return true;
 }
 

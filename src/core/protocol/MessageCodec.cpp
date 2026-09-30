@@ -205,6 +205,7 @@ std::pair<MessageType, std::vector<uint8_t>> MessageCodec::serializePayload(cons
                 w.bytes(m.speakerId.data(), m.speakerId.size());
                 w.u8(m.isFinal ? 1 : 0);
                 w.string(m.text);
+                w.string(m.speakerName);
                 return {MessageType::SttText, std::move(w).take()};
 
             } else if constexpr (std::is_same_v<M, ControlMessage>) {
@@ -290,6 +291,7 @@ std::optional<Message> MessageCodec::deserializePayload(MessageType type, std::s
         if (!r.u8(final)) return std::nullopt;
         m.isFinal = final != 0;
         if (!r.string(m.text)) return std::nullopt;
+        if (r.remaining() > 0 && !r.string(m.speakerName)) return std::nullopt;
         return m;
     }
     case MessageType::Control: {

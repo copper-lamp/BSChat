@@ -1,8 +1,10 @@
 #include "server/stt/SherpaStt.h"
 
 #include <cstring>
+#include <filesystem>
 #include <memory>
 #include <utility>
+#include <algorithm>
 
 #include "c-api.h"
 
@@ -64,7 +66,11 @@ void unloadLibrary(void* library) {
 
 void* loadLibrary(const std::string& path) {
 #ifdef _WIN32
-    return static_cast<void*>(LoadLibraryA(path.empty() ? "sherpa-onnx-c-api.dll" : path.c_str()));
+    if (path.empty()) return nullptr;
+    const auto absolute = std::filesystem::absolute(std::filesystem::path(path));
+    if (!std::filesystem::is_regular_file(absolute)) return nullptr;
+    return static_cast<void*>(LoadLibraryExA(
+        absolute.string().c_str(), nullptr, LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR | LOAD_LIBRARY_SEARCH_DEFAULT_DIRS));
 #else
     return dlopen(path.empty() ? "libsherpa-onnx-c-api.so" : path.c_str(), RTLD_NOW | RTLD_LOCAL);
 #endif
@@ -105,21 +111,25 @@ SherpaStt::SherpaStt(Options options, LogFn log)
             config.model_config.transducer.decoder = options_.decoderPath.c_str();
             config.model_config.transducer.joiner = options_.joinerPath.c_str();
             config.model_config.tokens = options_.tokensPath.c_str();
-            config.model_config.num_threads = options_.threads;
+            config.model_config.num_threads = std::clamp(options_.threads, 1, 8);
             config.model_config.provider = "cpu";
+            config.model_config.modeling_unit = "cjkchar";
             config.decoding_method = "greedy_search";
             recognizer_ = const_cast<SherpaOnnxOnlineRecognizer*>(api->createRecognizer(&config));
             if (recognizer_) {
                 api_ = api.release();
                 available_ = true;
             } else {
-                if (log_) log_("sherpa-onnx 识别器创建失败，转写停用");
+                error_ = "sherpa-onnx 识别器创建失败";
+                if (log_) log_(error_);
             }
-        } else if (log_) {
-            log_("sherpa-onnx 动态库缺少所需 C API，转写停用");
+        } else {
+            error_ = "sherpa-onnx 动态库缺少所需 C API";
+            if (log_) log_(error_);
         }
-    } else if (log_) {
-        log_("sherpa-onnx 动态库加载失败，转写停用");
+    } else {
+        error_ = "sherpa-onnx 动态库加载失败";
+        if (log_) log_(error_);
     }
     if (!available_.load()) {
         unloadLibrary(library_);
@@ -232,7 +242,11 @@ void SherpaStt::enqueue(Op op) {
     {
         std::lock_guard lock(mutex_);
         if (queue_.size() >= options_.maxQueued) {
-            queue_.pop_front(); // 背压：丢最旧
+            auto it = std::find_if(queue_.begin(), queue_.end(), [](const Op& queued) {
+                return queued.kind == Op::Kind::Feed;
+            });
+            if (it != queue_.end()) queue_.erase(it);
+            else return;
         }
         queue_.push_back(std::move(op));
     }
@@ -257,6 +271,7 @@ void SherpaStt::workerMain() {
             if (api && context.stream) api->destroyStream(static_cast<const SherpaOnnxOnlineStream*>(context.stream));
             context = SpeakerCtx{};
             activeFedSamples_ = 0;
+            activeStream_ = nullptr;
             if (api && recognizer_) {
                 context.stream = const_cast<SherpaOnnxOnlineStream*>(api->createStream(static_cast<const SherpaOnnxOnlineRecognizer*>(recognizer_)));
             }
@@ -275,7 +290,9 @@ void SherpaStt::workerMain() {
             if (totalMs >= options_.maxUtteranceMs) {
                 auto* api = static_cast<Api*>(api_);
                 activeStream_ = ctx.stream;
+                activeFedSamples_ = ctx.fedSamples;
                 auto finalText = transcribeFinal(ctx.pcm16k);
+                ctx.fedSamples = activeFedSamples_;
                 activeStream_ = nullptr;
                 if (!finalText.empty()) emitResult(op.speakerId, true, finalText);
                 if (ctx.stream) api->destroyStream(static_cast<const SherpaOnnxOnlineStream*>(ctx.stream));
@@ -290,7 +307,9 @@ void SherpaStt::workerMain() {
             // 周期产出部分结果（增量字幕）
             if (totalMs - ctx.lastPartialMs >= static_cast<size_t>(options_.partialIntervalMs)) {
                 activeStream_ = ctx.stream;
+                activeFedSamples_ = ctx.fedSamples;
                 auto text = transcribePartial(ctx.pcm16k);
+                ctx.fedSamples = activeFedSamples_;
                 activeStream_ = nullptr;
                 if (!text.empty()) {
                     ctx.lastPartialMs = totalMs;

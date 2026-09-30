@@ -11,6 +11,7 @@
 #include <vector>
 #include <map>
 #include <memory>
+#include <set>
 
 #include "core/audio/AudioTypes.h"
 #include "core/audio/MixerCore.h"
@@ -50,6 +51,9 @@ public:
     void stop();
     bool running() const { return running_.load(); }
     void setStt(pipeline::IStt* stt);
+    // PTT 生命周期边界：Begin 立即入 STT，End 延迟到当前抖动缓冲排空后提交。
+    void beginSttUtterance(const protocol::PlayerId& speakerId);
+    void endSttUtterance(const protocol::PlayerId& speakerId);
     void tickOnce(int64_t nowMs);
     void drainPending(const std::function<void(const protocol::PlayerId&, const protocol::Message&)>& sendFn);
     uint64_t tickCount() const { return tickCount_.load(); }
@@ -66,6 +70,7 @@ private:
     bool feedFilePlaybackFrame(int frameSamples);
     void enqueueToAll(const protocol::Message& message);
     void enqueueTo(const protocol::PlayerId& peerId, const protocol::Message& message);
+    void flushSttEnd(const protocol::PlayerId& speakerId);
 
     SessionManager& sessions_;
     Config config_;
@@ -85,6 +90,8 @@ private:
     FilePlaybackSource filePlayback_;
     std::map<protocol::PlayerId, std::unique_ptr<codec::OpusEncoder>> encoders_;
     std::map<protocol::PlayerId, uint64_t> mixSeqs_;
+    std::set<protocol::PlayerId> sttActiveSpeakers_;
+    std::set<protocol::PlayerId> sttEndPending_;
 };
 
 } // namespace bsc::server

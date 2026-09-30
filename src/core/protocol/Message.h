@@ -106,8 +106,9 @@ struct MixStreamMessage {
 
 struct SttTextMessage {
     PlayerId speakerId{};
-    bool isFinal = false;      // true=最终结果，false=部分结果
+    bool isFinal = false;
     std::string text;
+    std::string speakerName;
 };
 
 struct ControlMessage {

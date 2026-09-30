@@ -32,6 +32,10 @@ void ServerMixer::stop() {
 }
 
 void ServerMixer::setStt(pipeline::IStt* stt) {
+    for (const auto& speakerId : sttActiveSpeakers_) {
+        if (stt_ && stt_->available()) stt_->endUtterance(speakerId);
+    }
+    sttActiveSpeakers_.clear();
     stt_ = stt;
     if (!stt_) return;
     stt_->setResultSink([this](const pipeline::SttResult& result) {
@@ -39,7 +43,7 @@ void ServerMixer::setStt(pipeline::IStt* stt) {
         message.speakerId = result.speakerId;
         message.isFinal = result.isFinal;
         message.text = result.text;
-        enqueueToAll(message);
+        if (!message.text.empty() || message.isFinal) enqueueToAll(message);
     });
 }
 
@@ -52,6 +56,19 @@ void ServerMixer::stopFilePlayback() { filePlayback_.stop(); }
 bool ServerMixer::filePlaybackActive() const { return filePlayback_.active(); }
 
 std::string ServerMixer::filePlaybackName() const { return filePlayback_.fileName(); }
+
+void ServerMixer::beginSttUtterance(const protocol::PlayerId& speakerId) {
+    if (!stt_ || !stt_->available()) return;
+    stt_->beginUtterance(speakerId);
+    sttActiveSpeakers_.insert(speakerId);
+}
+
+void ServerMixer::endSttUtterance(const protocol::PlayerId& speakerId) {
+    if (!stt_ || !stt_->available()) return;
+    // End 被控制线程接收时不立即调用：tickOnce 会先排空该玩家的抖动缓冲，
+    // 下一次 tick 后再收尾，避免松键后的尾帧丢失。
+    sttEndPending_.insert(speakerId);
+}
 
 void ServerMixer::tickOnce(int64_t nowMs) {
     // 节拍对齐：本函数由 ServerRuntime 在 ServerLevelTickEvent（50ms）里驱动，而混音周期是
@@ -68,14 +85,20 @@ void ServerMixer::tickOnce(int64_t nowMs) {
 
     auto sessions = sessions_.snapshot();
 
-    // 收帧：按说话者排队，而不是“drain 后覆盖式喂入”。同一 tick 内的 framesPerTick 个子帧
-    // 各取一段不同音频；积压超过 framesPerTick 时丢最旧，避免时延持续累积。
+    // 收帧：PTT 边界由 ServerRuntime 通过 begin/end 驱动；这里仅负责把抖动缓冲
+    // 中已经排空的 PCM 送入对应玩家的独立 STT 上下文。旧协议的音频 flags 仍兼容。
     for (const auto& session : sessions) {
         while (auto frame = session->pollFrame(nowMs)) {
             if (stt_ && stt_->available()) {
-                if (frame->flags & protocol::AudioFlagStart) stt_->beginUtterance(session->id());
+                if (frame->flags & protocol::AudioFlagStart) {
+                    stt_->beginUtterance(session->id());
+                    sttActiveSpeakers_.insert(session->id());
+                }
                 if (!frame->pcm.empty()) stt_->feedAudio(session->id(), frame->pcm);
-                if (frame->flags & protocol::AudioFlagEnd) stt_->endUtterance(session->id());
+                if (frame->flags & protocol::AudioFlagEnd) {
+                    stt_->endUtterance(session->id());
+                    sttActiveSpeakers_.erase(session->id());
+                }
             }
             if (frame->pcm.empty()) continue;
             auto& queue = uploadQueues_[session->id()];
@@ -83,6 +106,16 @@ void ServerMixer::tickOnce(int64_t nowMs) {
             queue.push_back(std::move(frame->pcm));
         }
     }
+    // 当前 tick 已经把每个会话的抖动缓冲排空；现在才提交 PTT 松开的 End，
+    // 因而最后到达的音频帧已经进入 STT 队列。
+    for (auto it = sttEndPending_.begin(); it != sttEndPending_.end();) {
+        if (sttActiveSpeakers_.find(*it) != sttActiveSpeakers_.end()) {
+            stt_->endUtterance(*it);
+            sttActiveSpeakers_.erase(*it);
+        }
+        it = sttEndPending_.erase(it);
+    }
+
     // 清理已离线说话者的积压（其中是原始 PCM，不能长期滞留）
     for (auto it = uploadQueues_.begin(); it != uploadQueues_.end();) {
         const bool online = std::any_of(sessions.begin(), sessions.end(), [&](auto const& session) {

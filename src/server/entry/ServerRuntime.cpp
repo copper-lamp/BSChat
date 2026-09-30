@@ -10,6 +10,7 @@
 #include <vector>
 #include <utility>
 #include <variant>
+#include <filesystem>
 
 namespace bsc::server {
 
@@ -91,7 +92,10 @@ void ServerRuntime::stop() {
         }
     }
     const int64_t nowMs = steadyNowMs();
-    for (const auto& id : activeSpeakers) finishSpeechActivity(id, "runtime_stopped", nowMs);
+    for (const auto& id : activeSpeakers) {
+        mixer_.endSttUtterance(id);
+        finishSpeechActivity(id, "runtime_stopped", nowMs);
+    }
     mixer_.stopFilePlayback();
     mixer_.stop();
 }
@@ -248,12 +252,16 @@ void ServerRuntime::handleControl(const protocol::PlayerId& peerId, const protoc
     if (!sessions_.find(peerId)) return;
     const int64_t nowMs = steadyNowMs();
     if (control.type == protocol::ControlType::PttPressed) {
-        std::lock_guard lock(speechMutex_);
-        if (speechLoggingStopped_) return;
-        if (speechActivities_.find(peerId) == speechActivities_.end()) {
-            speechActivities_.emplace(peerId, SpeechActivity{nowMs});
+        {
+            std::lock_guard lock(speechMutex_);
+            if (speechLoggingStopped_) return;
+            if (speechActivities_.find(peerId) == speechActivities_.end()) {
+                speechActivities_.emplace(peerId, SpeechActivity{nowMs});
+            }
         }
+        mixer_.beginSttUtterance(peerId);
     } else if (control.type == protocol::ControlType::PttReleased) {
+        mixer_.endSttUtterance(peerId);
         finishSpeechActivity(peerId, "ptt_released", nowMs);
     }
 }
@@ -322,6 +330,7 @@ void ServerRuntime::recordAudioDiagnostic(std::string const& reason, size_t byte
 }
 
 void ServerRuntime::removeSession(const protocol::PlayerId& id) {
+    mixer_.endSttUtterance(id);
     finishSpeechActivity(id, "disconnected", steadyNowMs());
     {
         std::lock_guard lock(negotiatedCapabilitiesMutex_);
@@ -347,11 +356,17 @@ std::unique_ptr<SherpaStt> ServerRuntime::createStt() const {
     if (!config_.sttEnabled) return nullptr;
 
     SherpaStt::Options options;
-    options.libraryPath = config_.sttModel.libraryPath;
-    options.encoderPath = config_.sttModel.encoderPath;
-    options.decoderPath = config_.sttModel.decoderPath;
-    options.joinerPath = config_.sttModel.joinerPath;
-    options.tokensPath = config_.sttModel.tokensPath;
+    auto resolvePath = [](const std::string& value) {
+        if (value.empty()) return std::string{};
+        std::filesystem::path path(value);
+        if (path.is_absolute()) return path.string();
+        return (std::filesystem::current_path() / path).lexically_normal().string();
+    };
+    options.libraryPath = resolvePath(config_.sttModel.libraryPath);
+    options.encoderPath = resolvePath(config_.sttModel.encoderPath);
+    options.decoderPath = resolvePath(config_.sttModel.decoderPath);
+    options.joinerPath = resolvePath(config_.sttModel.joinerPath);
+    options.tokensPath = resolvePath(config_.sttModel.tokensPath);
     options.threads = config_.sttModel.threads;
     options.partialIntervalMs = config_.sttModel.partialIntervalMs;
     return std::make_unique<SherpaStt>(std::move(options));

@@ -55,6 +55,7 @@ public:
     void beginUtterance(const protocol::PlayerId& speakerId) override;
     void feedAudio(const protocol::PlayerId& speakerId, const std::vector<float>& pcm) override;
     void endUtterance(const protocol::PlayerId& speakerId) override;
+    const std::string& error() const { return error_; }
     void setResultSink(ResultSink sink) override;
     bool available() const override { return available_.load(); }
     void shutdown() override;
@@ -70,6 +71,7 @@ protected:
     virtual std::string transcribeFinal(const std::vector<float>& pcm16k);
 
     std::atomic<bool> available_{false};
+    std::string error_;
 
 private:
     struct Op {

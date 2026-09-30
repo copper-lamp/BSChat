@@ -155,6 +155,40 @@ TEST(stt_resample_48k_to_16k) {
     for (float v : out) EXPECT_NEAR(v, 1.0f, 1e-6f);
 }
 
+TEST(stt_keeps_independent_progress_for_multiple_speakers) {
+    SherpaStt::Options options;
+    options.partialIntervalMs = 600;
+    FakeStt stt("部分", "最终", options);
+    Sink sink;
+    stt.setResultSink([&](const SttResult& r) { sink.onResult(r); });
+    const auto first = makePlayerId(1);
+    const auto second = makePlayerId(2);
+    std::vector<float> chunk(static_cast<size_t>(48000 * 0.6), 0.0f);
+
+    stt.beginUtterance(first);
+    stt.beginUtterance(second);
+    stt.feedAudio(first, chunk);
+    stt.feedAudio(second, chunk);
+    EXPECT_TRUE(sink.waitFor(2) >= 2);
+    stt.endUtterance(first);
+    stt.endUtterance(second);
+    EXPECT_TRUE(sink.waitFor(4) >= 4);
+
+    size_t firstFinals = 0;
+    size_t secondFinals = 0;
+    {
+        std::lock_guard lock(sink.mutex);
+        for (const auto& result : sink.results) {
+            if (!result.isFinal) continue;
+            if (result.speakerId == first) ++firstFinals;
+            if (result.speakerId == second) ++secondFinals;
+        }
+    }
+    EXPECT_EQ(firstFinals, 1u);
+    EXPECT_EQ(secondFinals, 1u);
+    stt.shutdown();
+}
+
 TEST(stt_begin_without_feed_ignores_end) {
     FakeStt stt("", "空句");
     Sink sink;
