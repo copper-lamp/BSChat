@@ -31,10 +31,14 @@ namespace bsc::server {
 class SherpaStt : public pipeline::IStt {
 public:
     struct Options {
+        // 模型族：transducer / paraformer / zipformer2_ctc / nemo_ctc / t_one_ctc。
+        // 决定下面哪几个路径字段被使用，其余留空即可（见 Config.h 的说明）。
+        std::string modelType = "transducer";
         std::string libraryPath;
-        std::string encoderPath;       // 流式 Zipformer encoder.onnx
+        std::string encoderPath;       // transducer / paraformer 的 encoder.onnx
         std::string decoderPath;       // decoder.onnx
-        std::string joinerPath;        // joiner.onnx
+        std::string joinerPath;        // 仅 transducer
+        std::string modelPath;         // zipformer2_ctc / nemo_ctc / t_one_ctc 的单文件
         std::string tokensPath;        // tokens.txt
         int threads = 4;               // 推理线程数
         size_t maxQueued = 64;         // 喂帧队列上限：超限丢最旧

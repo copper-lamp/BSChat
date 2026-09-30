@@ -107,20 +107,41 @@ SherpaStt::SherpaStt(Options options, LogFn log)
             SherpaOnnxOnlineRecognizerConfig config{};
             config.feat_config.sample_rate = 16000;
             config.feat_config.feature_dim = 80;
-            config.model_config.transducer.encoder = options_.encoderPath.c_str();
-            config.model_config.transducer.decoder = options_.decoderPath.c_str();
-            config.model_config.transducer.joiner = options_.joinerPath.c_str();
             config.model_config.tokens = options_.tokensPath.c_str();
             config.model_config.num_threads = std::clamp(options_.threads, 1, 8);
             config.model_config.provider = "cpu";
-            config.model_config.modeling_unit = "cjkchar";
             config.decoding_method = "greedy_search";
+
+            // sherpa-onnx 在线侧支持多个模型族，同一时刻只配置一个
+            // （c-api.h 的 SherpaOnnxOnlineModelConfig 注释明确要求）。
+            // 这里按 modelType 只填对应分支，其余保持零值。
+            const std::string& type = options_.modelType;
+            if (type == "paraformer") {
+                config.model_config.paraformer.encoder = options_.encoderPath.c_str();
+                config.model_config.paraformer.decoder = options_.decoderPath.c_str();
+                config.model_config.modeling_unit = "cjkchar";
+            } else if (type == "zipformer2_ctc") {
+                config.model_config.zipformer2_ctc.model = options_.modelPath.c_str();
+                config.model_config.modeling_unit = "cjkchar";
+            } else if (type == "nemo_ctc") {
+                config.model_config.nemo_ctc.model = options_.modelPath.c_str();
+                config.model_config.modeling_unit = "cjkchar";
+            } else if (type == "t_one_ctc") {
+                config.model_config.t_one_ctc.model = options_.modelPath.c_str();
+                config.model_config.modeling_unit = "cjkchar";
+            } else {
+                config.model_config.transducer.encoder = options_.encoderPath.c_str();
+                config.model_config.transducer.decoder = options_.decoderPath.c_str();
+                config.model_config.transducer.joiner = options_.joinerPath.c_str();
+                config.model_config.modeling_unit = "cjkchar";
+            }
+
             recognizer_ = const_cast<SherpaOnnxOnlineRecognizer*>(api->createRecognizer(&config));
             if (recognizer_) {
                 api_ = api.release();
                 available_ = true;
             } else {
-                error_ = "sherpa-onnx 识别器创建失败";
+                error_ = "sherpa-onnx 识别器创建失败（检查 modelType 与模型文件是否匹配）";
                 if (log_) log_(error_);
             }
         } else {

@@ -394,10 +394,12 @@ std::unique_ptr<SherpaStt> ServerRuntime::createStt() const {
         if (path.is_absolute()) return path.string();
         return (std::filesystem::current_path() / path).lexically_normal().string();
     };
+    options.modelType = config_.sttModel.modelType;
     options.libraryPath = resolvePath(config_.sttModel.libraryPath);
     options.encoderPath = resolvePath(config_.sttModel.encoderPath);
     options.decoderPath = resolvePath(config_.sttModel.decoderPath);
     options.joinerPath = resolvePath(config_.sttModel.joinerPath);
+    options.modelPath = resolvePath(config_.sttModel.modelPath);
     options.tokensPath = resolvePath(config_.sttModel.tokensPath);
     options.threads = config_.sttModel.threads;
     options.partialIntervalMs = config_.sttModel.partialIntervalMs;

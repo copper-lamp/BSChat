@@ -12,9 +12,23 @@ below, in addition to the AGPL-3.0 terms of the project itself.
 |---|---|---|---|---|
 | [Opus](https://opus-codec.org/) (libopus) | v1.5.2 | BSD 3-Clause | static | `licenses/OPUS-LICENSE.md` |
 | [nlohmann/json](https://github.com/nlohmann/json) | latest | MIT | static (header-only) | `licenses/NLOHMANN-JSON-LICENSE.md` |
-| [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx) | — | Apache-2.0 | server build | `licenses/SHERPA-ONNX-LICENSE.md` |
+| [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx) | 1.13.8 | Apache-2.0 | server build | `licenses/SHERPA-ONNX-LICENSE.md` |
 | [ONNX Runtime](https://github.com/microsoft/onnxruntime) | — | MIT | server build dependency | `licenses/ONNXRUNTIME-LICENSE.md` |
 | [LeviLamina](https://github.com/LiteLDev/LeviLamina) | 26.10.14 | LGPL-3.0 | dynamic (host loader) | `licenses/LEVILAMINA-LICENSE.md` |
+
+### Speech recognition models (optional, user-installed)
+
+Speech-to-text model weights are **not** redistributed with BSChat.
+`scripts/Install-SttModel.ps1` downloads them on demand into `stt/models/`.
+Users who install a model are responsible for complying with that model's own
+license; see `docs/stt-model-installer.md` for the per-model inventory.
+
+| Model family | Upstream | License | Model type |
+|---|---|---|---|
+| streaming zipformer (zh) | [k2-fsa/icefall](https://github.com/k2-fsa/icefall) | Apache-2.0 | `transducer` |
+| streaming zipformer CTC (zh) | [k2-fsa/icefall](https://github.com/k2-fsa/icefall) | Apache-2.0 | `zipformer2_ctc` |
+| streaming paraformer (zh-en) | Alibaba DAMO (ModelScope) | verify before release | `paraformer` |
+| streaming paraformer (zh-yue-en) | ModelScope | verify before release | `paraformer` |
 
 ## License summary and obligations
 
@@ -25,7 +39,8 @@ below, in addition to the AGPL-3.0 terms of the project itself.
 - **nlohmann/json (MIT)** — its copyright notice and permission notice must be
   included in all copies or substantial portions of the Software.
 - **sherpa-onnx (Apache-2.0)** — preserve the license and NOTICE requirements for the
-  server-side streaming speech-to-text runtime.
+  server-side streaming speech-to-text runtime. The runtime DLLs are downloaded by
+  `scripts/Install-SttModel.ps1`, not redistributed in the repository.
 - **ONNX Runtime (MIT)** — preserve the copyright and permission notice when the
   server-side runtime is redistributed.
 - **LeviLamina (LGPL-3.0)** — dynamically linked only; BSChat does

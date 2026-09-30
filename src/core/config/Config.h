@@ -18,12 +18,23 @@ struct AudioConfig {
     int complexity = 10;
 };
 
-// sherpa-onnx 流式 STT 模型（流式 Zipformer，四个 ONNX/token 文件）
+// sherpa-onnx 在线 STT 模型。
+// sherpa-onnx 的在线识别器支持多个模型族，同一时刻只能配置一个
+// （见 third_party/sherpa-onnx/c-api.h 的 SherpaOnnxOnlineModelConfig）。
+// modelType 决定读哪几个路径字段：
+//   "transducer"     → encoderPath / decoderPath / joinerPath
+//   "paraformer"     → encoderPath / decoderPath
+//   "zipformer2_ctc" → modelPath（单文件）
+//   "nemo_ctc"       → modelPath（单文件）
+//   "t_one_ctc"      → modelPath（单文件）
+// 缺省 transducer，旧配置文件无需改动。
 struct SttModelConfig {
+    std::string modelType = "transducer";
     std::string libraryPath;
     std::string encoderPath; // encoder.onnx（相对服务端模组目录）
     std::string decoderPath; // decoder.onnx
     std::string joinerPath;  // joiner.onnx
+    std::string modelPath;   // zipformer2_ctc / nemo_ctc / t_one_ctc 的单模型文件
     std::string tokensPath;  // tokens.txt
     int threads = 4;         // 推理线程数
     int partialIntervalMs = 350; // 低延迟部分结果产出间隔（累积音频时长）

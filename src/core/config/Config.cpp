@@ -51,23 +51,36 @@ nlohmann::json audioToJson(const AudioConfig& c) {
 SttModelConfig sttModelFromJson(const nlohmann::json& j) {
     SttModelConfig c;
     if (j.is_object()) {
+        c.modelType = valueOr(j, "modelType", c.modelType);
         c.libraryPath = valueOr(j, "libraryPath", c.libraryPath);
         c.encoderPath = valueOr(j, "encoderPath", c.encoderPath);
         c.decoderPath = valueOr(j, "decoderPath", c.decoderPath);
         c.joinerPath = valueOr(j, "joinerPath", c.joinerPath);
+        c.modelPath = valueOr(j, "modelPath", c.modelPath);
         c.tokensPath = valueOr(j, "tokensPath", c.tokensPath);
         c.threads = valueOr(j, "threads", c.threads);
         c.partialIntervalMs = valueOr(j, "partialIntervalMs", c.partialIntervalMs);
+        // 手填配置兜底：只认在线识别器真实支持的模型族，认不出就退回 transducer，
+        // 避免拼错的 modelType 静默走到「什么都没配」的空识别器。
+        static constexpr const char* kModelTypes[] = {
+            "transducer", "paraformer", "zipformer2_ctc", "nemo_ctc", "t_one_ctc"};
+        bool known = false;
+        for (const auto* type : kModelTypes) {
+            if (c.modelType == type) { known = true; break; }
+        }
+        if (!known) c.modelType = "transducer";
     }
     return c;
 }
 
 nlohmann::json sttModelToJson(const SttModelConfig& c) {
     nlohmann::json j;
+    j["modelType"] = c.modelType;
     j["libraryPath"] = c.libraryPath;
     j["encoderPath"] = c.encoderPath;
     j["decoderPath"] = c.decoderPath;
     j["joinerPath"] = c.joinerPath;
+    j["modelPath"] = c.modelPath;
     j["tokensPath"] = c.tokensPath;
     j["threads"] = c.threads;
     j["partialIntervalMs"] = c.partialIntervalMs;

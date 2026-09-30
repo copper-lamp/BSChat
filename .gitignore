@@ -549,3 +549,6 @@ fabric.properties
 # Project specific ignores
 /.idea/
 /bin/
+
+# 用户自行下载的 STT 模型与运行时（由 scripts/Install-SttModel.ps1 投放，不入库）
+/stt/

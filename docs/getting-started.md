@@ -38,11 +38,22 @@ If you hear nothing, check:
 
 Subtitles require the server-side speech-to-text feature:
 
-1. On the server, set `sttEnabled` to `true` in `config.json`.
-2. Provide the streaming Zipformer files configured by `sttModel.encoderPath`, `sttModel.decoderPath`, `sttModel.joinerPath`, and `sttModel.tokensPath`.
+1. On the server, run the model installer and pick a tier:
+
+   ```powershell
+   .\scripts\Install-SttModel.ps1
+   ```
+
+   It downloads the sherpa-onnx runtime and the selected model into `stt/`,
+   then writes the `sttModel` section of `config/bschat.json`. Use
+   `-Model <id>` to install without the interactive menu. Model tiers are
+   listed in [stt-model-installer](stt-model-installer.md).
+
+2. Restart the server so the new configuration takes effect.
 3. On the client, keep `subtitleEnabled` set to `true`.
 
-If the model is missing, speech-to-text is disabled without affecting voice.
+If the model is missing or fails to load, speech-to-text is disabled without
+affecting voice.
 
 ## Next steps
 

@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **STT 模型安装器** — `scripts/Install-SttModel.ps1` 提供交互式选型，下载并校验
+  sherpa-onnx 运行时与所选模型，写入 `config/bschat.json` 的 `sttModel` 段。
+  五档模型覆盖纯中文（极速/标准/高配）与中英、中英粤双语需求。
+- **`sttModel.modelType`** — 服务端不再假定 transducer。新增 `modelType` 与 `modelPath`
+  配置字段，支持 sherpa-onnx 在线识别器的全部模型族（`transducer`、`paraformer`、
+  `zipformer2_ctc`、`nemo_ctc`、`t_one_ctc`）。缺省 `transducer`，旧配置无需改动。
+
+### Changed
+
+- 服务端加载失败时的日志会提示检查 `modelType` 与模型文件是否匹配。
+
 ## [0.1.1] - 2026-09-26
 
 Pins the v1 wire protocol as a stable, append-only contract, and makes capability negotiation and

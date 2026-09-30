@@ -398,6 +398,7 @@ bool ServerMod::loadConfig() {
     resolve(config_.sttModel.encoderPath);
     resolve(config_.sttModel.decoderPath);
     resolve(config_.sttModel.joinerPath);
+    resolve(config_.sttModel.modelPath);
     resolve(config_.sttModel.tokensPath);
     return true;
 }
