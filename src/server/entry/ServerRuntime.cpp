@@ -329,6 +329,10 @@ void ServerRuntime::recordAudioDiagnostic(std::string const& reason, size_t byte
     logWarn(line);
 }
 
+void ServerRuntime::setSpeakerName(const protocol::PlayerId& id, std::string name) {
+    mixer_.setSpeakerName(id, std::move(name));
+}
+
 void ServerRuntime::removeSession(const protocol::PlayerId& id) {
     mixer_.endSttUtterance(id);
     finishSpeechActivity(id, "disconnected", steadyNowMs());

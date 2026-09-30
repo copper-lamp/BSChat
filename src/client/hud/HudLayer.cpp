@@ -72,8 +72,10 @@ void HudLayer::applyConfig(config::ClientConfig const& config) {
 void HudLayer::pushSttText(protocol::SttTextMessage const& text, int64_t timestampMs) {
     SubtitleLine line;
     line.speaker = text.speakerId;
+    line.speakerName = text.speakerName;
     line.text = text.text;
     line.isFinal = text.isFinal;
+    line.utteranceId = text.utteranceId;
     subtitles_.push(std::move(line), timestampMs);
 }
 

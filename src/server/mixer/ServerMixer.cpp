@@ -43,6 +43,9 @@ void ServerMixer::setStt(pipeline::IStt* stt) {
         message.speakerId = result.speakerId;
         message.isFinal = result.isFinal;
         message.text = result.text;
+        auto name = speakerNames_.find(result.speakerId);
+        if (name != speakerNames_.end()) message.speakerName = name->second;
+        message.utteranceId = result.utteranceId;
         if (!message.text.empty() || message.isFinal) enqueueToAll(message);
     });
 }
@@ -57,7 +60,12 @@ bool ServerMixer::filePlaybackActive() const { return filePlayback_.active(); }
 
 std::string ServerMixer::filePlaybackName() const { return filePlayback_.fileName(); }
 
-void ServerMixer::beginSttUtterance(const protocol::PlayerId& speakerId) {
+void ServerMixer::setSpeakerName(const protocol::PlayerId& speakerId, std::string speakerName) {
+    if (!speakerName.empty()) speakerNames_[speakerId] = std::move(speakerName);
+}
+
+void ServerMixer::beginSttUtterance(const protocol::PlayerId& speakerId, std::string speakerName) {
+    if (!speakerName.empty()) speakerNames_[speakerId] = std::move(speakerName);
     if (!stt_ || !stt_->available()) return;
     stt_->beginUtterance(speakerId);
     sttActiveSpeakers_.insert(speakerId);

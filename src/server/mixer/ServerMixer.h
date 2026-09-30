@@ -12,6 +12,7 @@
 #include <map>
 #include <memory>
 #include <set>
+#include <string>
 
 #include "core/audio/AudioTypes.h"
 #include "core/audio/MixerCore.h"
@@ -52,7 +53,8 @@ public:
     bool running() const { return running_.load(); }
     void setStt(pipeline::IStt* stt);
     // PTT 生命周期边界：Begin 立即入 STT，End 延迟到当前抖动缓冲排空后提交。
-    void beginSttUtterance(const protocol::PlayerId& speakerId);
+    void setSpeakerName(const protocol::PlayerId& speakerId, std::string speakerName);
+    void beginSttUtterance(const protocol::PlayerId& speakerId, std::string speakerName = {});
     void endSttUtterance(const protocol::PlayerId& speakerId);
     void tickOnce(int64_t nowMs);
     void drainPending(const std::function<void(const protocol::PlayerId&, const protocol::Message&)>& sendFn);
@@ -92,6 +94,7 @@ private:
     std::map<protocol::PlayerId, uint64_t> mixSeqs_;
     std::set<protocol::PlayerId> sttActiveSpeakers_;
     std::set<protocol::PlayerId> sttEndPending_;
+    std::map<protocol::PlayerId, std::string> speakerNames_;
 };
 
 } // namespace bsc::server

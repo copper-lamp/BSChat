@@ -383,6 +383,7 @@ void ServerMod::onJoin(ll::event::player::PlayerJoinEvent& event) {
     auto& player = event.self();
     auto const id = playerId(player);
     players_[id] = &player;
+    if (runtime_) runtime_->setSpeakerName(id, player.getRealName());
     shared::FileLog::info("onJoin: player joined, active players = " + std::to_string(players_.size()));
 }
 

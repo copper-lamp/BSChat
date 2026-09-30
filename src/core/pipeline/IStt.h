@@ -13,6 +13,7 @@ struct SttResult {
     protocol::PlayerId speakerId{};
     bool isFinal = false; // false=部分结果（增量），true=最终结果
     std::string text;
+    uint64_t utteranceId = 0;
 };
 
 // 语音转文字抽象（流式语义）。

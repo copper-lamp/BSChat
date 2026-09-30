@@ -38,7 +38,7 @@ public:
         std::string tokensPath;        // tokens.txt
         int threads = 4;               // 推理线程数
         size_t maxQueued = 64;         // 喂帧队列上限：超限丢最旧
-        int partialIntervalMs = 600;   // 部分结果产出间隔（累积音频时长，ms）
+        int partialIntervalMs = 350;   // 低延迟部分结果产出间隔（累积音频时长，ms）
         size_t maxUtteranceMs = 30000; // 单句上限，超长强制切分
     };
 
@@ -82,6 +82,7 @@ private:
     };
 
     struct SpeakerCtx {
+        uint64_t utteranceId = 0;
         std::vector<float> pcm16k;
         size_t lastPartialMs = 0;
         size_t fedSamples = 0;
@@ -90,7 +91,7 @@ private:
 
     void workerMain();
     void enqueue(Op op);
-    void emitResult(const protocol::PlayerId& speakerId, bool isFinal, const std::string& text);
+    void emitResult(const protocol::PlayerId& speakerId, bool isFinal, const std::string& text, uint64_t utteranceId);
 
     Options options_;
     LogFn log_;
@@ -110,6 +111,7 @@ private:
 
     // 仅 worker 线程访问
     std::map<protocol::PlayerId, SpeakerCtx, std::less<>> contexts_;
+    uint64_t nextUtteranceId_ = 1;
 };
 
 } // namespace bsc::server

@@ -15,8 +15,10 @@ namespace bsc::client::hud {
 
 struct SubtitleLine {
     protocol::PlayerId speaker{};
+    std::string speakerName;
     std::string text;
     bool isFinal = false;
+    uint64_t utteranceId = 0;
     int64_t shownAtMs = 0;
 };
 

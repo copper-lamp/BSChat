@@ -29,6 +29,7 @@ public:
     void start(); void stop(); void tick();
     void onMessage(const protocol::PlayerId&, const protocol::Message&);
     void setTalking(bool); void submitAudio(std::vector<uint8_t>); void submitPcm(const float*, std::size_t);
+    void submitVadPcm(const float*, std::size_t);
     void setRenderSink(RenderSink sink); void setOutputVolume(float volume); void setOutputMuted(bool muted);
     // 自检用：把本机合成的 PCM 直接交给渲染 sink（经设备播放），不经过网络与服务端。
     void playLocalPcm(const float* samples, std::size_t count);
@@ -65,5 +66,6 @@ private:
     UiFormHandler uiFormHandler_;
     std::vector<float> pcmFrame_; std::vector<uint8_t> encoded_; std::size_t pcmPending_=0;
     uint64_t playedMixFrames_=0; uint64_t receivedMixFrames_=0; uint64_t sentAudioFrames_=0;
+    int vadSilentFrames_ = 0;
 };
 }

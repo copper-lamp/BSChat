@@ -65,6 +65,7 @@ void ClientRuntime::start() {
     nextPositionMs_ = 0;
     seq_ = 0;
     talking_ = false;
+    vadSilentFrames_ = 0;
     pcmPending_ = 0;
     declaredCapabilities_ = protocol::CapabilityNone;
     negotiatedCapabilities_ = protocol::CapabilityNone;
@@ -78,6 +79,7 @@ void ClientRuntime::start() {
 void ClientRuntime::stop() {
     state_ = State::Stopped;
     talking_ = false;
+    vadSilentFrames_ = 0;
     pcmPending_ = 0;
     declaredCapabilities_ = protocol::CapabilityNone;
     negotiatedCapabilities_ = protocol::CapabilityNone;
@@ -183,6 +185,29 @@ void ClientRuntime::submitAudio(std::vector<uint8_t> data) {
     if (state_ != State::Ready || !talking_ || data.empty()) return;
     transport_.send({}, protocol::AudioDataMessage{seq_++, protocol::AudioFlagNone, std::move(data)});
     ++sentAudioFrames_;
+}
+
+void ClientRuntime::submitVadPcm(const float* pcm, std::size_t samples) {
+    if (!config_.vadEnabled || !pcm || samples == 0) return;
+    double sum = 0.0;
+    for (std::size_t i = 0; i < samples; ++i) sum += static_cast<double>(pcm[i]) * pcm[i];
+    const float rms = static_cast<float>(std::sqrt(sum / static_cast<double>(samples)));
+    static constexpr float kStart = 0.018F;
+    static constexpr float kStop = 0.010F;
+    static constexpr int kHangoverFrames = 8;
+    if (!talking_ && rms >= kStart) setTalking(true);
+    if (talking_) {
+        submitPcm(pcm, samples);
+        if (rms < kStop) {
+            ++vadSilentFrames_;
+            if (vadSilentFrames_ >= kHangoverFrames) {
+                vadSilentFrames_ = 0;
+                setTalking(false);
+            }
+        } else {
+            vadSilentFrames_ = 0;
+        }
+    }
 }
 
 void ClientRuntime::submitPcm(const float* pcm, std::size_t samples) {

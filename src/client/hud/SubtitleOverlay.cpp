@@ -37,11 +37,19 @@ void SubtitleOverlay::push(SubtitleLine line, int64_t nowMs) {
 
     line.shownAtMs = nowMs;
 
-    // 部分结果持续覆盖同一说话者的最后一行，避免逐字打字机式堆行；
-    // 说话者一旦给出最终结果，下一条部分结果就是新的一句。
-    bool const replaceLast = !lines_.empty() && !line.isFinal && !lines_.back().isFinal
-                          && lines_.back().speaker == line.speaker;
-    if (replaceLast) {
+    // 按玩家 + utteranceId 精确定位；多人交错时仍替换原 partial，
+    // final 也会替换该话语的最后 partial，不再追加重复条目。
+    if (line.utteranceId != 0) {
+        for (auto& existing : lines_) {
+            if (existing.speaker == line.speaker && existing.utteranceId == line.utteranceId) {
+                if (existing.text == line.text && existing.isFinal == line.isFinal) return;
+                existing = std::move(line);
+                return;
+            }
+        }
+    } else if (!lines_.empty() && !line.isFinal && !lines_.back().isFinal
+               && lines_.back().speaker == line.speaker) {
+        if (lines_.back().text == line.text) return;
         lines_.back() = std::move(line);
         return;
     }

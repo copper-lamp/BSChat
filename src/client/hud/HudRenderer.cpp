@@ -98,7 +98,9 @@ bool HudRenderer::draw(ll::event::render::AfterUIRenderEvent& event, Frame const
         float const distanceFromBottom = layout.subtitleBottomOffset + static_cast<float>(count - 1 - i) * layout.subtitleLineHeight;
         float const y0 = height - distanceFromBottom - layout.subtitleLineHeight;
         float const y1 = y0 + layout.subtitleLineHeight;
-        std::string text = frame.subtitles[i].text;
+        std::string text = frame.subtitles[i].speakerName.empty()
+            ? frame.subtitles[i].text
+            : frame.subtitles[i].speakerName + "：" + frame.subtitles[i].text;
         RectangleArea rect(0.0f, y0, width, y1, false);
         context.drawText(
             font,
@@ -106,8 +108,8 @@ bool HudRenderer::draw(ll::event::render::AfterUIRenderEvent& event, Frame const
             std::move(text),
             mce::Color(1.0f, 1.0f, 1.0f, 1.0f),
             alpha,
-            ui::TextAlignment::Center,
-            TextMeasureData{layout.fontSize, 0.0f, true, false, false, ui::TextAlignment::Center},
+            ui::TextAlignment::Left,
+            TextMeasureData{layout.fontSize, 0.0f, true, false, false, ui::TextAlignment::Left},
             CaretMeasureData{0, false}
         );
     }

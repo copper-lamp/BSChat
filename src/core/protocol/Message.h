@@ -109,6 +109,7 @@ struct SttTextMessage {
     bool isFinal = false;
     std::string text;
     std::string speakerName;
+    uint64_t utteranceId = 0;
 };
 
 struct ControlMessage {

@@ -223,7 +223,10 @@ void ClientMod::onJoin(ll::event::client::ClientJoinLevelEvent& event) {
     if (audioDevice_) {
         audioDevice_->setCaptureCallback([this](const audio::WasapiPcmFrame& frame) {
             if (!config_.captureEnabled) return; // 采集开关：关闭后只收听
-            if (runtime_ && !frame.samples.empty()) runtime_->submitPcm(frame.samples.data(), frame.samples.size());
+            if (runtime_ && !frame.samples.empty()) {
+                if (config_.vadEnabled) runtime_->submitVadPcm(frame.samples.data(), frame.samples.size());
+                else runtime_->submitPcm(frame.samples.data(), frame.samples.size());
+            }
         });
         if (!audioDevice_->start()) {
             auto const detail = audioDevice_->lastError();

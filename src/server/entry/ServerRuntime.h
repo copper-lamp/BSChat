@@ -52,6 +52,7 @@ public:
 
     size_t sessionCount() const { return sessions_.size(); }
     void removeSession(const protocol::PlayerId& id);
+    void setSpeakerName(const protocol::PlayerId& id, std::string name);
     const config::ServerConfig& config() const { return config_; }
 
     // 真实音频回放自检：把一段 WAV 作为独立声源混入下行，供玩家听感验证传输质量。

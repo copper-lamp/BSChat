@@ -26,7 +26,7 @@ struct SttModelConfig {
     std::string joinerPath;  // joiner.onnx
     std::string tokensPath;  // tokens.txt
     int threads = 4;         // 推理线程数
-    int partialIntervalMs = 600; // 部分结果产出间隔（累积音频时长）
+    int partialIntervalMs = 350; // 低延迟部分结果产出间隔（累积音频时长）
 };
 
 // 服务端配置

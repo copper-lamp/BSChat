@@ -270,6 +270,8 @@ void SherpaStt::workerMain() {
             auto& context = contexts_[op.speakerId];
             if (api && context.stream) api->destroyStream(static_cast<const SherpaOnnxOnlineStream*>(context.stream));
             context = SpeakerCtx{};
+            context.utteranceId = nextUtteranceId_++;
+            if (nextUtteranceId_ == 0) nextUtteranceId_ = 1;
             activeFedSamples_ = 0;
             activeStream_ = nullptr;
             if (api && recognizer_) {
@@ -294,7 +296,7 @@ void SherpaStt::workerMain() {
                 auto finalText = transcribeFinal(ctx.pcm16k);
                 ctx.fedSamples = activeFedSamples_;
                 activeStream_ = nullptr;
-                if (!finalText.empty()) emitResult(op.speakerId, true, finalText);
+                if (!finalText.empty()) emitResult(op.speakerId, true, finalText, ctx.utteranceId);
                 if (ctx.stream) api->destroyStream(static_cast<const SherpaOnnxOnlineStream*>(ctx.stream));
                 ctx = SpeakerCtx{};
                 activeFedSamples_ = 0;
@@ -313,7 +315,7 @@ void SherpaStt::workerMain() {
                 activeStream_ = nullptr;
                 if (!text.empty()) {
                     ctx.lastPartialMs = totalMs;
-                    emitResult(op.speakerId, false, text);
+                    emitResult(op.speakerId, false, text, ctx.utteranceId);
                 }
             }
             break;
@@ -326,7 +328,7 @@ void SherpaStt::workerMain() {
                 activeStream_ = it->second.stream;
                 auto finalText = transcribeFinal(it->second.pcm16k);
                 activeStream_ = nullptr;
-                if (!finalText.empty()) emitResult(op.speakerId, true, finalText);
+                if (!finalText.empty()) emitResult(op.speakerId, true, finalText, it->second.utteranceId);
             }
             if (it->second.stream) {
                 if (auto* api = static_cast<Api*>(api_)) {
@@ -341,7 +343,7 @@ void SherpaStt::workerMain() {
     }
 }
 
-void SherpaStt::emitResult(const protocol::PlayerId& speakerId, bool isFinal, const std::string& text) {
+void SherpaStt::emitResult(const protocol::PlayerId& speakerId, bool isFinal, const std::string& text, uint64_t utteranceId) {
     ResultSink sink;
     {
         std::lock_guard lock(sinkMutex_);
@@ -353,6 +355,7 @@ void SherpaStt::emitResult(const protocol::PlayerId& speakerId, bool isFinal, co
     result.speakerId = speakerId;
     result.isFinal   = isFinal;
     result.text      = text;
+    result.utteranceId = utteranceId;
     sink(result);
 }
 
