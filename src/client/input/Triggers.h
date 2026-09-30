@@ -39,14 +39,16 @@ public:
         float startRatio = 3.5F; // 起始门限 = max(threshold, 噪声底 * startRatio)
         float stopRatio = 1.8F;  // 停止门限 = max(threshold * stopFactor, 噪声底 * stopRatio)
         float stopFactor = 0.6F; // 停止门限相对绝对下限的折扣
-        float floorUp = 0.004F;  // 噪声底上升系数（慢）：讲话不能抬高噪声底
+        float floorUp = 0.002F;  // 噪声底上升系数（慢）：讲话不能抬高噪声底
         float floorDown = 0.20F; // 噪声底下降系数（快）：环境变安静要快速跟上
         int onsetMs = 60;        // 连续超起始门限多久才真正开始说话
         int holdMs = 350;        // 连续低于停止门限多久才真正结束说话
     };
 
-    // threshold：绝对起始门限下限；holdMs：兼容旧调用，表示 holdMs（onsetMs 取 0）。
-    explicit VadTrigger(float threshold = 0.02F, int holdMs = 180, TriggerCallback callback = {});
+    // threshold：绝对起始门限下限。取 0.004（约 -48dBFS）——只当「确实是静音」的兜底，
+    // 真正的门限由自适应噪声底决定。取得再高（早先的 0.02）会把低增益麦克风的人声整片挡在门外，
+    // 表现为「面板开了自动检测但从不触发」。
+    explicit VadTrigger(float threshold = 0.004F, int holdMs = 180, TriggerCallback callback = {});
     VadTrigger(float threshold, int holdMs, int onsetMs, TriggerCallback callback);
 
     void onLevel(float rms, int64_t atMs);

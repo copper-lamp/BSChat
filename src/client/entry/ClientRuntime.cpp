@@ -30,8 +30,9 @@ ClientRuntime::ClientRuntime(
     vadEnabled_.store(config_.vadEnabled);
     talkMode_.store(config_.vadEnabled ? 1 : 0);
     // VAD 判定器的回调在本对象里驱动 setTalking；它运行在采集（音频）线程。
-    // 绝对下限取 0.02（约 -34dBFS）：麦克风增益再低也有人声能过，而噪声底自适应负责抬高门限。
-    vad_ = std::make_unique<input::VadTrigger>(0.02F, 350, 60, [this](bool active, int64_t) { setTalking(active); });
+    // 绝对下限只当「确实是静音」的兜底（0.004 ≈ -48dBFS），真正的门限由自适应噪声底决定：
+    // 早先固定 0.018/0.010 的门限在低增益麦克风上永远触发不了。
+    vad_ = std::make_unique<input::VadTrigger>(0.004F, 350, 60, [this](bool active, int64_t) { setTalking(active); });
     transport_.setMessageHandler([this](const auto& id, const auto& message) { onMessage(id, message); });
     rebuildCodecs();
     jitter_ = ::bsc::audio::JitterBuffer({static_cast<std::size_t>(std::max(1, config_.jitterMaxDepthFrames)),
