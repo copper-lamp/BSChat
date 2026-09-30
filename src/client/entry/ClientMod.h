@@ -43,6 +43,8 @@ public:
 private:
     void startSmokeTest();
     void updateHudStatus();
+    // 把一条服务端下发的字幕结果（含说话人名字与文本）写进客户端日志。
+    void logSttText(protocol::SttTextMessage const& text, int64_t nowMs);
     void onJoin(class ll::event::client::ClientJoinLevelEvent& event);
     void onExit(class ll::event::client::ClientExitLevelEvent& event);
     void onTick(class ll::event::world::ClientLevelTickEvent& event);
@@ -65,6 +67,8 @@ private:
     std::shared_ptr<ll::event::Listener<ll::event::client::ClientExitLevelEvent>> exitListener_;
     std::shared_ptr<ll::event::Listener<ll::event::world::ClientLevelTickEvent>> tickListener_;
     std::shared_ptr<ll::event::Listener<ll::event::input::KeyInputEvent>> keyListener_;
+    // 自动检测模式下按 PTT 键只记一次日志，避免每次按键都刷屏。
+    bool pttIgnoredLogged_ = false;
 };
 
 } // namespace bsc::client

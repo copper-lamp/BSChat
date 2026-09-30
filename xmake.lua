@@ -118,8 +118,12 @@ target("bschat")
         end
         local modDir = path.join(os.projectdir(), "bin", target:name())
         copy_json_dir(path.join(os.projectdir(), "lang"), path.join(modDir, "lang"))
-        copy_json_dir(path.join(os.projectdir(), "panels"), path.join(modDir, "panels"))
-        copy_tree(path.join(os.projectdir(), "icons"), path.join(modDir, "icons"))
+        if is_config("target_type", "server") then
+            copy_json_dir(path.join(os.projectdir(), "panels"), path.join(modDir, "panels"))
+        else
+            copy_json_dir(path.join(os.projectdir(), "panels"), path.join(modDir, "panels"))
+            copy_tree(path.join(os.projectdir(), "icons"), path.join(modDir, "icons"))
+        end
     end)
 
 -- 单元测试：host 运行，链接 core 静态库与第三方依赖，不进入默认构建。

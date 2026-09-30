@@ -176,6 +176,68 @@ TEST(mixer_drives_stt_and_broadcasts_text) {
     EXPECT_EQ(textCount, 2u);
 }
 
+// 字幕前缀（说话人名字）必须跟着识别结果一起下发，并且每条结果都要落日志：
+// 少了名字就是「字幕没有玩家名字」，少了日志就是这个问题在现场完全无法定位。
+TEST(mixer_attaches_speaker_name_and_logs_every_result) {
+    SessionManager sessions;
+    auto id = makePlayerId(20);
+    sessions.addSession(id, {});
+    ServerMixer mixer(sessions, {});
+    RecordStt stt;
+    mixer.setStt(&stt);
+    std::vector<std::string> logs;
+    std::vector<bool> warns;
+    mixer.setLog([&](bool isError, const std::string& message) {
+        warns.push_back(isError);
+        logs.push_back(message);
+    });
+
+    mixer.setSpeakerName(id, "Steve");
+    stt.emit(id, false, "部分");
+    stt.emit(id, true, "最终");
+    auto out = collect(mixer);
+
+    int textCount = 0;
+    for (auto& [peer, msg] : out) {
+        (void)peer;
+        if (auto* t = std::get_if<SttTextMessage>(&msg)) {
+            ++textCount;
+            EXPECT_EQ(t->speakerName, std::string("Steve"));
+        }
+    }
+    EXPECT_EQ(textCount, 2);
+    EXPECT_EQ(logs.size(), 2u);
+    EXPECT_TRUE(logs[0].find("name=\"Steve\"") != std::string::npos);
+    EXPECT_TRUE(logs[0].find("text=\"部分\"") != std::string::npos);
+    EXPECT_TRUE(logs[1].find("kind=final") != std::string::npos);
+    EXPECT_FALSE(warns[0]);
+    EXPECT_FALSE(warns[1]);
+}
+
+// 没登记名字时按 warn 落日志（而不是静默发出空名字），并且空名不覆盖已有名字。
+TEST(mixer_warns_on_missing_speaker_name) {
+    SessionManager sessions;
+    auto id = makePlayerId(21);
+    sessions.addSession(id, {});
+    ServerMixer mixer(sessions, {});
+    RecordStt stt;
+    mixer.setStt(&stt);
+    std::vector<bool> warns;
+    mixer.setLog([&](bool isError, const std::string&) { warns.push_back(isError); });
+
+    mixer.setSpeakerName(id, "Steve");
+    mixer.setSpeakerName(id, {}); // 入服早期取不到名字是常态，不能把已有名字抹掉
+    stt.emit(id, true, "最终");
+
+    auto out = collect(mixer);
+    for (auto& [peer, msg] : out) {
+        (void)peer;
+        if (auto* t = std::get_if<SttTextMessage>(&msg)) EXPECT_EQ(t->speakerName, std::string("Steve"));
+    }
+    EXPECT_EQ(warns.size(), 1u);
+    EXPECT_FALSE(warns[0]);
+}
+
 TEST(mixer_stt_unavailable_keeps_voice_path) {
     // STT 不可用（如引擎缺失）→ 混音链路不受影响，仅跳过 STT 驱动
     SessionManager sessions;

@@ -46,6 +46,18 @@ void ServerMixer::setStt(pipeline::IStt* stt) {
         auto name = speakerNames_.find(result.speakerId);
         if (name != speakerNames_.end()) message.speakerName = name->second;
         message.utteranceId = result.utteranceId;
+
+        // 每条识别结果都落日志（含说话人名字与文本原文）。这条日志是字幕链路的唯一事实来源：
+        // 少了它，「字幕没出现」「字幕没有玩家名字」这两类问题在服务端侧完全无法定位。
+        if (log_) {
+            std::string const display = message.speakerName.empty() ? std::string("<empty>") : message.speakerName;
+            log_(message.speakerName.empty(), "[stt] recognized name=\"" + display + "\""
+                + " kind=" + (message.isFinal ? "final" : "partial")
+                + " utterance=" + std::to_string(message.utteranceId)
+                + " chars=" + std::to_string(message.text.size())
+                + " text=\"" + message.text + "\"");
+        }
+
         if (!message.text.empty() || message.isFinal) enqueueToAll(message);
     });
 }
@@ -61,6 +73,7 @@ bool ServerMixer::filePlaybackActive() const { return filePlayback_.active(); }
 std::string ServerMixer::filePlaybackName() const { return filePlayback_.fileName(); }
 
 void ServerMixer::setSpeakerName(const protocol::PlayerId& speakerId, std::string speakerName) {
+    // 空名不覆盖已有名字：入服早期取不到名字是常态，握手时会再解析一次补上。
     if (!speakerName.empty()) speakerNames_[speakerId] = std::move(speakerName);
 }
 

@@ -336,3 +336,50 @@ TEST(server_runtime_never_negotiates_undeclared_capability) {
     EXPECT_TRUE(welcome != nullptr);
     EXPECT_FALSE((welcome->serverCapabilities & CapabilitySubtitle) != 0);
 }
+
+// 说话人名字是字幕前缀的唯一来源。PlayerJoinEvent 触发得早，此时名牌可能还没就绪，
+// 因此握手必须再解析一次：只有握手这一刻取到的名字才会真正进入后续 STT 结果。
+TEST(server_runtime_resolves_speaker_name_at_handshake) {
+    FakeTransport transport;
+    ServerRuntime runtime(transport, ServerConfig{});
+    auto id = makePlayerId(14);
+    int resolveCalls = 0;
+    runtime.setSpeakerNameResolver([&](PlayerId const& peer) {
+        ++resolveCalls;
+        return peer == id ? std::string("Steve") : std::string{};
+    });
+    // 模拟「入服时取到空名」的现场：先登记一次空名，握手再补上。
+    runtime.setSpeakerName(id, {});
+
+    HelloMessage hello;
+    hello.playerId = id;
+    hello.protocolVersion = kProtocolVersion;
+    transport.inject(id, hello);
+
+    EXPECT_EQ(resolveCalls, 1);
+    // 名字已被混音器接管：后续 STT 结果会带上 speakerName。
+    EXPECT_TRUE(runtime.hasSession(id));
+}
+
+// 解析不到名字时必须留痕（warn），否则现场只能看到「字幕没有前缀」而无从判断原因。
+TEST(server_runtime_warns_when_speaker_name_unavailable) {
+    FakeTransport transport;
+    ServerRuntime runtime(transport, ServerConfig{});
+    auto id = makePlayerId(15);
+    std::vector<std::string> warns;
+    runtime.setLogSink([&](bool isError, const std::string& message) {
+        if (isError) warns.push_back(message);
+    });
+    runtime.setSpeakerNameResolver([](PlayerId const&) { return std::string{}; });
+
+    HelloMessage hello;
+    hello.playerId = id;
+    hello.protocolVersion = kProtocolVersion;
+    transport.inject(id, hello);
+
+    bool found = false;
+    for (auto const& message : warns) {
+        if (message.find("speaker name unavailable") != std::string::npos) found = true;
+    }
+    EXPECT_TRUE(found);
+}

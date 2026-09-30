@@ -52,6 +52,10 @@ public:
     void stop();
     bool running() const { return running_.load(); }
     void setStt(pipeline::IStt* stt);
+    // 诊断日志出口（可在 STT 工作线程上触发）。字幕链路跨线程且无回执，
+    // 没有这层日志就无法区分「没识别出文本」与「识别了但名字/下发丢了」。
+    using LogFn = std::function<void(bool isError, std::string const&)>;
+    void setLog(LogFn log) { log_ = std::move(log); }
     // PTT 生命周期边界：Begin 立即入 STT，End 延迟到当前抖动缓冲排空后提交。
     void setSpeakerName(const protocol::PlayerId& speakerId, std::string speakerName);
     void beginSttUtterance(const protocol::PlayerId& speakerId, std::string speakerName = {});
@@ -95,6 +99,7 @@ private:
     std::set<protocol::PlayerId> sttActiveSpeakers_;
     std::set<protocol::PlayerId> sttEndPending_;
     std::map<protocol::PlayerId, std::string> speakerNames_;
+    LogFn log_;
 };
 
 } // namespace bsc::server

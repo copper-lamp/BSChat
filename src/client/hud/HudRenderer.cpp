@@ -1,5 +1,6 @@
 #include "client/hud/HudRenderer.h"
 
+#include <algorithm>
 #include <optional>
 #include <utility>
 
@@ -77,7 +78,8 @@ bool HudRenderer::draw(ll::event::render::AfterUIRenderEvent& event, Frame const
 
         if (!frame.statusText.empty()) {
             std::string text = frame.statusText;
-            RectangleArea rect(textX, lineTop, width, lineBottom, false);
+            // 左对齐：矩形从 textX 起，止于屏幕右边界；textX 不得越过右边界，否则矩形反转。
+            RectangleArea rect(std::min(textX, width), lineTop, width, lineBottom, false);
             context.drawText(
                 font,
                 rect,
@@ -91,7 +93,15 @@ bool HudRenderer::draw(ll::event::render::AfterUIRenderEvent& event, Frame const
         }
     }
 
-    // 字幕：底部居中，越新的行越靠下
+    // 字幕：水平居中 + 底部堆叠，越新的行越靠下
+    //
+    // 居中做法：绘制矩形左右对称内缩 subtitleSideMargin，矩形本身仍然覆盖屏幕中心，
+    // 配合 TextMeasureData/TextAlignment 的 Center，文字基线落在屏幕水平中线上。
+    // 之前用「x0=0, x1=width + Left」得到的是贴左边缘的文本，与字幕的预期位置不符。
+    // 内缩只用于给超长字幕留可读范围，文字超宽时由引擎按矩形裁剪，不会画到屏幕外。
+    float const margin  = std::min(layout.subtitleSideMargin, width * 0.25f);
+    float const rectX0  = margin;
+    float const rectX1  = std::max(margin, width - margin);
     std::size_t const count = frame.subtitles.size();
     for (std::size_t i = 0; i < count; ++i) {
         // i = 0 是最早的一行；最后一行贴近 subtitleBottomOffset
@@ -101,15 +111,15 @@ bool HudRenderer::draw(ll::event::render::AfterUIRenderEvent& event, Frame const
         std::string text = frame.subtitles[i].speakerName.empty()
             ? frame.subtitles[i].text
             : frame.subtitles[i].speakerName + "：" + frame.subtitles[i].text;
-        RectangleArea rect(0.0f, y0, width, y1, false);
+        RectangleArea rect(rectX0, y0, rectX1, y1, false);
         context.drawText(
             font,
             rect,
             std::move(text),
             mce::Color(1.0f, 1.0f, 1.0f, 1.0f),
             alpha,
-            ui::TextAlignment::Left,
-            TextMeasureData{layout.fontSize, 0.0f, true, false, false, ui::TextAlignment::Left},
+            ui::TextAlignment::Center,
+            TextMeasureData{layout.fontSize, 0.0f, true, false, false, ui::TextAlignment::Center},
             CaretMeasureData{0, false}
         );
     }

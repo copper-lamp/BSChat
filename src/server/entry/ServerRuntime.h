@@ -53,6 +53,11 @@ public:
     size_t sessionCount() const { return sessions_.size(); }
     void removeSession(const protocol::PlayerId& id);
     void setSpeakerName(const protocol::PlayerId& id, std::string name);
+    // 握手时按需解析说话人显示名。运行时不持有 LeviLamina 依赖，取名的宿主能力由外层注入。
+    // 之所以在握手（而不是只在 PlayerJoinEvent）解析：STT 从握手那一刻开始工作，
+    // 更早的入服时刻玩家名牌可能还没就绪，取到的空串会让整局字幕都没有说话人前缀。
+    using SpeakerNameResolver = std::function<std::string(protocol::PlayerId const&)>;
+    void setSpeakerNameResolver(SpeakerNameResolver resolver) { speakerNameResolver_ = std::move(resolver); }
     const config::ServerConfig& config() const { return config_; }
 
     // 真实音频回放自检：把一段 WAV 作为独立声源混入下行，供玩家听感验证传输质量。
@@ -108,6 +113,7 @@ private:
     std::array<AudioDiagnostic, 3> audioDiagnostics_{};
     bool speechLoggingStopped_ = false;
     LogSink logSink_;
+    SpeakerNameResolver speakerNameResolver_;
     UiFormHandler uiFormHandler_;
 };
 

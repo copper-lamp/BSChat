@@ -2,6 +2,7 @@
 
 #include <chrono>
 #include <fstream>
+#include <iomanip>
 #include <sstream>
 #include <utility>
 
@@ -55,6 +56,26 @@ int64_t nowMs() {
     return std::chrono::duration_cast<std::chrono::milliseconds>(
         std::chrono::steady_clock::now().time_since_epoch()
     ).count();
+}
+
+// 解析玩家在字幕里显示的名字。
+//
+// Player::getRealName() 是「真实姓名」而不是游戏名，在部分 BDS 版本/账号状态下会返回空串；
+// 一旦取空，字幕就只剩正文没有前缀。因此这里按可靠性从高到低兜底：
+//   getRealName() → Actor::getNameTag()（名牌文本，即别人看到的名字）。
+// 全部取空时返回空串，由调用方落 warn 日志，便于事后判断是没取到还是取到了空串。
+std::string resolveSpeakerName(Player const& player) {
+    if (auto const name = player.getRealName(); !name.empty()) return name;
+    if (auto const& nameTag = player.getNameTag(); !nameTag.empty()) return nameTag;
+    return {};
+}
+
+// 玩家 ID 的十六进制文本形式（日志用；与服务端日志里既有的 speaker= 字段格式一致）。
+std::string playerIdHex(protocol::PlayerId const& id) {
+    std::ostringstream out;
+    out << std::hex << std::setfill('0');
+    for (uint8_t byte : id) out << std::setw(2) << static_cast<unsigned>(byte);
+    return out.str();
 }
 
 std::string readText(const std::filesystem::path& path) {
@@ -116,6 +137,12 @@ bool ServerMod::load() {
         }
         if (isError) shared::FileLog::warn(message);
         else shared::FileLog::info(message);
+    });
+    // 名字在握手时再解析一次：PlayerJoinEvent 触发得早，部分账号此时名牌还没就绪，
+    // 早先那次取到空串就会让整局字幕都没有说话人。握手是 STT 真正开始工作的时刻。
+    runtime_->setSpeakerNameResolver([this](protocol::PlayerId const& id) -> std::string {
+        auto* player = resolvePlayer(id);
+        return player != nullptr ? resolveSpeakerName(*player) : std::string{};
     });
 
     // 面板中继：网络线程把 UiForm(Request) 转给中继，主线程在 tick 中投递给请求者本人。
@@ -383,7 +410,16 @@ void ServerMod::onJoin(ll::event::player::PlayerJoinEvent& event) {
     auto& player = event.self();
     auto const id = playerId(player);
     players_[id] = &player;
-    if (runtime_) runtime_->setSpeakerName(id, player.getRealName());
+    std::string const name = resolveSpeakerName(player);
+    if (runtime_) runtime_->setSpeakerName(id, name);
+    // 名字是字幕前缀的唯一来源，取空就等于字幕没有说话人，必须留痕。
+    if (name.empty()) {
+        shared::FileLog::warn(
+            "onJoin: player joined but no display name could be resolved (getRealName/getNameTag both empty)"
+        );
+    } else {
+        shared::FileLog::info("onJoin: registered speaker name=\"" + name + "\" for " + playerIdHex(id));
+    }
     shared::FileLog::info("onJoin: player joined, active players = " + std::to_string(players_.size()));
 }
 

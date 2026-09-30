@@ -4,10 +4,12 @@
 #include <algorithm>
 #include <filesystem>
 #include <fstream>
+#include <iomanip>
 #include <sstream>
 #include <utility>
 
 #include "client/entry/ClientEventIds.h"
+#include "client/input/KeyNames.h"
 #include "ll/api/event/EventBus.h"
 #include "ll/api/i18n/I18n.h"
 #include "ll/api/mod/NativeMod.h"
@@ -203,8 +205,12 @@ void ClientMod::onJoin(ll::event::client::ClientJoinLevelEvent& event) {
     // 自检由服务端 /bsc test 命令经 Control(SmokeTest) 请求，回调在主线程 tick 中触发。
     runtime_->setSmokeTestRequestHandler([this] { startSmokeTest(); });
     // 字幕由服务端 STT 结果驱动，入队后由 HUD 在渲染事件里绘制。
+    // 这里逐条落日志：字幕链路（服务端识别 → 编码 → 客户端解码 → HUD）跨进程且无回执，
+    // 没有日志时「字幕不出现 / 玩家名不显示」这两类问题完全无法定位。
     runtime_->setSttTextHandler([this](protocol::SttTextMessage const& text) {
-        if (clock_) hudLayer_.pushSttText(text, clock_->nowMs());
+        auto const now = clock_ ? clock_->nowMs() : 0;
+        logSttText(text, now);
+        hudLayer_.pushSttText(text, now);
     });
     // 面板中继响应：网络线程只入队，主线程 tick 里处理。
     runtime_->setUiFormHandler([this](protocol::UiFormMessage const& message) {
@@ -223,10 +229,11 @@ void ClientMod::onJoin(ll::event::client::ClientJoinLevelEvent& event) {
     if (audioDevice_) {
         audioDevice_->setCaptureCallback([this](const audio::WasapiPcmFrame& frame) {
             if (!config_.captureEnabled) return; // 采集开关：关闭后只收听
-            if (runtime_ && !frame.samples.empty()) {
-                if (config_.vadEnabled) runtime_->submitVadPcm(frame.samples.data(), frame.samples.size());
-                else runtime_->submitPcm(frame.samples.data(), frame.samples.size());
-            }
+            if (!runtime_ || frame.samples.empty()) return;
+            // 说话模式的判定权在运行时：它知道当前是按键说话还是自动检测，
+            // 这里只负责把采集到的 PCM 交进去。
+            if (config_.vadEnabled) runtime_->submitVadPcm(frame.samples.data(), frame.samples.size());
+            else runtime_->submitPcm(frame.samples.data(), frame.samples.size());
         });
         if (!audioDevice_->start()) {
             auto const detail = audioDevice_->lastError();
@@ -258,6 +265,24 @@ void ClientMod::onJoin(ll::event::client::ClientJoinLevelEvent& event) {
     );
 }
 
+// 服务端下发的一条字幕结果落日志：说话人名字、最终/部分、话语 ID 与文本原文。
+// 名字为空时明确打「<empty>」而不是留空，否则日志里看不出是没取到还是取到了空串。
+void ClientMod::logSttText(protocol::SttTextMessage const& text, int64_t nowMs) {
+    std::ostringstream speaker;
+    speaker << std::hex << std::setfill('0');
+    for (uint8_t byte : text.speakerId) speaker << std::setw(2) << static_cast<unsigned>(byte);
+    std::string const name = text.speakerName.empty() ? std::string("<empty>") : text.speakerName;
+    std::string const line =
+        "[stt] subtitle name=\"" + name + "\""
+        + " id=" + speaker.str()
+        + " kind=" + (text.isFinal ? "final" : "partial")
+        + " utterance=" + std::to_string(text.utteranceId)
+        + " at=" + std::to_string(nowMs)
+        + " text=\"" + text.text + "\"";
+    shared::FileLog::info(line);
+    if (auto self = ll::mod::NativeMod::current()) self->getLogger().info("{}", line);
+}
+
 void ClientMod::startSmokeTest() {
     if (!runtime_) {
         shared::FileLog::warn("startSmokeTest: client runtime is not running; join a world first");
@@ -281,7 +306,13 @@ void ClientMod::applyClientConfig(config::ClientConfig const& config) {
     bool const pttKeyChanged = config.pttKey != config_.pttKey;
     config_ = config;
     hudLayer_.applyConfig(config_);
-    if (runtime_) runtime_->setOutputVolume(config_.playbackVolume);
+    if (runtime_) {
+        // 关键：运行时持有一份配置副本，面板改了必须同步进去。
+        // 不同步时 submitVadPcm 会因内部 vadEnabled 仍为 false 而直接丢弃整帧，
+        // 表现为「面板里开了自动检测，界面没反应、也一个字都不上行」。
+        runtime_->applyConfig(config_);
+        runtime_->setOutputVolume(config_.playbackVolume);
+    }
     // 说话键被改掉时，旧键的“松开”事件再也不会到达，必须主动结束上行，否则会一直占着麦克风。
     if (pttKeyChanged && runtime_) runtime_->setTalking(false);
 
@@ -290,6 +321,12 @@ void ClientMod::applyClientConfig(config::ClientConfig const& config) {
     if (!writeText(self->getConfigDir() / "bschat.json", config::clientConfigToJson(config_))) {
         shared::FileLog::warn("applyClientConfig: failed to persist the client config");
     }
+    shared::FileLog::info(
+        "applyClientConfig: applied, talkMode=" + std::string(config_.vadEnabled ? "voiceActivity" : "pushToTalk")
+        + " pttKey=" + input::nameFromVirtualKey(config_.pttKey)
+        + " subtitle=" + std::string(config_.subtitleEnabled ? "on" : "off")
+        + " capture=" + std::string(config_.captureEnabled ? "on" : "off")
+    );
 }
 
 void ClientMod::updateHudStatus() {
@@ -349,7 +386,17 @@ void ClientMod::onKey(ll::event::input::KeyInputEvent& event) {
         return;
     }
     if (!runtime_ || key != static_cast<int>(config_.pttKey)) return;
-    runtime_->setTalking(event.isDown());
+    // 自动检测模式下说话状态由检测器独占：PTT 的「松开」会把刚判出的“正在说话”强行关掉，
+    // 两种模式互相打架，因此这里直接忽略并记一次日志便于确认模式确实生效了。
+    if (config_.vadEnabled) {
+        if (event.isDown() && !pttIgnoredLogged_) {
+            pttIgnoredLogged_ = true;
+            shared::FileLog::info("onKey: push-to-talk key ignored because voice activity detection is on");
+        }
+        return;
+    }
+    pttIgnoredLogged_ = false;
+    runtime_->setPttPressed(event.isDown());
 }
 
 } // namespace bsc::client

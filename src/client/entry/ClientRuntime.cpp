@@ -27,6 +27,11 @@ ClientRuntime::ClientRuntime(
     config::ClientConfig config
 )
     : transport_(transport), player_(player), clock_(clock), config_(std::move(config)) {
+    vadEnabled_.store(config_.vadEnabled);
+    talkMode_.store(config_.vadEnabled ? 1 : 0);
+    // VAD 判定器的回调在本对象里驱动 setTalking；它运行在采集（音频）线程。
+    // 绝对下限取 0.02（约 -34dBFS）：麦克风增益再低也有人声能过，而噪声底自适应负责抬高门限。
+    vad_ = std::make_unique<input::VadTrigger>(0.02F, 350, 60, [this](bool active, int64_t) { setTalking(active); });
     transport_.setMessageHandler([this](const auto& id, const auto& message) { onMessage(id, message); });
     rebuildCodecs();
     jitter_ = ::bsc::audio::JitterBuffer({static_cast<std::size_t>(std::max(1, config_.jitterMaxDepthFrames)),
@@ -50,7 +55,7 @@ void ClientRuntime::applyNegotiatedFrameSize(int frameSizeMs) {
     config_.audio.frameSizeMs = clamped;
     rebuildCodecs();
     jitter_.clear();
-    talking_ = false;
+    talking_.store(false);
     seq_ = 0;
 }
 
@@ -64,27 +69,57 @@ void ClientRuntime::start() {
     nextHelloMs_ = 0;
     nextPositionMs_ = 0;
     seq_ = 0;
-    talking_ = false;
-    vadSilentFrames_ = 0;
+    talking_.store(false);
     pcmPending_ = 0;
     declaredCapabilities_ = protocol::CapabilityNone;
     negotiatedCapabilities_ = protocol::CapabilityNone;
     negotiatedSttEnabled_ = false;
     if (encoder_) encoder_->reset();
     if (decoder_) decoder_->reset();
+    vadResetRequested_.store(true);
     jitter_.clear();
     sendHello();
 }
 
 void ClientRuntime::stop() {
     state_ = State::Stopped;
-    talking_ = false;
-    vadSilentFrames_ = 0;
+    talking_.store(false);
     pcmPending_ = 0;
     declaredCapabilities_ = protocol::CapabilityNone;
     negotiatedCapabilities_ = protocol::CapabilityNone;
     negotiatedSttEnabled_ = false;
+    vadResetRequested_.store(true);
     jitter_.clear();
+}
+
+void ClientRuntime::applyConfig(config::ClientConfig const& config) {
+    // 音频格式（采样率/声道/帧长/码率）不在此改：渲染设备在 onJoin 时按格式 Initialize，
+    // 会话中换格式会让设备与编解码器错位。帧长由服务端协商决定，同样不接受面板改动。
+    bool const vadBefore = vadEnabled_.load();
+
+    config_.voiceEnabled     = config.voiceEnabled;
+    config_.vadEnabled       = config.vadEnabled;
+    config_.subtitleEnabled  = config.subtitleEnabled;
+    config_.handshakeRetryMs = config.handshakeRetryMs;
+    config_.playbackVolume   = config.playbackVolume;
+
+    vadEnabled_.store(config_.vadEnabled);
+    talkMode_.store(config_.vadEnabled ? 1 : 0);
+    setOutputVolume(config_.playbackVolume);
+
+    // 说话模式变化时让采集线程重置检测器（此处只置标志，不跨线程直接碰 vad_）：
+    //  - 切回按键说话：检测器可能正把麦克风按在开启状态，而下一次 PTT 按键的 setTalking(true)
+    //    会被 talking_ 相同短路掉，表现为「第一次按没反应」；
+    //  - 重新打开自动检测：刚才手动说话期间采集的全是人声，噪声底若沿用会被抬到人声之上，
+    //    之后一直检测不到说话，必须重新学。
+    if (vadBefore != config_.vadEnabled) {
+        if (vadBefore && talking_.load()) setTalking(false);
+        vadResetRequested_.store(true);
+    }
+
+    // 故意不因能力位变化重新握手：CapabilityVad 是纯客户端行为（服务端不参与协商），
+    // 字幕位的开关由 config_.subtitleEnabled 就地生效。重握手会打断正在进行的下行播放。
+    // 声明位 declaredCapabilities_ 留给下一次自然握手刷新。
 }
 
 void ClientRuntime::sendHello() {
@@ -94,7 +129,7 @@ void ClientRuntime::sendHello() {
     hello.sampleRate = checkedSampleRate(config_.audio.sampleRate);
     hello.frameSizeMs = checkedFrameSize(config_.audio.frameSizeMs);
     hello.capabilities = protocol::CapabilityPtt
-        | (config_.vadEnabled ? protocol::CapabilityVad : 0)
+        | (vadEnabled_.load() ? protocol::CapabilityVad : 0)
         | (config_.subtitleEnabled ? protocol::CapabilitySubtitle : 0);
     declaredCapabilities_ = hello.capabilities;
     transport_.send({}, hello);
@@ -173,45 +208,47 @@ void ClientRuntime::onMessage(const protocol::PlayerId& peerId, const protocol::
 }
 
 void ClientRuntime::setTalking(bool talking) {
-    if (talking == talking_ || state_ != State::Ready) return;
-    talking_ = talking;
+    // 采集（音频）线程的 VAD 判定与主线程的 PTT 按键可能同时改这里，用 CAS 保证
+    // 「同一次状态变化只发一条控制消息」在并发下也成立。
+    if (state_ != State::Ready) return;
+    if (talking_.exchange(talking) == talking) return;
     transport_.send({}, protocol::ControlMessage{
         talking ? protocol::ControlType::PttPressed : protocol::ControlType::PttReleased,
         0
     });
 }
 
+bool ClientRuntime::setPttPressed(bool down) {
+    if (talkMode_.load() != 0) return false;
+    setTalking(down);
+    return true;
+}
+
 void ClientRuntime::submitAudio(std::vector<uint8_t> data) {
-    if (state_ != State::Ready || !talking_ || data.empty()) return;
+    if (state_ != State::Ready || !talking_.load() || data.empty()) return;
     transport_.send({}, protocol::AudioDataMessage{seq_++, protocol::AudioFlagNone, std::move(data)});
     ++sentAudioFrames_;
 }
 
 void ClientRuntime::submitVadPcm(const float* pcm, std::size_t samples) {
-    if (!config_.vadEnabled || !pcm || samples == 0) return;
+    if (!vadEnabled_.load() || !vad_ || !pcm || samples == 0) return;
+    // 主线程（面板切换说话模式 / 进出世界）请求重置检测器：噪声底与迟滞计时由采集线程独占，
+    // 这里消费标志而不是让对方直接改对象，避免无锁数据竞争。
+    if (vadResetRequested_.exchange(false)) vad_->reset(clock_.nowMs());
+
+    // 判定顺序很关键：先让检测器看这一帧的能量（它会通过回调调 setTalking），
+    // 再看 talking_ 决定这一帧要不要编码上行。若顺序反过来，本帧就会被丢掉，
+    // 表现为「自动检测触发了但第一句开头少几个字」。
     double sum = 0.0;
     for (std::size_t i = 0; i < samples; ++i) sum += static_cast<double>(pcm[i]) * pcm[i];
     const float rms = static_cast<float>(std::sqrt(sum / static_cast<double>(samples)));
-    static constexpr float kStart = 0.018F;
-    static constexpr float kStop = 0.010F;
-    static constexpr int kHangoverFrames = 8;
-    if (!talking_ && rms >= kStart) setTalking(true);
-    if (talking_) {
-        submitPcm(pcm, samples);
-        if (rms < kStop) {
-            ++vadSilentFrames_;
-            if (vadSilentFrames_ >= kHangoverFrames) {
-                vadSilentFrames_ = 0;
-                setTalking(false);
-            }
-        } else {
-            vadSilentFrames_ = 0;
-        }
-    }
+    vad_->onLevel(rms, clock_.nowMs());
+
+    if (talking_.load()) submitPcm(pcm, samples);
 }
 
 void ClientRuntime::submitPcm(const float* pcm, std::size_t samples) {
-    if (state_ != State::Ready || !talking_ || !pcm || samples == 0 || !encoder_) return;
+    if (state_ != State::Ready || !talking_.load() || !pcm || samples == 0 || !encoder_) return;
     const std::size_t frame = pcmFrame_.size();
     while (samples > 0) {
         const std::size_t copy = std::min(samples, frame - pcmPending_);

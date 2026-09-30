@@ -51,14 +51,20 @@ int64_t steadyNowMs() {
 } // namespace
 
 ServerRuntime::ServerRuntime(pipeline::ITransport& transport, config::ServerConfig config)
-: transport_(transport), config_(std::move(config)), mixer_(sessions_, mixerConfigFrom(config_)) {
+    : transport_(transport), config_(std::move(config)), mixer_(sessions_, mixerConfigFrom(config_)) {
     transport_.setMessageHandler([this](const protocol::PlayerId& peerId, const protocol::Message& message) {
         handleMessage(peerId, message);
+    });
+    // 混音器在 STT 工作线程上回调，日志也必须能跨线程写：这里直接接运行时的日志出口。
+    mixer_.setLog([this](bool isError, std::string const& message) {
+        if (isError) logWarn(message);
+        else logInfo(message);
     });
 
     stt_ = createStt();
     mixer_.setStt(stt_.get());
 }
+
 
 ServerRuntime::~ServerRuntime() {
     stop();
@@ -74,6 +80,13 @@ void ServerRuntime::start() {
         std::lock_guard lock(speechMutex_);
         speechLoggingStopped_ = false;
     }
+    // STT 引擎状态在这里报（而不是构造期）：logSink_ 由外层宿主在构造之后注入，
+    // 构造期打印会被静默丢弃。字幕不出时先看这一行判断是引擎没起来还是没识别出文本。
+    logInfo(
+        std::string("[stt] engine: sttEnabled=") + (config_.sttEnabled ? "on" : "off")
+        + " available=" + (stt_ && stt_->available() ? "yes" : "no")
+        + (stt_ && !stt_->error().empty() ? " error=\"" + stt_->error() + "\"" : "")
+    );
     // ServerMod 在主线程的 ServerLevelTick 中驱动 tickOnce；不要再启动
     // 第二个音频线程，否则 mixer/encoder/STT 会被并发访问。
     // mixer_.start() 保留为独立宿主的显式能力，但本运行时不启用。
@@ -167,6 +180,18 @@ void ServerRuntime::handleHello(const protocol::PlayerId& peerId, const protocol
     if (config_.maxSessions != 0 && sessions_.size() >= config_.maxSessions && !sessions_.find(peerId)) return;
     finishSpeechActivity(peerId, "session_replaced", steadyNowMs());
     sessions_.addSession(peerId, makeSessionOptions());
+
+    // 握手是 STT 真正开始工作的时刻，这里再解析一次显示名。入服时刻的名牌可能还没就绪，
+    // 那时取到空串会一路带到字幕里，表现为「字幕没有玩家名字」。
+    if (speakerNameResolver_) {
+        std::string const name = speakerNameResolver_(peerId);
+        if (!name.empty()) {
+            mixer_.setSpeakerName(peerId, name);
+        } else {
+            logWarn("[stt] speaker name unavailable at handshake; subtitles will have no name prefix");
+        }
+    }
+
     protocol::WelcomeMessage welcome;
     welcome.protocolVersion = protocol::kProtocolVersion;
     welcome.sampleRate = static_cast<uint16_t>(config_.audio.sampleRate);
@@ -185,7 +210,10 @@ void ServerRuntime::handleHello(const protocol::PlayerId& peerId, const protocol
     logInfo(
         "[smoke] handshake = PASS (session established, sessions=" + std::to_string(sessions_.size())
         + " sampleRate=" + std::to_string(welcome.sampleRate)
-        + " frameSizeMs=" + std::to_string(welcome.frameSizeMs) + ")"
+        + " frameSizeMs=" + std::to_string(welcome.frameSizeMs)
+        + " stt=" + (welcome.sttEnabled ? "on" : "off")
+        + " caps=0x" + std::to_string(static_cast<unsigned>(welcome.serverCapabilities))
+        + ")"
     );
 }
 void ServerRuntime::handleAudio(const protocol::PlayerId& peerId, const protocol::AudioDataMessage& audio) {
@@ -373,7 +401,11 @@ std::unique_ptr<SherpaStt> ServerRuntime::createStt() const {
     options.tokensPath = resolvePath(config_.sttModel.tokensPath);
     options.threads = config_.sttModel.threads;
     options.partialIntervalMs = config_.sttModel.partialIntervalMs;
-    return std::make_unique<SherpaStt>(std::move(options));
+    // 不传日志回调时，sherpa 动态库/模型缺失、识别器创建失败全都静默丢弃，
+    // 现场只能看到「字幕永远不出」而没有任何线索。这里把加载错误接到运行时日志。
+    return std::make_unique<SherpaStt>(std::move(options), [this](std::string const& message) {
+        logWarn("[stt] " + message);
+    });
 }
 
 } // namespace bsc::server

@@ -26,6 +26,9 @@ public:
         float fontSize = 1.0f;
         float subtitleLineHeight = 12.0f;
         float subtitleBottomOffset = 46.0f; // 字幕底部到屏幕底边的距离
+        // 字幕水平方向按屏幕居中：绘制矩形左右各留出 subtitleSideMargin，
+        // 居中对齐在「屏幕中心」而不是「留白区中心」，留白只用于给超长字幕留出可读范围。
+        float subtitleSideMargin = 20.0f;
         float statusX = 10.0f;
         float statusBottomOffset = 16.0f;
         // 状态图标：12x12 与文字行高（subtitleLineHeight）一致，图标底与文字行底对齐；
