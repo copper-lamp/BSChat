@@ -1,0 +1,159 @@
+# 升级 LeviLamina / MC 版本
+
+这份文档记录把 BSChat 从一条 MC 版本线迁到另一条（比如 26.10 → 26.20）时的完整检查清单、
+已踩过的坑，以及每一步的验证方式。按顺序走完即可，不需要重新摸索。
+
+## 需求
+
+一次版本迁移要达成的是：
+
+- `xmake.lua` 声明的 SDK 版本、发布用的 `tooth.json` 依赖、以及所有对外文档中的基线版本号
+  三者一致，不允许只改一处。
+- server 与 client 两个 target 都能在新宿主版本上编译、链接成功，且没有缺失符号。
+- 迁移不改变模组对外行为：协议、配置格式、面板、HUD 全部保持原样，只换宿主。
+- 迁移过程产生的判断（哪些 override 还有效、哪些 SDK 行为变了）写回文档，不能只留在脑子里。
+
+不改需求，只换宿主版本。所以任何"顺手重构"都不属于本次迁移范围。
+
+## 架构
+
+版本号在仓库里有五个落点，缺一个都会留下不一致：
+
+| 落点 | 内容 | 漏掉的后果 |
+|---|---|---|
+| `xmake.lua` | `add_requires("levilamina <ver>")` | 本地/CI 仍编旧 SDK，与 tooth 声明不符 |
+| `tooth.json` | 两个 variant 的 `dependencies` | 用户装到宿主版本与模组实际编译版本不符，运行时加载失败 |
+| `README.md` / `README_ZH.md` | badge、安装步骤、兼容性段落 | 用户按错版本装宿主 |
+| `docs/getting-started.md` / `docs/building.md` | 前置条件表、依赖表 | 与 README 矛盾 |
+| `THIRD_PARTY_NOTICES.md` | LeviLamina 版本 + 许可证 | 第三方声明失准 |
+
+代码侧只有一处需要按SDK 版本审查：`src/client/entry/ClientEventIds.h`（见下）。
+
+### 为什么必须手工绑定事件 ID
+
+LeviLamina 发布包由 MSVC 编译，内置事件 ID 取自 MSVC 的 `__FUNCSIG__`，形如
+`ll::event::client::ClientJoinLevelEvent`，保留 inline namespace 前缀。本模组由 clang-cl 编译，
+`__PRETTY_FUNCTION__` 会省略 inline namespace，得到 `ll::event::ClientJoinLevelEvent`。两者 FNV1a
+哈希不同，EventBus 里不存在对应条目，`addListener` 直接返回 false，表现为"模组加载了但所有监听
+器静默失效"。
+
+因此 `ClientEventIds.h` 把客户端用到的事件逐个显式绑定到 SDK 侧的规范 ID。**升级 SDK 后必须重新
+核对这份清单**：新增监听要登记，SDK 改了命名空间形态（inline / 非 inline）也要跟着改，否则绑定
+的字符串和 SDK 侧不一致，症状同样是监听器静默失效。
+
+### inline namespace 是最容易漏的一处
+
+26.20.7 把 `ll::event::client` / `world` / `input` / `render` 改成了 inline namespace。
+`ClientEventIds.h` 里的前置声明如果还写成非inline，clang 会报：
+
+```
+warning: inline namespace reopened as a non-inline namespace [-Winline-namespace-reopened-noninline]
+```
+
+更要紧的是它同时意味着前置声明和后续头文件的定义不是同一个命名空间，属于静默的类型不匹配。
+所以升级后第一次编译要专门扫一遍这个警告。
+
+## 执行
+
+### 1. 确认目标版本真实存在
+
+先看本机缓存和上游 tag，不要凭记忆写版本号：
+
+```powershell
+Get-ChildItem "$env:LOCALAPPDATA\.xmake\packages\l\levilamina" -Directory | Select-Object Name
+git ls-remote --tags https://github.com/LiteLDev/LeviLamina.git | Select-String "<mc_line>"
+```
+
+本机没有的版本要靠 `xmake repo -u` 拉包定义，否则 `xmake f` 会报找不到版本而不是报编译错误。
+
+### 2. 改版本号并拉依赖
+
+改 `xmake.lua` 和 `tooth.json`，然后：
+
+```powershell
+cmd /d /s /c 'call "C:\Program Files (x86)\Microsoft Visual Studio\18\BuildTools\Common7\Tools\VsDevCmd.bat" -arch=x64 -host_arch=x64 && xmake repo -u && xmake f -a x64 -m release -p windows --target_type=server -y'
+```
+
+### 3. 编译 SDK 时降并行度
+
+LeviLamina 是从源码编译的，每个 TU 都拉进整套 MC 头。16 线程机器上并行编译会因内存耗尽让
+clang 崩在一个看起来毫不相关的文件上：
+
+```
+error: clang frontend command failed due to signal
+clang-cl: note: diagnostic msg: C:\...\Temp\PlayerDisconnectEvent-d753bb.cpp
+```
+
+这不是 SDK 的 bug，是内存不够。诊断信息里的文件名（`PlayerDisconnectEvent.cpp`）和真实瓶颈毫无
+关系，不要顺着它去查事件代码。直接降并行：
+
+```powershell
+xmake build -j 4 bschat
+```
+
+失败日志在 `%LOCALAPPDATA%\.xmake\cache\packages\<id>\l\levilamina\<ver>\installdir.failed\logs\install.txt`。
+
+### 4. 编两个 target
+
+server 和 client 各编一遍，`-r` 强制全量以免缓存掩盖问题：
+
+```powershell
+xmake f -a x64 -m release -p windows --target_type=server -y; xmake build -j 4 bschat
+xmake f -a x64 -m release -p windows --target_type=client -y; xmake build -r -j 4 bschat
+```
+
+两个 target 输出到同一个 `bin/bschat/bschat.dll`，后一次会覆盖前一次。每次编完立刻把产物拷到
+`artifacts/server/bschat/` 或 `artifacts/client/bschat/`，并把该副本 `manifest.json` 的 `platform`
+改成对应值。
+
+### 5. 验证产物 flavor
+
+`xmake f` 写`.xmake\windows\x64\xmake.conf`。依赖安装失败时新选项**不会**被持久化，之后的
+`xmake build` 会静默重编上一种 flavor。确认选项真的写进去了：
+
+```powershell
+Select-String -Path .xmake\windows\x64\xmake.conf -Pattern 'target_type'
+dumpbin /DEPENDENTS bin\bschat\bschat.dll
+```
+
+server 产物不能引用客户端事件。反过来（client 产物当server 插件加载）会在加载时报
+`The specified procedure could not be found`，并列出 `ll::event::client::ClientJoinLevelEvent` /
+`ll::event::input::KeyInputEvent`。看到这两个符号就说明 flavor 搞反了。
+
+### 6. 扫警告
+
+编译输出里逐条看 `warning:`。迁移引入的新警告通常意味着 SDK 行为变了，不能因为不影响构建就
+放过。`-Winline-namespace-reopened-noninline` 是本次迁移唯一的新警告，对应第2 节说的
+`ClientEventIds.h` 修正。
+
+## 备注
+
+### 已验证的迁移记录
+
+| 从 | 到 | 代码改动 | 结论 |
+|---|---|---|---|
+| 26.10.14 | 26.20.7 | `ClientEventIds.h` 四个命名空间补 `inline` | server / client 均编译链接通过，无缺失符号 |
+
+### 待验证
+
+`xmake.lua` 里的 `add_requireconfs("levilamina.rapidjson", {version = "2025.02.05", override = true})`
+是为绕开旧版 SDK 把 rapidjson 钉在 `v1.1.0`（该版本 `GenericStringRef::operator=` 给const 成员
+赋值，clang 20+ 直接判错）而加的。MC 头文件链
+（`ll/api/memory/MemoryOperators.h` → `mc/deps/core/memory/IMemoryAllocator.h` →
+`mc/_HeaderOutputPredefine.h` → `rapidjson/document.h`）必然把 rapidjson 拉进每个含 MC 头的 TU。
+
+26.20.7 下这个 override 是否还有效**尚未实测**。判断方法：临时注释掉这一行，`xmake repo -u`
+后重编 server target。若通过，说明上游已修，可以删掉 override 和 `building.md` 里对应的说明；
+若仍报同一个 const 赋值错误，override 必须保留。
+
+### 不要动的东西
+
+- `ll_memory_operator_overrided` 宏和 `src/shared/MemoryOperators.cpp`：这是 LeviLamina 模板的必需
+  部分，与 SDK 版本无关。
+- 迁移过程中不要顺手重构业务代码。混在一起的改动会让"升级后行为变了"变得无法归因。
+
+### 相关文档
+
+- [building.md](building.md) — 构建命令、ATL 要求、CI 依赖安装注意事项
+- [client.md](client.md) — 客户端适配层，含事件绑定与 HUD 渲染
+- [getting-started.md](getting-started.md) — 用户侧安装步骤
