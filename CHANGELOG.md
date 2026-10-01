@@ -5,9 +5,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.1.3-mc26.20] - 2026-10-01
 
-Moves both builds onto the LeviLamina 26.20 line.
+Moves both builds onto the LeviLamina 26.20 line. Voice behaviour, the v1 wire protocol and the
+configuration format are unchanged; only the host SDK moved.
 
 ### Changed
 

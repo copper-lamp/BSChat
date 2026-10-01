@@ -9,6 +9,11 @@ Common prerequisites:
 - [LeviLamina](https://lamina.levimc.org/) `26.20.7` on both ends.
 - Windows x64.
 
+> [!IMPORTANT]
+> Releases are cut per MC version line, and the tag suffix states which line a build targets
+> (`v0.1.3-mc26.20` covers MC 26.20.x). A build for another line will not load, so the server and
+> the client must both come from the release whose suffix matches your MC version.
+
 ## 1. Install the server build
 
 1. Set up LeviLamina on your Bedrock Dedicated Server.

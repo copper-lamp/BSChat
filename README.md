@@ -4,7 +4,7 @@
   <p><strong>Join the world and Start talking.</strong></p>
   <p>An open-source in-game real-time voice chat mod for Minecraft Bedrock on LeviLamina — server-side mixing, client-side capture and playback, with optional live speech-to-text subtitles.</p>
   <p>
-    <img src="https://img.shields.io/badge/release-v0.1.2-4c8bf5?style=flat-square" alt="BSChat v0.1.2">
+    <img src="https://img.shields.io/badge/release-v0.1.3--mc26.20-4c8bf5?style=flat-square" alt="BSChat v0.1.3-mc26.20">
     <img src="https://img.shields.io/badge/Minecraft%20Bedrock-Windows%20x64-62b47a?style=flat-square" alt="Windows x64 Minecraft Bedrock">
     <a href="LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0-blue?style=flat-square" alt="AGPL-3.0 License"></a>
   </p>
@@ -72,7 +72,9 @@ Full installation and configuration steps are in the [Getting Started guide](../
 
 ## This Release
 
-`v0.1.2` hands speech-to-text model selection to the server operator. The server package now ships
+`v0.1.3` moves both builds onto the **LeviLamina 26.20 line** (SDK `26.20.7`). Voice behaviour,
+the v1 wire protocol and the configuration format are unchanged — this release only moves the host
+SDK. `v0.1.2` hands speech-to-text model selection to the server operator. The server package now ships
 `Install-SttModel.cmd`; run it, pick a tier, and it downloads the sherpa-onnx runtime plus the chosen
 model and writes the resulting configuration. Five tiers are offered — Chinese at three size/accuracy
 points, plus Chinese-English and Chinese-English-Cantonese — all true streaming models from
@@ -97,6 +99,11 @@ feature is unavailable. Full history is in the [Changelog](CHANGELOG.md).
 | Client (Bedrock) | Client build | `mods/bschat/` |
 
 Both are built for **Windows x64** and run on **LeviLamina 26.20.7**.
+
+> [!IMPORTANT]
+> Releases are cut per MC version line, and the tag suffix states which line a build targets
+> (`-mc26.20` here). A build for another line will not load — pick the build whose suffix matches
+> the MC version your players run, and give server and client the same line.
 
 > [!TIP]
 > No separate port or UDP channel is required — voice reuses the game's built-in
