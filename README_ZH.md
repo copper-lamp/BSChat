@@ -4,7 +4,7 @@
   <p><strong>进服开麦，即刻畅聊。</strong></p>
   <p>面向 LeviLamina 的开源 Minecraft 基岩版游戏内实时语音聊天模组，服务端混音、客户端收发，可选实时语音转写字幕。</p>
   <p>
-    <img src="https://img.shields.io/badge/release-v0.1.1-4c8bf5?style=flat-square" alt="BSChat v0.1.1">
+    <img src="https://img.shields.io/badge/release-v0.1.2-4c8bf5?style=flat-square" alt="BSChat v0.1.2">
     <img src="https://img.shields.io/badge/Minecraft%20Bedrock-Windows%20x64-62b47a?style=flat-square" alt="Windows x64 Minecraft 基岩版">
     <a href="LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0-blue?style=flat-square" alt="AGPL-3.0 许可证"></a>
   </p>
@@ -54,7 +54,7 @@ Better Speech Chat 将你在游戏里的语音带到身边——按住按键说�
 
 ## 本版更新
 
-`v0.1.1` 把语音协议固定为 **v1** 稳定契约并采用只追加的演进方式，同时补齐双端能力协商：客户端声明自身能力，服务端回传双方共同支持的子集，只有协商通过的功能才会启用，因此新旧版本可以互相连通，可选功能不可用时基础语音照常工作。握手准入在双端都做了强制校验，上行丢帧也会在服务端日志中按原因归类。服务端逐接收者混音、客户端采集与播放、按键说话、HUD、面板与语音转写等初始功能随 `v0.1.0` 发布。完整历史见[更新日志](CHANGELOG.md)。
+`v0.1.2` 把语音转文字的模型选择权交给服主：服务端包内新增 `Install-SttModel.cmd`，运行后交互式选择档位，脚本自动下载 sherpa-onnx 运行时与所选模型并写入配置，提供纯中文（极速/标准/高配）与中英、中英粤三语共五档，全部为 sherpa-onnx 在线识别器的真流式模型。服务端不再把识别模型写死为 transducer，新增 `sttModel.modelType` 支持全部在线模型族，旧配置无需改动即可继续使用。`v0.1.1` 把语音协议固定为 **v1** 稳定契约并采用只追加的演进方式，同时补齐双端能力协商：客户端声明自身能力，服务端回传双方共同支持的子集，只有协商通过的功能才会启用，因此新旧版本可以互相连通，可选功能不可用时基础语音照常工作。完整历史见[更新日志](CHANGELOG.md)。
 
 > [!IMPORTANT]
 > 目前发布的仍是测试版本，配置项与新增功能仍可能调整；但语音协议已固定为 v1，只做向下兼容的追加式扩展，不会在 v1 内做破坏性变更。请在使用后及时关注更新日志。
@@ -112,7 +112,39 @@ Better Speech Chat 将你在游戏里的语音带到身边——按住按键说�
 几乎不占用。音频充分压缩，无人说话时下行数据趋近于零。
 
 ### 怎么开启字幕？
-在服务端开启 `sttEnabled`，并按 `sttModel.libraryPath`、`encoderPath`、`decoderPath`、`joinerPath`、`tokensPath` 提供 sherpa-onnx 流式 Zipformer 模型文件，客户端保持开启字幕即可。模型缺失时语音转文字自动停用，语音主链路不受影响。
+字幕由**服务端**转写，识别模型**不随包附带**，需要用服务端包里的 `Install-SttModel.cmd` 自行下载。这一步完全可选，不装也不影响语音聊天。
+
+1. 在服务端打开命令行，**进入 `bschat.dll` 所在目录**（通常是 `plugins/bschat/`），运行：
+
+   ```bat
+   Install-SttModel.cmd
+   ```
+
+2. 屏幕上会列出模型档位，输入编号回车即可选中：
+
+   | 你的情况 | 选 |
+   | --- | --- |
+   | 玩家基本都说中文 | **2** |
+   | 有人中英混说 | **4** |
+   | 有粤语玩家 | **5** |
+   | 配置较低或带宽有限 | **1** |
+   | 纯中文、追求最高精度且 CPU 较强 | **3** |
+
+   下载体积 25–570 MB 不等，过程中会显示进度。装完会看到：
+
+   ```
+   安装完成。
+   请重启服务端使配置生效，并确认客户端已开启字幕。
+   ```
+
+   不想用菜单的话可以直接指定，例如 `Install-SttModel.cmd bilingual-zh-en`。
+
+3. **重启服务端**。模型在启动时加载。
+4. 客户端按 **J** 打开语音面板，确认字幕已开启。
+
+模型、运行时和配置都落在模组目录内，不动服务端其他文件。重复运行脚本可以换档位；删掉 `stt/` 目录也不会有影响，那里面只是可重新下载的权重。
+
+完整说明（含排错）见 [docs/getting-started.md](../docs/getting-started.md)。
 
 ### 可以更换说话按键吗？
 可以。进服后按 **J** 打开语音设置面板即可改绑按键；也可以直接修改客户端 `config.json` 中的 `pttKey` 与 `settingsKey`。

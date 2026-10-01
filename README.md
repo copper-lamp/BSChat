@@ -4,7 +4,7 @@
   <p><strong>Join the world and Start talking.</strong></p>
   <p>An open-source in-game real-time voice chat mod for Minecraft Bedrock on LeviLamina — server-side mixing, client-side capture and playback, with optional live speech-to-text subtitles.</p>
   <p>
-    <img src="https://img.shields.io/badge/release-v0.1.1-4c8bf5?style=flat-square" alt="BSChat v0.1.1">
+    <img src="https://img.shields.io/badge/release-v0.1.2-4c8bf5?style=flat-square" alt="BSChat v0.1.2">
     <img src="https://img.shields.io/badge/Minecraft%20Bedrock-Windows%20x64-62b47a?style=flat-square" alt="Windows x64 Minecraft Bedrock">
     <a href="LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0-blue?style=flat-square" alt="AGPL-3.0 License"></a>
   </p>
@@ -72,13 +72,17 @@ Full installation and configuration steps are in the [Getting Started guide](../
 
 ## This Release
 
-`v0.1.1` pins the voice protocol to **v1** as a stable, append-only contract and completes capability
-negotiation on both ends: the client declares what it supports, the server answers with the common
-subset, and only negotiated features are enabled — so newer and older builds keep talking to each other,
-with base voice preserved whenever an optional feature is unavailable. Handshakes are now enforced on
-both ends, and dropped uplink frames are attributed in the server log. The initial feature set
-(server-side mixing, capture and playback, push-to-talk, HUD, panels and speech-to-text) shipped in
-`v0.1.0`. Full history is in the [Changelog](CHANGELOG.md).
+`v0.1.2` hands speech-to-text model selection to the server operator. The server package now ships
+`Install-SttModel.cmd`; run it, pick a tier, and it downloads the sherpa-onnx runtime plus the chosen
+model and writes the resulting configuration. Five tiers are offered — Chinese at three size/accuracy
+points, plus Chinese-English and Chinese-English-Cantonese — all true streaming models from
+sherpa-onnx's online recognizer rather than VAD-simulated streaming. The server no longer hardcodes
+the transducer family: a new `sttModel.modelType` field selects any online model family, and existing
+configurations keep working unchanged. `v0.1.1` pinned the voice protocol to **v1** as a stable,
+append-only contract and completed capability negotiation on both ends: the client declares what it
+supports, the server answers with the common subset, and only negotiated features are enabled — so
+newer and older builds keep talking to each other, with base voice preserved whenever an optional
+feature is unavailable. Full history is in the [Changelog](CHANGELOG.md).
 
 > [!IMPORTANT]
 > This is still a test release and configuration or new features may still change, but the voice
@@ -144,8 +148,45 @@ either side.
 Almost none. Audio is heavily compressed, so idle moments cost near-zero downstream data.
 
 ### How do I enable subtitles?
-Enable `sttEnabled` on the server and provide the sherpa-onnx streaming Zipformer model files, and keep subtitles on
-in the client. If the model is missing, speech-to-text is disabled without affecting voice.
+Subtitles are transcribed by the **server** from a speech-to-text model. That model is **not bundled**
+— download it with the installer shipped in the server package. The step is optional; voice chat works
+without it.
+
+1. On the server, open a command prompt **in the same folder as `bschat.dll`** (usually
+   `plugins/bschat/`) and run:
+
+   ```bat
+   Install-SttModel.cmd
+   ```
+
+2. A menu of model tiers appears. Type a number and press Enter:
+
+   | Your situation | Pick |
+   | --- | --- |
+   | Players mostly speak Chinese | **2** |
+   | Players mix Chinese and English | **4** |
+   | Cantonese speakers | **5** |
+   | Low CPU or limited bandwidth | **1** |
+   | Chinese only, accuracy first, strong CPU | **3** |
+
+   The download is 25–570 MB and shows progress. When it finishes:
+
+   ```
+   安装完成。
+   请重启服务端使配置生效，并确认客户端已开启字幕。
+   ```
+
+   To skip the menu, pass the tier id, for example `Install-SttModel.cmd bilingual-zh-en`.
+
+3. **Restart the server.** The model loads at startup.
+4. In the client, press **J** and make sure subtitles are on.
+
+The model, runtime and configuration all land inside the mod folder; nothing else on the server is
+touched. Re-run the script to switch tiers. Deleting `stt/` is harmless — it only holds
+re-downloadable weights.
+
+Full walkthrough, including troubleshooting, is in
+[docs/getting-started.md](../docs/getting-started.md).
 
 ### Can I change the talk key?
 Yes — press **J** in game to open the voice settings panel and bind another key, or edit `pttKey` and

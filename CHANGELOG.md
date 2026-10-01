@@ -5,20 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.1.2] - 2026-10-01
+
+Lets server operators pick the speech-to-text model instead of shipping one fixed model, and fixes
+the downloader shipped alongside it.
 
 ### Added
 
-- **STT 模型下载器** — `Install-SttModel.cmd` 提供交互式选型，下载并校验
-  sherpa-onnx 运行时与所选模型，写入 `config/bschat.json` 的 `sttModel` 段。
-  五档模型覆盖纯中文（极速/标准/高配）与中英、中英粤双语需求。
-- **`sttModel.modelType`** — 服务端不再假定 transducer。新增 `modelType` 与 `modelPath`
-  配置字段，支持 sherpa-onnx 在线识别器的全部模型族（`transducer`、`paraformer`、
-  `zipformer2_ctc`、`nemo_ctc`、`t_one_ctc`）。缺省 `transducer`，旧配置无需改动。
+- **STT 模型下载器** — `Install-SttModel.cmd` 交互式选型，下载并安装 sherpa-onnx 运行时与
+  所选模型到 bschat 模组目录，并写入 `config/bschat.json` 的 `sttModel` 段。部署目录只分发
+  这一个文件。五档模型：纯中文极速/标准/高配，中英双语，中英粤三语。全部为 sherpa-onnx 在线
+  识别器的真流式模型，非 VAD 模拟流式。支持 `Install-SttModel.cmd <tier>` 静默安装。
+- **`sttModel.modelType`** — 服务端不再假定 transducer。新增 `modelType` 与 `modelPath` 配置
+  字段，支持 sherpa-onnx 在线识别器的全部模型族（`transducer`、`paraformer`、`zipformer2_ctc`、
+  `nemo_ctc`、`t_one_ctc`）。缺省 `transducer`，旧配置无需改动；无法识别的取值回退
+  `transducer` 而非静默产生空识别器。
 
 ### Changed
 
 - 服务端加载失败时的日志会提示检查 `modelType` 与模型文件是否匹配。
+- 模型许可清单移入 `THIRD_PARTY_NOTICES.md` 的可选模型小节，并标注许可待核实项。
+
+### Fixed
+
+- `Install-SttModel.cmd` 部署目录此前会带出三个 `.ps1`，其中两个是开发工具。现在只分发单个
+  `.cmd`，实现以内嵌 PowerShell 载荷的形式随文件携带，运行时抽到临时文件执行后删除。
 
 ## [0.1.1] - 2026-09-26
 

@@ -36,25 +36,118 @@ If you hear nothing, check:
 
 ## 4. Optional: enable subtitles
 
-Subtitles require the server-side speech-to-text feature:
+Subtitles are produced by the **server**, from a speech-to-text model. That model is **not bundled**
+— it is downloaded by an installer that ships in the server package. This step is entirely optional;
+voice chat works without it.
 
-1. On the server, run the model installer and pick a tier:
+### 4.1 Run the model installer
 
-   ```bat
-   Install-SttModel.cmd
-   ```
+On the server, open a command prompt **in the same folder** that contains `bschat.dll`
+(for example `plugins/bschat/`) and run:
 
-   It downloads the sherpa-onnx runtime and the selected model into `stt/`,
-   then writes the `sttModel` section of `config/bschat.json`. Pass a tier id
-   to install without the interactive menu, for example
-   `Install-SttModel.cmd bilingual-zh-en`. Model tiers are listed in
-   [stt-model-installer](stt-model-installer.md).
+```bat
+Install-SttModel.cmd
+```
 
-2. Restart the server so the new configuration takes effect.
-3. On the client, keep `subtitleEnabled` set to `true`.
+You will see a menu of model tiers. Pick one by typing its number and pressing Enter:
 
-If the model is missing or fails to load, speech-to-text is disabled without
-affecting voice.
+```
+  BSChat STT 模型安装
+  --------------------------------------------------------------
+  当前状态: 未配置模型
+
+  [1] 极速 · 纯中文      中文 · 25 MB · RTF 0.038
+      体积最小，低配服务器或带宽受限时使用
+
+  [2] 标准 · 纯中文      中文 · 155 MB · RTF 0.15
+      14k 小时中文语料训练，纯中文场景推荐
+
+  [3] 高配 · 纯中文      中文 · 570 MB · RTF 0.46
+      纯中文精度天花板，需要较强的服务端 CPU
+
+  [4] 中英双语           中文 / 英语 / 多种方言 · 227 MB · RTF 0.15
+      国际服默认档，可处理中英混说
+
+  [5] 中英粤三语         中文 / 粤语 / 英语 · 229 MB · RTF 0.14
+      需要粤语支持时使用
+
+  [0] 取消
+
+  请选择模型编号:
+```
+
+Which tier to choose:
+
+| Situation | Tier |
+|---|---|
+| Most players speak Chinese | **2** |
+| Players mix Chinese and English | **4** |
+| Cantonese speakers | **5** |
+| Weak CPU or limited bandwidth | **1** |
+| Chinese only, accuracy matters most, strong CPU | **3** |
+
+The download is 25–570 MB depending on the tier. Progress is shown as it runs.
+
+On success you will see:
+
+```
+==> 写入配置
+    已更新 config/bschat.json
+    modelType = paraformer
+
+安装完成。
+请重启服务端使配置生效，并确认客户端已开启字幕。
+```
+
+To install without the menu — useful for scripted setup — pass the tier id:
+
+```bat
+Install-SttModel.cmd bilingual-zh-en
+```
+
+Re-running the installer lets you switch tiers later. It rebuilds the `sttModel` section of the
+config, so the paths always point at the model you just chose.
+
+### 4.2 What got installed
+
+Everything lands inside the mod folder; nothing else on the server is touched.
+
+```
+plugins/bschat/
+  ├─ bschat.dll
+  ├─ Install-SttModel.cmd
+  ├─ stt/
+  │   ├─ runtime/                 sherpa-onnx + onnxruntime DLLs
+  │   └─ models/bilingual-zh-en/  the model you picked
+  └─ config/bschat.json           sttModel section now filled in
+```
+
+Re-downloading the same tier skips the download. `stt/` is safe to delete at any time — it only
+holds re-downloadable weights.
+
+### 4.3 Finish up
+
+1. **Restart the server.** The model is loaded at startup.
+2. In the client, open the voice panel with **J** and make sure subtitles are on.
+
+While a player talks, their text appears on everyone's screen. A line marked `[stt]` in the server
+log confirms transcription is running.
+
+### 4.4 If it does not work
+
+Check the server log for a line like:
+
+```
+[stt] engine: sttEnabled=true available=true ...
+```
+
+- **`available=false`** — the model or runtime is missing. Re-run the installer.
+- **No `[stt]` line at all** — speech-to-text is disabled in `config/bschat.json`; set
+  `sttEnabled` to `true`.
+- **Subtitles show but with no player name** — the display name could not be read at handshake time.
+  The text is still correct.
+
+Speech-to-text failing never affects voice chat.
 
 ## Next steps
 
