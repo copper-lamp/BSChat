@@ -26,8 +26,18 @@ license; see `docs/stt-model-installer.md` for the per-model inventory.
 | Model family | Upstream | License | Model type |
 | streaming zipformer (zh) | [k2-fsa/icefall](https://github.com/k2-fsa/icefall) | Apache-2.0 | `transducer` |
 | streaming zipformer CTC (zh) | [k2-fsa/icefall](https://github.com/k2-fsa/icefall) | Apache-2.0 | `zipformer2_ctc` |
-| streaming paraformer (zh-en) | Alibaba DAMO (ModelScope) | verify before release | `paraformer` |
-| streaming paraformer (zh-yue-en) | ModelScope | verify before release | `paraformer` |
+| streaming paraformer (zh-en) | [damo/speech_paraformer_asr_nat-zh-cn-16k-common-vocab8404-online](https://modelscope.cn/models/damo/speech_paraformer_asr_nat-zh-cn-16k-common-vocab8404-online) (Alibaba) | Apache-2.0 | `paraformer` |
+| streaming paraformer (zh-yue-en) | [dengcunqin/speech_paraformer-large_asr_nat-zh-cantonese-en-16k-vocab8501-online](https://modelscope.cn/models/dengcunqin/speech_paraformer-large_asr_nat-zh-cantonese-en-16k-vocab8501-online) | Apache-2.0 | `paraformer` |
+
+Licenses above were read from each upstream's own model registry on 2026-10-01.
+The ModelScope model pages for both paraformer models state "Apache License 2.0",
+and the Hugging Face card for the bilingual model carries the `apache-2.0` tag.
+The ONNX conversions published in `k2-fsa/sherpa-onnx` inherit these terms.
+
+Because BSChat does not redistribute the weights, this table is informational:
+it tells you what you are agreeing to when you run the installer. Anyone
+redistributing a model alongside BSChat takes on the Apache-2.0 attribution
+obligations themselves.
 
 ## License summary and obligations
 

@@ -24,7 +24,8 @@ the downloader shipped alongside it.
 ### Changed
 
 - 服务端加载失败时的日志会提示检查 `modelType` 与模型文件是否匹配。
-- 模型许可清单移入 `THIRD_PARTY_NOTICES.md` 的可选模型小节，并标注许可待核实项。
+- 模型许可清单移入 `THIRD_PARTY_NOTICES.md` 的可选模型小节，五档模型的许可均已向上游
+  模型注册页核实为 Apache-2.0。
 
 ### Fixed
 

@@ -130,17 +130,21 @@ cmd 引导层有两处必须遵守的约束（均为实测踩坑）：
 - `SttModelConfig` 属 `bschat-core`，被 `ServerMod`（配置加载）与 `ServerRuntime`（引擎装配）共用，两处需同步改。
 - 脚本不参与 xmake 编译，只做文件分发。
 
-### 许可状态（待发布前逐项确认）
+### 许可状态（已确认）
 
-设计文档 `bschat-v1-design.md:189` 要求「具体模型许可需随模型文件核对记录」。当前状态：
+设计文档 `bschat-v1-design.md:189` 要求「具体模型许可需随模型文件核对记录」。已于 2026-10-01 逐项核实上游模型注册页：
 
 | 模型族 | 上游 | 许可 |
 |---|---|---|
-| icefall zipformer | k2-fsa/icefall | Apache-2.0 |
-| streaming-paraformer | Alibaba DAMO（ModelScope） | 需核实 |
+| icefall zipformer（档位 2/3） | k2-fsa/icefall | Apache-2.0 |
+| icefall zipformer CTC（档位 1） | k2-fsa/icefall | Apache-2.0 |
+| streaming-paraformer（档位 4） | damo/speech_paraformer_asr_nat-zh-cn-16k-common-vocab8404-online | Apache-2.0 |
+| streaming-paraformer（档位 5） | dengcunqin/speech_paraformer-large_asr_nat-zh-cantonese-en-16k-vocab8501-online | Apache-2.0 |
 | sherpa-onnx 运行时 | k2-fsa/sherpa-onnx | Apache-2.0 |
 
-`stt-download/model/` 目录**当前无 LICENSE 文件**，此项未闭环。
+依据：两个 paraformer 上游的 ModelScope 模型页均标注「Apache License 2.0」，双语模型的 Hugging Face 卡片带 `apache-2.0` 标签。`k2-fsa/sherpa-onnx` 发布的 ONNX 转换沿用原许可。
+
+BSChat 不分发模型权重，只在安装时下载到用户机器，因此上述声明是告知性质。详见 `THIRD_PARTY_NOTICES.md`。
 
 ### 风险
 
