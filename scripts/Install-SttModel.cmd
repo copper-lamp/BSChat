@@ -87,6 +87,11 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 $SherpaRuntimeVersion = '1.13.8'
+$SherpaRuntimeArchive = 'sherpa-onnx-v1.13.8-win-x64-shared-MD-Release-no-tts-lib.tar.bz2'
+$SherpaRuntimeBytes = 6907798
+
+# 运行时二进制挂在 vX.Y.Z 发布页；模型权重挂在 asr-models 标签页。两者不同源。
+$RuntimeBase = 'https://github.com/k2-fsa/sherpa-onnx/releases/download/v1.13.8'
 $ReleaseBase = 'https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models'
 
 # 模型清单。Files 为安装后必须存在的文件，缺失即判定下载不完整。
@@ -237,6 +242,103 @@ function Test-JsonProperty {
     return $false
 }
 
+# PowerShell 5.1 的 Invoke-WebRequest 走旧 HttpWebRequest，下载大文件经过
+# GitHub CDN 多级重定向时经常中途断连（"连接被意外关闭"）。curl.exe 随
+# Windows 10 1803 起自带，对重定向链和大文件传输都稳定得多，故优先使用；
+# 没有 curl.exe 时退回 Invoke-WebRequest。两条路径都带重试。
+function Get-CurlPath {
+    $command = Get-Command curl.exe -CommandType Application -ErrorAction SilentlyContinue
+    if ($command) { return $command.Source }
+    return $null
+}
+
+function Show-DownloadProgress {
+    param([System.Diagnostics.Process]$Process, [string]$OutFile, [long]$ExpectedBytes)
+
+    $lastPercent = -1
+    while (-not $Process.HasExited) {
+        Start-Sleep -Milliseconds 400
+        if (-not (Test-Path -LiteralPath $OutFile)) { continue }
+        $current = (Get-Item -LiteralPath $OutFile).Length
+        if ($ExpectedBytes -le 0) { continue }
+        $percent = [int]($current / $ExpectedBytes * 100)
+        if ($percent -ge 100) { $percent = 99 }
+        if ($percent -lt $lastPercent + 5) { continue }
+        $lastPercent = $percent - ($percent % 5)
+        $bar = '#' * [int]($lastPercent / 2.5)
+        $pad = ' ' * (40 - $bar.Length)
+        Write-Host ("`r    [{0}{1}] {2,3}%  {3}" -f $bar, $pad, $lastPercent, (Format-Size $current)) -NoNewline
+    }
+}
+
+function Invoke-Download {
+    param(
+        [string]$Url,
+        [string]$OutFile,
+        [long]$ExpectedBytes = 0,
+        [switch]$ShowProgress
+    )
+
+    # GitHub 要求 TLS 1.2，而 PS 5.1 所在机器的 .NET 配置不一定默认开启。
+    $previousProtocol = [Net.ServicePointManager]::SecurityProtocol
+    [Net.ServicePointManager]::SecurityProtocol =
+        $previousProtocol -bor [Net.SecurityProtocolType]::Tls12
+
+    $curl = Get-CurlPath
+    $attempts = 3
+    try {
+        for ($i = 1; $i -le $attempts; $i++) {
+            try {
+                if (Test-Path -LiteralPath $OutFile) { Remove-Item -LiteralPath $OutFile -Force }
+
+                if ($curl) {
+                    $arguments = @(
+                        '-L', '--fail', '--silent', '--show-error',
+                        '--retry', '3', '--retry-delay', '2', '--connect-timeout', '30',
+                        '-o', $OutFile, $Url
+                    )
+                    $process = Start-Process -FilePath $curl -ArgumentList $arguments -NoNewWindow -PassThru
+                    if ($ShowProgress -and $ExpectedBytes -gt 0) {
+                        Show-DownloadProgress -Process $process -OutFile $OutFile -ExpectedBytes $ExpectedBytes
+                    }
+                    else {
+                        $process.WaitForExit()
+                    }
+                    if ($process.ExitCode -ne 0) { throw "curl 退出码 $($process.ExitCode)" }
+                }
+                else {
+                    $ProgressPreference = 'SilentlyContinue'
+                    Invoke-WebRequest -Uri $Url -OutFile $OutFile -UseBasicParsing
+                }
+
+                if (-not (Test-Path -LiteralPath $OutFile)) { throw '下载完成但文件不存在' }
+                if ($ExpectedBytes -gt 0) {
+                    $actual = (Get-Item -LiteralPath $OutFile).Length
+                    if ($actual -ne $ExpectedBytes) {
+                        throw "大小不符：期望 $ExpectedBytes 字节，实际 $actual 字节"
+                    }
+                }
+                if ($ShowProgress) { Write-Host '' }
+                return
+            }
+            catch {
+                if (Test-Path -LiteralPath $OutFile) { Remove-Item -LiteralPath $OutFile -Force -ErrorAction SilentlyContinue }
+                if ($i -lt $attempts) {
+                    Write-Host ("`r    第 {0}/{1} 次下载失败：{2}，{3} 秒后重试" -f $i, $attempts, $_.Exception.Message, (2 * $i)) -NoNewline
+                    Start-Sleep -Seconds (2 * $i)
+                    Write-Host ''
+                }
+                else {
+                    throw "下载失败（已重试 $attempts 次）：$($_.Exception.Message)"
+                }
+            }
+        }
+    }
+    finally {
+        [Net.ServicePointManager]::SecurityProtocol = $previousProtocol
+    }
+}
+
 function Install-Runtime {
     $runtimeDir = Get-RuntimeDirectory
     Write-Step "准备 sherpa-onnx 运行时 $SherpaRuntimeVersion"
@@ -249,13 +351,12 @@ function Install-Runtime {
 
     New-Item -ItemType Directory -Path $runtimeDir -Force | Out-Null
 
-    $archive = "sherpa-onnx-v$SherpaRuntimeVersion-win-x64-shared-MD-Release-no-tts-lib.tar.bz2"
-    $url = "$ReleaseBase/$archive"
-    $temp = Join-Path ([System.IO.Path]::GetTempPath()) $archive
+    $url = "$RuntimeBase/$SherpaRuntimeArchive"
+    $temp = Join-Path ([System.IO.Path]::GetTempPath()) $SherpaRuntimeArchive
 
     Write-Detail "下载 $url"
-    $ProgressPreference = 'SilentlyContinue'
-    Invoke-WebRequest -Uri $url -OutFile $temp -UseBasicParsing
+    Invoke-Download -Url $url -OutFile $temp -ExpectedBytes $SherpaRuntimeBytes
+    Write-Detail "下载完成 $(Format-Size $SherpaRuntimeBytes)"
 
     $extractDir = Join-Path ([System.IO.Path]::GetTempPath()) "bschat-stt-runtime-$([guid]::NewGuid().ToString('N'))"
     try {
@@ -304,37 +405,8 @@ function Install-Model {
         Write-Detail "下载 $url"
         Write-Detail "预计体积 $(Format-Size $Entry.ArchiveSize)"
 
-        $job = Start-Job -ScriptBlock {
-            param($u, $o)
-            $ProgressPreference = 'SilentlyContinue'
-            Invoke-WebRequest -Uri $u -OutFile $o -UseBasicParsing
-        } -ArgumentList $url, $temp
-
-        $lastPercent = -1
-        while ($job.State -eq 'Running') {
-            Start-Sleep -Milliseconds 400
-            if (Test-Path -LiteralPath $temp) {
-                $current = (Get-Item -LiteralPath $temp).Length
-                $percent = [int]($current / $Entry.ArchiveSize * 100)
-                if ($percent -ge $lastPercent + 5) {
-                    $lastPercent = $percent - ($percent % 5)
-                    $bar = '#' * [int]($lastPercent / 2.5)
-                    $pad = ' ' * (40 - $bar.Length)
-                    Write-Host ("`r    [{0}{1}] {2,3}%  {3}" -f $bar, $pad, $lastPercent, (Format-Size $current)) -NoNewline
-                }
-            }
-        }
-        Write-Host ''
-
-        Receive-Job -Job $job -ErrorAction Stop | Out-Null
-        Remove-Job -Job $job -Force
-
-        $downloaded = (Get-Item -LiteralPath $temp).Length
-        if ($downloaded -ne $Entry.ArchiveSize) {
-            Remove-Item -LiteralPath $temp -Force -ErrorAction SilentlyContinue
-            throw "下载大小不符：期望 $($Entry.ArchiveSize) 字节，实际 $downloaded 字节"
-        }
-        Write-Detail "下载完成 $(Format-Size $downloaded)"
+        Invoke-Download -Url $url -OutFile $temp -ExpectedBytes $Entry.ArchiveSize -ShowProgress
+        Write-Detail "下载完成 $(Format-Size $Entry.ArchiveSize)"
 
         $extractDir = Join-Path ([System.IO.Path]::GetTempPath()) "bschat-stt-$([guid]::NewGuid().ToString('N'))"
         try {
