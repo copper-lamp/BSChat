@@ -23,6 +23,9 @@ rem  in comments corrupts %variable% expansion on the following lines.
 rem ===================================================================
 
 set "SCRIPT_DIR=%~dp0"
+rem %~dp0 ends with a backslash, so "C:\path\bschat\" would escape the closing
+rem quote on the command line and swallow the following arguments. Strip it.
+if "%SCRIPT_DIR:~-1%"=="\" set "SCRIPT_DIR=%SCRIPT_DIR:~0,-1%"
 
 where powershell.exe >nul 2>&1
 if errorlevel 1 (
