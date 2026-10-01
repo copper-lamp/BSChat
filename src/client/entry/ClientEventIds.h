@@ -2,21 +2,24 @@
 
 #include "ll/api/event/EventId.h"
 
-// LeviLamina 26.10.14 的客户端事件头文件没有 include guard（例如 UIRenderEvent.h 直接以
+// LeviLamina 的客户端事件头文件没有 include guard（例如 UIRenderEvent.h 直接以
 // #include 开头），同一编译单元内重复包含会导致类重定义。因此这里只做前置声明，
 // 事件类型的定义由使用方各自包含一次。
+// 26.20.7 起这些命名空间是 inline namespace（ll::event::inline client），
+// 前置声明必须同样带 inline，否则 clang 报 -Winline-namespace-reopened-noninline，
+// 且与后续头文件的定义不匹配。
 namespace ll::event {
-namespace client {
+inline namespace client {
 class ClientJoinLevelEvent;
 class ClientExitLevelEvent;
 } // namespace client
-namespace world {
+inline namespace world {
 class ClientLevelTickEvent;
 } // namespace world
-namespace input {
+inline namespace input {
 class KeyInputEvent;
 } // namespace input
-namespace render {
+inline namespace render {
 class AfterUIRenderEvent;
 } // namespace render
 } // namespace ll::event

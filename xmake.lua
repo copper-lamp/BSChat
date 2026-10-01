@@ -8,8 +8,8 @@ option("target_type")
     set_values("server", "client")
 option_end()
 
--- LeviLamina SDK，按 target_type 拉取服务端或客户端构建（开发基线 26.10.14）
-add_requires("levilamina 26.10.14", {configs = {target_type = get_config("target_type")}})
+-- LeviLamina SDK，按 target_type 拉取服务端或客户端构建（开发基线 26.20.7）
+add_requires("levilamina 26.20.7", {configs = {target_type = get_config("target_type")}})
 add_requires("levibuildscript")
 
 -- 26.10.14 把 rapidjson 钉在 v1.1.0，而该版本的 GenericStringRef::operator= 会给 const 成员赋值；

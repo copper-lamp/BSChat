@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+Moves both builds onto the LeviLamina 26.20 line.
+
+### Changed
+
+- 开发基线从 LeviLamina `26.10.14` 升到 `26.20.7`（`xmake.lua` / `tooth.json` 两个 variant /
+  README / building.md / getting-started.md / THIRD_PARTY_NOTICES.md 同步）。服务端与客户端两个
+  target 均在 26.20.7 下编译链接通过，无缺失符号。
+
+### Fixed
+
+- `ClientEventIds.h` 的事件前置声明补上 `inline`。26.20.7 的 SDK 头把 `ll::event::client` /
+  `world` / `input` / `render` 改成了 inline namespace，非 inline 的前置声明会被 clang 判为
+  `-Winline-namespace-reopened-noninline`，且与后续头文件的定义不匹配。
+
 ## [0.1.2] - 2026-10-01
 
 Lets server operators pick the speech-to-text model instead of shipping one fixed model, and fixes

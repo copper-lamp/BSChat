@@ -9,7 +9,7 @@
     <a href="LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0-blue?style=flat-square" alt="AGPL-3.0 许可证"></a>
   </p>
   <p>
-    <img src="https://img.shields.io/badge/LeviLamina-26.10.14-7b68ee?style=flat-square" alt="LeviLamina 26.10.14">
+    <img src="https://img.shields.io/badge/LeviLamina-26.20.7-7b68ee?style=flat-square" alt="LeviLamina 26.20.7">
   </p>
   <p>
     <a href="../docs/getting-started.md">快速上手</a>
@@ -34,7 +34,7 @@ Better Speech Chat 将你在游戏里的语音带到身边——按住按键说�
 > [!IMPORTANT]
 > Better Speech Chat 以服务端和客户端两个独立构建分发，两端都必须安装且使用相同的 LeviLamina 基线，否则无法握手。
 
-1. 在服务器上安装 [LeviLamina](https://lamina.levimc.org/)（基线 26.10.14）。
+1. 在服务器上安装 [LeviLamina](https://lamina.levimc.org/)（基线 26.20.7）。
 2. 在每位玩家的基岩版客户端安装 LeviLamina 客户端。
 3. 安装对应构建：服务端 → `plugins/bschat/`，客户端 → `mods/bschat/`。
 4. 重启后进服，按住 **V** 说话，松开结束；按 **J** 打开语音设置面板。
@@ -66,7 +66,7 @@ Better Speech Chat 将你在游戏里的语音带到身边——按住按键说�
 | 服务端（BDS） | 服务端构建 | `plugins/bschat/` |
 | 客户端（基岩版） | 客户端构建 | `mods/bschat/` |
 
-以上均面向 **Windows x64** 平台，运行于 **LeviLamina 26.10.14**。
+以上均面向 **Windows x64** 平台，运行于 **LeviLamina 26.20.7**。
 
 > [!TIP]
 > 语音无需开放独立端口，也不用配置 UDP 通道——它复用游戏自带的连接。
