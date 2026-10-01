@@ -1,48 +1,96 @@
-﻿<#
-.SYNOPSIS
-    BSChat 服务端 STT 模型安装器。
+@echo off
+setlocal enabledelayedexpansion
+chcp 65001 >nul 2>&1
 
-.DESCRIPTION
-    交互式选择并安装 sherpa-onnx 在线识别模型：下载、解压、校验、写入 bschat.json。
-    模型族与运行时按 sherpa-onnx 在线识别器的支持范围选定
-    （transducer / paraformer / zipformer2_ctc），离线模型不在本期范围内。
+rem ===================================================================
+rem  BSChat STT model downloader
+rem
+rem  Interactive installer for sherpa-onnx online ASR models. Downloads the
+rem  runtime and the selected model, verifies them, then writes the
+rem  sttModel section of config\bschat.json. Restart the server afterwards.
+rem
+rem  Usage:
+rem    Install-SttModel.cmd                    interactive menu
+rem    Install-SttModel.cmd bilingual-zh-en    install a tier silently
+rem
+rem  Tiers: zh-14m / zh-standard / zh-xlarge / bilingual-zh-en /
+rem         trilingual-zh-cantonese-en
+rem
+rem  The actual logic is embedded PowerShell 5.1 (ships with Windows).
+rem  Keep every line above the payload marker ASCII-only: cmd.exe parses
+rem  this file byte by byte under the console codepage, and non-ASCII text
+rem  in comments corrupts %variable% expansion on the following lines.
+rem ===================================================================
 
-    脚本不修改服务端进程，配置写入后需重启服务端生效。
+set "SCRIPT_DIR=%~dp0"
 
-.PARAMETER Model
-    非交互模式：直接指定模型 ID，跳过菜单。可重复传入以安装多个。
+where powershell.exe >nul 2>&1
+if errorlevel 1 (
+    echo [ERROR] powershell.exe not found.
+    echo         This script needs PowerShell 5.1, which ships with Windows.
+    pause
+    exit /b 1
+)
 
-.PARAMETER ModRoot
-    模组根目录，默认为本脚本上级目录。
+rem Extract the PowerShell payload that follows the marker into a temp file,
+rem so the deployment directory keeps this single .cmd and no leftovers.
+rem Paths travel through environment variables to avoid nested quoting.
+set "BSCHAT_CMD_SELF=%~f0"
+set "BSCHAT_CMD_TEMP=%TEMP%\bschat-stt-install-%RANDOM%%RANDOM%.ps1"
+set "BSCHAT_CMD_BEGIN=### POWERSHELL_PAYLOAD_BEGIN ###"
 
-.PARAMETER Force
-    即使目标目录已存在也重新下载。
+powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreference='Stop'; $c = Get-Content -LiteralPath $env:BSCHAT_CMD_SELF -Encoding UTF8; $i = [array]::IndexOf($c, $env:BSCHAT_CMD_BEGIN); if ($i -lt 0) { throw 'payload marker not found' }; $j = $c.Length - 1; while ($c[$j] -like '### *') { $j-- }; [System.IO.File]::WriteAllLines($env:BSCHAT_CMD_TEMP, $c[($i+1)..$j], (New-Object System.Text.UTF8Encoding($true)))"
 
-.EXAMPLE
-    .\Install-SttModel.ps1
-    交互式选择模型。
+if errorlevel 1 (
+    echo [ERROR] Failed to extract the installer payload. Please re-download this file.
+    pause
+    exit /b 1
+)
 
-.EXAMPLE
-    .\Install-SttModel.ps1 -Model bilingual-zh-en
-    静默安装中英双语模型（供自动化使用）。
-#>
+rem Forward a caller-supplied tier id as an explicit -Model argument.
+rem Use goto labels rather than an if/else block: inside a parenthesised
+rem block cmd.exe expands every %VAR% at parse time and merges the
+rem adjacent -ModRoot value with the following argument.
+if "%~1"=="" goto run_interactive
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%BSCHAT_CMD_TEMP%" -ModRoot "%SCRIPT_DIR%.." -Model "%~1"
+goto after_run
+
+:run_interactive
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%BSCHAT_CMD_TEMP%" -ModRoot "%SCRIPT_DIR%.."
+
+:after_run
+
+set "EXITCODE=%ERRORLEVEL%"
+del /q "%BSCHAT_CMD_TEMP%" >nul 2>&1
+
+echo.
+if "%EXITCODE%"=="0" (
+    echo Installation finished. Restart the server to apply the configuration.
+    pause
+    exit /b 0
+)
+echo [FAILED] Installation did not complete. Exit code: %EXITCODE%
+pause
+exit /b %EXITCODE%
+
+### POWERSHELL_PAYLOAD_BEGIN ###
+# BSChat STT 模型安装器（由 Install-SttModel.cmd 内嵌调用，请勿直接运行本段）。
+# 部署目录只分发一个 .cmd，实际逻辑在此以 PowerShell 5.1 实现。
+
 [CmdletBinding()]
 param(
     [string[]]$Model,
-    [string]$ModRoot,
-    [switch]$Force
+    [string]$ModRoot
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
-# 运行时版本与 docs/stt-model-installer.md 记录保持一致。
 $SherpaRuntimeVersion = '1.13.8'
-
-# 模型清单。Files 为安装后必须存在的文件（缺失即判定下载不完整）。
-# Map 描述如何把模型目录下的文件映射到 bschat.json 的 sttModel 字段。
 $ReleaseBase = 'https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models'
 
+# 模型清单。Files 为安装后必须存在的文件，缺失即判定下载不完整。
+# Map 描述模型目录下的文件如何映射到 bschat.json 的 sttModel 字段。
 $Catalog = @(
     [pscustomobject]@{
         Id          = 'zh-14m'
@@ -129,7 +177,7 @@ $Catalog = @(
     }
 )
 
-# 仅保留 STT 推理需要的 DLL。sherpa-onnx-c-api.dll 与 onnxruntime.dll 必须同目录，
+# 仅保留 STT 推理需要的 DLL。sherpa-onnx-c-api.dll 与 onnxruntime.dll 必须同目录：
 # 运行时用 LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR 加载，异目录会导致依赖解析失败。
 $RuntimeFiles = @(
     'sherpa-onnx-c-api.dll',
@@ -179,13 +227,23 @@ function Get-ConfigPath {
     return (Join-Path $ModRoot 'config\bschat.json')
 }
 
+# StrictMode 下空对象上访问 .PSObject.Properties.Name 会抛 PropertyNotFoundStrict，
+# 因此统一用 Test-JsonProperty 逐个枚举比较。
+function Test-JsonProperty {
+    param([object]$Target, [string]$Name)
+    foreach ($property in $Target.PSObject.Properties) {
+        if ($property.Name -eq $Name) { return $true }
+    }
+    return $false
+}
+
 function Install-Runtime {
     $runtimeDir = Get-RuntimeDirectory
     Write-Step "准备 sherpa-onnx 运行时 $SherpaRuntimeVersion"
 
     $existing = @($RuntimeFiles | Where-Object { Test-Path -LiteralPath (Join-Path $runtimeDir $_) })
-    if ($existing.Count -eq $RuntimeFiles.Count -and -not $Force) {
-        Write-Detail "运行时已就绪，跳过"
+    if ($existing.Count -eq $RuntimeFiles.Count) {
+        Write-Detail '运行时已就绪，跳过'
         return
     }
 
@@ -196,6 +254,7 @@ function Install-Runtime {
     $temp = Join-Path ([System.IO.Path]::GetTempPath()) $archive
 
     Write-Detail "下载 $url"
+    $ProgressPreference = 'SilentlyContinue'
     Invoke-WebRequest -Uri $url -OutFile $temp -UseBasicParsing
 
     $extractDir = Join-Path ([System.IO.Path]::GetTempPath()) "bschat-stt-runtime-$([guid]::NewGuid().ToString('N'))"
@@ -237,8 +296,8 @@ function Install-Model {
     foreach ($file in $Entry.Files) {
         if (-not (Test-Path -LiteralPath (Join-Path $modelDir $file))) { $complete = $false; break }
     }
-    if ($complete -and -not $Force) {
-        Write-Detail '模型已存在，跳过下载（-Force 可强制重装）'
+    if ($complete) {
+        Write-Detail '模型已存在，跳过下载'
     }
     else {
         $temp = Join-Path ([System.IO.Path]::GetTempPath()) $archiveName
@@ -312,25 +371,14 @@ function Install-Model {
 function Update-Config {
     param([pscustomobject]$Entry)
 
-    $configPath = Get-ConfigPath
     Write-Step '写入配置'
 
-    $libraryName = 'stt/runtime/sherpa-onnx-c-api.dll'
     $libraryPath = Join-Path (Get-RuntimeDirectory) 'sherpa-onnx-c-api.dll'
     if (-not (Test-Path -LiteralPath $libraryPath)) {
         throw "未找到运行时 $libraryPath，无法写入 libraryPath"
     }
 
-    # StrictMode 下空对象上访问 .PSObject.Properties.Name 会抛 PropertyNotFoundStrict，
-    # 因此统一用 Test-JsonProperty 逐个枚举比较。
-    function Test-JsonProperty {
-        param([object]$Target, [string]$Name)
-        foreach ($property in $Target.PSObject.Properties) {
-            if ($property.Name -eq $Name) { return $true }
-        }
-        return $false
-    }
-
+    $configPath = Get-ConfigPath
     if (Test-Path -LiteralPath $configPath) {
         $config = Get-Content -LiteralPath $configPath -Raw | ConvertFrom-Json
     }
@@ -347,7 +395,7 @@ function Update-Config {
     # 因此先按空对象构造再整体替换。
     $stt = [pscustomobject]@{
         modelType         = $Entry.ModelType
-        libraryPath       = $libraryName
+        libraryPath       = 'stt/runtime/sherpa-onnx-c-api.dll'
         encoderPath       = ''
         decoderPath       = ''
         joinerPath        = ''
@@ -371,12 +419,13 @@ function Update-Config {
 function Show-Catalog {
     Write-Host ''
     Write-Host '  BSChat STT 模型安装' -ForegroundColor White
-    Write-Host '  ' + ('-' * 62) -ForegroundColor DarkGray
+    Write-Host ('  ' + ('-' * 62)) -ForegroundColor DarkGray
 
+    $configPath = Get-ConfigPath
     $current = $null
-    if (Test-Path -LiteralPath (Get-ConfigPath)) {
+    if (Test-Path -LiteralPath $configPath) {
         try {
-            $parsed = Get-Content -LiteralPath (Get-ConfigPath) -Raw | ConvertFrom-Json
+            $parsed = Get-Content -LiteralPath $configPath -Raw | ConvertFrom-Json
             foreach ($property in $parsed.PSObject.Properties) {
                 if ($property.Name -ne 'sttModel' -or -not $property.Value) { continue }
                 foreach ($inner in $property.Value.PSObject.Properties) {
@@ -417,18 +466,14 @@ function Select-Model {
 
 # ---------------------------------------------------------------- 主流程
 
-if (-not $ModRoot) {
-    $ModRoot = Split-Path -Parent $PSScriptRoot
-}
+if (-not $ModRoot) { $ModRoot = Split-Path -Parent $PSScriptRoot }
 $ModRoot = [System.IO.Path]::GetFullPath($ModRoot)
-
-if (-not (Test-Path -LiteralPath $ModRoot)) {
-    throw "模组根目录不存在：$ModRoot"
-}
+if (-not (Test-Path -LiteralPath $ModRoot)) { throw "模组根目录不存在：$ModRoot" }
 
 Write-Host ''
 Write-Host "模组根目录: $ModRoot" -ForegroundColor DarkGray
 
+# .cmd 传入的模型 ID 以位置参数形式到达（-Model）。若未提供则走交互菜单。
 if ($Model -and $Model.Count -gt 0) {
     $selected = @()
     foreach ($id in $Model) {
@@ -457,3 +502,4 @@ Write-Host ''
 Write-Host '安装完成。' -ForegroundColor Green
 Write-Host '请重启服务端使配置生效，并确认客户端已开启字幕。' -ForegroundColor Green
 Write-Host ''
+### POWERSHELL_PAYLOAD_END ###

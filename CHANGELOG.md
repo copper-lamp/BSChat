@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **STT 模型安装器** — `scripts/Install-SttModel.ps1` 提供交互式选型，下载并校验
+- **STT 模型下载器** — `Install-SttModel.cmd` 提供交互式选型，下载并校验
   sherpa-onnx 运行时与所选模型，写入 `config/bschat.json` 的 `sttModel` 段。
   五档模型覆盖纯中文（极速/标准/高配）与中英、中英粤双语需求。
 - **`sttModel.modelType`** — 服务端不再假定 transducer。新增 `modelType` 与 `modelPath`

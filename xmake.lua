@@ -120,10 +120,12 @@ target("bschat")
         copy_json_dir(path.join(os.projectdir(), "lang"), path.join(modDir, "lang"))
         if is_config("target_type", "server") then
             copy_json_dir(path.join(os.projectdir(), "panels"), path.join(modDir, "panels"))
-            -- STT 模型安装脚本：随服务端发布包分发，用户自行选型下载模型。
-            for _, file in ipairs(os.files(path.join(os.projectdir(), "scripts", "*.ps1"))) do
-                os.cp(file, path.join(modDir, "scripts", path.filename(file)))
-            end
+            -- STT 模型下载器：部署目录只分发这一个文件，用户自行选型下载模型。
+            -- 其余 scripts/*.ps1 是构建/冒烟测试用的开发工具，不进发布包。
+            os.cp(
+                path.join(os.projectdir(), "scripts", "Install-SttModel.cmd"),
+                path.join(modDir, "Install-SttModel.cmd")
+            )
         else
             copy_json_dir(path.join(os.projectdir(), "panels"), path.join(modDir, "panels"))
             copy_tree(path.join(os.projectdir(), "icons"), path.join(modDir, "icons"))

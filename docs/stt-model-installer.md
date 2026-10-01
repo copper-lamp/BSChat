@@ -85,11 +85,19 @@ SttModelConfig
 
 ### 四、脚本行为
 
-`scripts/Install-SttModel.ps1`，随服务端发布包分发，不嵌入 BDS 进程——下载解压是分钟级操作，且独立脚本可在写入配置前调用 `sherpa-onnx.exe` 自检。
+`Install-SttModel.cmd`，随服务端发布包分发，不嵌入 BDS 进程——下载解压是分钟级操作，必须与 BDS 分离。
+
+部署目录只分发这一个文件，不保留辅助脚本。它是双格式文件：marker 之前是 cmd 引导层，marker 之后是内嵌的 PowerShell 5.1 实现。运行时先把 payload 抽取到 `%TEMP%` 下的临时 `.ps1` 执行，结束后删除，因此目录里不留残留。
 
 流程：展示菜单 → 选择 → 下载（带进度）→ 解压 → 校验必需文件 → 写配置 → 提示重启。
 
-支持 `-Model <ID>` 非交互参数，供自动化场景使用。
+传参：`Install-SttModel.cmd zh-14m` 静默安装指定档位，供自动化场景使用。
+
+cmd 引导层有两处必须遵守的约束（均为实测踩坑）：
+
+1. marker 之前的行**必须纯 ASCII**。cmd.exe 按控制台代码页逐字节解析脚本，注释里的非 ASCII 字节会破坏下一行的 `%VAR%` 展开。
+2. 文件**不能带 UTF-8 BOM**。BOM 会被当作命令，`@echo off` 变成 `'﻿@echo' 不是内部或外部命令`。
+3. 转发参数用 `goto` 标签而非 `if/else` 块。括号块内 cmd 在解析期就展开全部 `%VAR%`，相邻的 `-ModRoot` 值会与后一个参数粘连。
 
 ## 执行
 
@@ -104,12 +112,11 @@ SttModelConfig
 1. 模型清单以 PowerShell 数据表描述（ID / 名称 / 语种 / 体积 / RTF / 下载 URL / 必需文件 / modelType / 文件到配置字段的映射）。
 2. 下载走 `Invoke-WebRequest`，显示进度百分比。
 3. 解压用 `tar.exe`（Windows 10+ 内置），无需额外依赖。
-4. 配置写入用 `ConvertFrom-Json` / `ConvertTo-Json`，保留其余字段。
-5. 自检步骤检测到 `sherpa-onnx.exe` 才执行，不存在则跳过（发布包不含 CLI 工具）。
+4. 配置写入用 `ConvertFrom-Json` / `ConvertTo-Json`，`sttModel` 整段重建以清掉上次安装的残留路径。
 
 ### 阶段三：分发与文档
 
-1. `xmake.lua` `after_build`：服务端构建时把 `scripts/*.ps1` 拷到模组目录。
+1. `xmake.lua` `after_build`：服务端构建时把 `scripts/Install-SttModel.cmd` 拷到模组根目录，不建 `scripts/` 子目录。其余 `scripts/*.ps1` 是构建与冒烟测试用的开发工具，不进发布包。
 2. `THIRD_PARTY_NOTICES.md` 补录各模型来源与许可状态。
 3. `docs/getting-started.md` 补安装步骤。
 4. `CHANGELOG.md` 记录变更。

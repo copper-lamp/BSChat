@@ -40,14 +40,15 @@ Subtitles require the server-side speech-to-text feature:
 
 1. On the server, run the model installer and pick a tier:
 
-   ```powershell
-   .\scripts\Install-SttModel.ps1
+   ```bat
+   Install-SttModel.cmd
    ```
 
    It downloads the sherpa-onnx runtime and the selected model into `stt/`,
-   then writes the `sttModel` section of `config/bschat.json`. Use
-   `-Model <id>` to install without the interactive menu. Model tiers are
-   listed in [stt-model-installer](stt-model-installer.md).
+   then writes the `sttModel` section of `config/bschat.json`. Pass a tier id
+   to install without the interactive menu, for example
+   `Install-SttModel.cmd bilingual-zh-en`. Model tiers are listed in
+   [stt-model-installer](stt-model-installer.md).
 
 2. Restart the server so the new configuration takes effect.
 3. On the client, keep `subtitleEnabled` set to `true`.

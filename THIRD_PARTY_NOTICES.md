@@ -19,12 +19,11 @@ below, in addition to the AGPL-3.0 terms of the project itself.
 ### Speech recognition models (optional, user-installed)
 
 Speech-to-text model weights are **not** redistributed with BSChat.
-`scripts/Install-SttModel.ps1` downloads them on demand into `stt/models/`.
+`Install-SttModel.cmd` downloads them on demand into `stt/models/`.
 Users who install a model are responsible for complying with that model's own
 license; see `docs/stt-model-installer.md` for the per-model inventory.
 
 | Model family | Upstream | License | Model type |
-|---|---|---|---|
 | streaming zipformer (zh) | [k2-fsa/icefall](https://github.com/k2-fsa/icefall) | Apache-2.0 | `transducer` |
 | streaming zipformer CTC (zh) | [k2-fsa/icefall](https://github.com/k2-fsa/icefall) | Apache-2.0 | `zipformer2_ctc` |
 | streaming paraformer (zh-en) | Alibaba DAMO (ModelScope) | verify before release | `paraformer` |
@@ -40,7 +39,7 @@ license; see `docs/stt-model-installer.md` for the per-model inventory.
   included in all copies or substantial portions of the Software.
 - **sherpa-onnx (Apache-2.0)** — preserve the license and NOTICE requirements for the
   server-side streaming speech-to-text runtime. The runtime DLLs are downloaded by
-  `scripts/Install-SttModel.ps1`, not redistributed in the repository.
+  `Install-SttModel.cmd`, not redistributed in the repository.
 - **ONNX Runtime (MIT)** — preserve the copyright and permission notice when the
   server-side runtime is redistributed.
 - **LeviLamina (LGPL-3.0)** — dynamically linked only; BSChat does
