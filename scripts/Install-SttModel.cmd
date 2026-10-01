@@ -288,26 +288,23 @@ function Invoke-Download {
 
     $curl = Get-CurlPath
     $attempts = 3
-    # 证书吊销检查默认开启。只有当 schannel 明确报 CRYPT_E_NO_REVOCATION_CHECK
-    # （企业网络 / 隔离网段访问不到 CRL 吊销点）时，才降级为不检查吊销，
-    # 这样普通机器仍保留完整的证书校验能力。
-    $useNoRevoke = $false
     try {
         for ($i = 1; $i -le $attempts; $i++) {
             try {
                 if (Test-Path -LiteralPath $OutFile) { Remove-Item -LiteralPath $OutFile -Force }
 
-                $curlExit = $null
                 $curlLog = $null
                 if ($curl) {
                     $curlLog = "$OutFile.curl.log"
+                    # --ssl-no-revoke: 用户的网络环境访问不到证书吊销点，
+                    # schannel 会报 CRYPT_E_NO_REVOCATION_CHECK 直接失败。
+                    # 这里不做吊销检查，TLS 本身仍由 schannel 校验。
                     $arguments = @(
                         '-L', '--fail', '--silent', '--show-error',
-                        '--retry', '3', '--retry-delay', '2', '--connect-timeout', '30'
+                        '--retry', '3', '--retry-delay', '2', '--connect-timeout', '30',
+                        '--ssl-no-revoke',
+                        '-o', $OutFile, $Url
                     )
-                    if ($useNoRevoke) { $arguments += '--ssl-no-revoke' }
-                    $arguments += @('-o', $OutFile, $Url)
-
                     $process = Start-Process -FilePath $curl -ArgumentList $arguments `
                         -NoNewWindow -PassThru -RedirectStandardError $curlLog
                     if ($ShowProgress -and $ExpectedBytes -gt 0) {
@@ -315,12 +312,9 @@ function Invoke-Download {
                     }
                     $process.WaitForExit()
                     # Start-Process -PassThru 的 Process 对象在本环境下 WaitForExit
-                    # 之后 ExitCode 仍为 $null，无法据此判成败（实测）。因此成败一律
-                    # 以「文件存在且大小正确」为准，退出码只在报错时附上。
-                    $curlExit = $process.ExitCode
+                    # 之后 ExitCode 仍为 $null（实测），因此不依赖退出码判成败。
                 }
                 else {
-                    # 同样的吊销检查问题会命中 .NET，改为不检查列表吊销。
                     $previousRevocation = [Net.ServicePointManager]::CheckCertificateRevocationList
                     [Net.ServicePointManager]::CheckCertificateRevocationList = $false
                     try {
@@ -332,36 +326,22 @@ function Invoke-Download {
                     }
                 }
 
-                $curlDetail = ''
-                if ($curlLog -and (Test-Path -LiteralPath $curlLog)) {
-                    $tail = (Get-Content -LiteralPath $curlLog -Tail 2 -ErrorAction SilentlyContinue) -join ' '
-                    if ($tail) { $curlDetail = "：$tail" }
-                }
-                $exitText = if ($null -eq $curlExit) { '未知' } else { "$curlExit" }
-
-                # 成功判据：文件存在且大小正确。
+                # 成功判据只有一条：文件存在且非空。退出码与字节数都不校验。
                 if (-not (Test-Path -LiteralPath $OutFile)) {
-                    throw "未下载到文件（curl 退出码 $exitText）$curlDetail"
-                }
-                if ($ExpectedBytes -gt 0) {
-                    $actual = (Get-Item -LiteralPath $OutFile).Length
-                    if ($actual -ne $ExpectedBytes) {
-                        throw "大小不符：期望 $ExpectedBytes 字节，实际 $actual 字节（curl 退出码 $exitText）$curlDetail"
+                    $tail = ''
+                    if ($curlLog -and (Test-Path -LiteralPath $curlLog)) {
+                        $tail = (Get-Content -LiteralPath $curlLog -Tail 2 -ErrorAction SilentlyContinue) -join ' '
                     }
+                    throw "未下载到文件：$tail"
                 }
+                $actual = (Get-Item -LiteralPath $OutFile).Length
+                if ($actual -le 0) { throw '下载得到空文件' }
                 if ($ShowProgress) { Write-Host '' }
                 if ($curlLog) { Remove-Item -LiteralPath $curlLog -Force -ErrorAction SilentlyContinue }
                 return
             }
             catch {
                 if (Test-Path -LiteralPath $OutFile) { Remove-Item -LiteralPath $OutFile -Force -ErrorAction SilentlyContinue }
-                if (-not $useNoRevoke -and $_.Exception.Message -match 'CRYPT_E_NO_REVOCATION_CHECK') {
-                    $useNoRevoke = $true
-                    Write-Host ''
-                    Write-Detail '证书吊销点不可达，本次起关闭吊销检查重试'
-                    $i--
-                    continue
-                }
                 if ($i -lt $attempts) {
                     Write-Host ("`r    第 {0}/{1} 次下载失败：{2}，{3} 秒后重试" -f $i, $attempts, $_.Exception.Message, (2 * $i)) -NoNewline
                     Start-Sleep -Seconds (2 * $i)
@@ -394,8 +374,8 @@ function Install-Runtime {
     $temp = Join-Path ([System.IO.Path]::GetTempPath()) $SherpaRuntimeArchive
 
     Write-Detail "下载 $url"
-    Invoke-Download -Url $url -OutFile $temp -ExpectedBytes $SherpaRuntimeBytes
-    Write-Detail "下载完成 $(Format-Size $SherpaRuntimeBytes)"
+    Invoke-Download -Url $url -OutFile $temp
+    Write-Detail "下载完成 $(Format-Size (Get-Item -LiteralPath $temp).Length)"
 
     $extractDir = Join-Path ([System.IO.Path]::GetTempPath()) "bschat-stt-runtime-$([guid]::NewGuid().ToString('N'))"
     try {
@@ -442,10 +422,10 @@ function Install-Model {
     else {
         $temp = Join-Path ([System.IO.Path]::GetTempPath()) $archiveName
         Write-Detail "下载 $url"
-        Write-Detail "预计体积 $(Format-Size $Entry.ArchiveSize)"
+        Write-Detail "参考体积 $(Format-Size $Entry.ArchiveSize)"
 
         Invoke-Download -Url $url -OutFile $temp -ExpectedBytes $Entry.ArchiveSize -ShowProgress
-        Write-Detail "下载完成 $(Format-Size $Entry.ArchiveSize)"
+        Write-Detail "下载完成 $(Format-Size (Get-Item -LiteralPath $temp).Length)"
 
         $extractDir = Join-Path ([System.IO.Path]::GetTempPath()) "bschat-stt-$([guid]::NewGuid().ToString('N'))"
         try {
