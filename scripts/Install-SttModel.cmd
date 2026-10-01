@@ -288,20 +288,26 @@ function Invoke-Download {
 
     $curl = Get-CurlPath
     $attempts = 3
+    # 证书吊销检查默认开启。只有当 schannel 明确报 CRYPT_E_NO_REVOCATION_CHECK
+    # （企业网络 / 隔离网段访问不到 CRL 吊销点）时，才降级为不检查吊销，
+    # 这样普通机器仍保留完整的证书校验能力。
+    $useNoRevoke = $false
     try {
         for ($i = 1; $i -le $attempts; $i++) {
             try {
                 if (Test-Path -LiteralPath $OutFile) { Remove-Item -LiteralPath $OutFile -Force }
 
-$curlExit = $null
+                $curlExit = $null
                 $curlLog = $null
                 if ($curl) {
                     $curlLog = "$OutFile.curl.log"
                     $arguments = @(
                         '-L', '--fail', '--silent', '--show-error',
-                        '--retry', '3', '--retry-delay', '2', '--connect-timeout', '30',
-                        '-o', $OutFile, $Url
+                        '--retry', '3', '--retry-delay', '2', '--connect-timeout', '30'
                     )
+                    if ($useNoRevoke) { $arguments += '--ssl-no-revoke' }
+                    $arguments += @('-o', $OutFile, $Url)
+
                     $process = Start-Process -FilePath $curl -ArgumentList $arguments `
                         -NoNewWindow -PassThru -RedirectStandardError $curlLog
                     if ($ShowProgress -and $ExpectedBytes -gt 0) {
@@ -314,8 +320,16 @@ $curlExit = $null
                     $curlExit = $process.ExitCode
                 }
                 else {
-                    $ProgressPreference = 'SilentlyContinue'
-                    Invoke-WebRequest -Uri $Url -OutFile $OutFile -UseBasicParsing
+                    # 同样的吊销检查问题会命中 .NET，改为不检查列表吊销。
+                    $previousRevocation = [Net.ServicePointManager]::CheckCertificateRevocationList
+                    [Net.ServicePointManager]::CheckCertificateRevocationList = $false
+                    try {
+                        $ProgressPreference = 'SilentlyContinue'
+                        Invoke-WebRequest -Uri $Url -OutFile $OutFile -UseBasicParsing
+                    }
+                    finally {
+                        [Net.ServicePointManager]::CheckCertificateRevocationList = $previousRevocation
+                    }
                 }
 
                 $curlDetail = ''
@@ -341,6 +355,13 @@ $curlExit = $null
             }
             catch {
                 if (Test-Path -LiteralPath $OutFile) { Remove-Item -LiteralPath $OutFile -Force -ErrorAction SilentlyContinue }
+                if (-not $useNoRevoke -and $_.Exception.Message -match 'CRYPT_E_NO_REVOCATION_CHECK') {
+                    $useNoRevoke = $true
+                    Write-Host ''
+                    Write-Detail '证书吊销点不可达，本次起关闭吊销检查重试'
+                    $i--
+                    continue
+                }
                 if ($i -lt $attempts) {
                     Write-Host ("`r    第 {0}/{1} 次下载失败：{2}，{3} 秒后重试" -f $i, $attempts, $_.Exception.Message, (2 * $i)) -NoNewline
                     Start-Sleep -Seconds (2 * $i)
