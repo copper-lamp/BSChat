@@ -6,11 +6,11 @@ voice to work.
 
 Common prerequisites:
 
-- [LeviLamina](https://lamina.levimc.org/) `26.40.6` on both ends.
+- [LeviLamina](https://lamina.levimc.org/) `26.51.6` on both ends.
 - Windows x64.
 
 Releases are published per Minecraft version line, and the version suffix names the line a build
-targets — `v0.1.3-mc26.40` is the **MC 26.40.x** line. Pick the release whose suffix matches the
+targets — `v0.1.3-mc26.51` is the **MC 26.51.x** line. Pick the release whose suffix matches the
 Minecraft version you run; a build from another line will not load.
 
 ## 1. Install the server build

@@ -4,12 +4,12 @@
   <p><strong>Join the world and Start talking.</strong></p>
   <p>An open-source in-game real-time voice chat mod for Minecraft Bedrock on LeviLamina — server-side mixing, client-side capture and playback, with optional live speech-to-text subtitles.</p>
   <p>
-    <img src="https://img.shields.io/badge/release-v0.1.3--mc26.40-4c8bf5?style=flat-square" alt="BSChat v0.1.3-mc26.40">
+    <img src="https://img.shields.io/badge/release-v0.1.3--mc26.51-4c8bf5?style=flat-square" alt="BSChat v0.1.3-mc26.51">
     <img src="https://img.shields.io/badge/Minecraft%20Bedrock-Windows%20x64-62b47a?style=flat-square" alt="Windows x64 Minecraft Bedrock">
     <a href="LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0-blue?style=flat-square" alt="AGPL-3.0 License"></a>
   </p>
   <p>
-    <img src="https://img.shields.io/badge/LeviLamina-26.40.6-7b68ee?style=flat-square" alt="LeviLamina 26.40.6">
+    <img src="https://img.shields.io/badge/LeviLamina-26.51.6-7b68ee?style=flat-square" alt="LeviLamina 26.51.6">
   </p>
   <p>
     <a href="https://github.com/copper-lamp/BSChat/releases">Releases</a>
@@ -46,7 +46,7 @@ server plugin and a client mod, delivering a consistent experience from server t
 > BSChat ships as two independent builds — server and client. Both must be
 > installed and running on the same LeviLamina baseline, or the handshake will fail.
 
-1. Install [LeviLamina](https://lamina.levimc.org/) on your server (baseline 26.40.6).
+1. Install [LeviLamina](https://lamina.levimc.org/) on your server (baseline 26.51.6).
 2. Install LeviLamina client on each player's Bedrock client.
 3. Install the matching build: server → `plugins/bschat/`, client → `mods/bschat/`.
 4. Restart, join the world, and **hold V** to talk; release to go quiet. Press **J** to open the voice
@@ -72,10 +72,13 @@ Full installation and configuration steps are in the [Getting Started guide](../
 
 ## This Release
 
-`v0.1.3-mc26.40` moves both builds onto the LeviLamina 26.40 line (MC 26.40.x). Voice behaviour, the
+`v0.1.3-mc26.51` moves both builds onto the LeviLamina 26.51 line (MC 26.51.x). Voice behaviour, the
 wire protocol and the configuration format are unchanged — this is a host-version migration, and the
-install steps are the same as before apart from the LeviLamina baseline. It also fixes four SDK
-behaviour changes that would otherwise break the mod on the new host: event listeners now bind to the
+install steps are the same as before apart from the LeviLamina baseline. The 26.51 SDK turned out to be
+API-compatible for everything this mod uses, so no code changes were needed; the two builds compile
+clean with no new warnings, and both the event ID bindings and the build flavour were verified against
+the 26.51.6 runtime. `v0.1.3-mc26.40` is the same feature version on the MC 26.40 line: it fixes four
+SDK behaviour changes that would otherwise break the mod on that host — event listeners now bind to the
 SDK's canonical event IDs (the previous bindings resolved to nothing, so listeners failed to register
 silently on both ends), the hand-written `Packet::getRuntimeId` fallback is gone now that the SDK
 exports it, and the HUD text/icon drawing paths were ported to the narrowed `RectangleArea`,
@@ -104,10 +107,10 @@ Full history is in the [Changelog](CHANGELOG.md).
 | Server (BDS) | Server build | `plugins/bschat/` |
 | Client (Bedrock) | Client build | `mods/bschat/` |
 
-Both are built for **Windows x64** and run on **LeviLamina 26.40.6**.
+Both are built for **Windows x64** and run on **LeviLamina 26.51.6**.
 
 Releases are published per Minecraft version line, and the version suffix says which one a build
-targets: `v0.1.3-mc26.40` is the **MC 26.40.x** line. A build from another line will not load on this
+targets: `v0.1.3-mc26.51` is the **MC 26.51.x** line. A build from another line will not load on this
 one — both ends of a voice session must run the same line.
 
 > [!TIP]

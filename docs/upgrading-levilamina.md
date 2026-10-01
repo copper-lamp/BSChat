@@ -172,8 +172,48 @@ Get-AsciiStrings <levilamina包>/bin/LeviLamina.dll 'll::event::[A-Za-z_:]*'
 |---|---|---|---|
 | 26.10.14 | 26.20.7 | `ClientEventIds.h` 四个命名空间补 `inline` | server / client 均编译链接通过，无缺失符号 |
 | 26.20.7 | 26.40.6 | 见下面「26.40.x 上的新发现」四条 | server / client 均编译链接通过，零警告，两边 flavor 与事件 ID 均已核对 |
+| 26.40.6 | 26.51.6 | **无代码改动**，仅换 pin（见下节） | server / client 均编译链接通过，零警告，两边 flavor 与事件 ID 均已核对 |
+
+### 26.51.x 上的新发现
+
+**这次迁移零代码改动，是目前唯一一次纯 pin 迁移。** 迁移前把项目 include 的全部 59 个 SDK 头在
+`v26.40.6` 与 `v26.51.6` 之间逐文件做了内容比对，结论如下（引用的行号以 26.51.6 为准）：
+
+- **头文件路径与位置完全不变。** 客户端头仍在 `src-client/`、服务端头在 `src-server/`、公共头在
+  `src/`，`add_includedirs("src-client")` 的引用方式不用动（这一布局 26.40.6 就已经是这样了）。
+- **本项目实际使用的全部 API 签名未变**，包括 `RectangleArea`（仍是 `TypedStorage<4,4,float>` 的
+  `_x0/_x1/_y0/_y1`，仍无 5 参构造）、`ScreenView::mSize`、`ClientInstance::getFontHandle()`、
+  `AppPlatform::loadImage(mce::Image&, Core::Path const&)`（仍在 `#ifdef LL_PLAT_C` 内）、
+  `TexturePtr::mClientTexture`、`MinecraftUIRenderContext::drawImage/flushImages`。
+- **8 个事件类型（`ClientJoinLevelEvent`、`ClientExitLevelEvent`、`ClientLevelTickEvent`、
+  `KeyInputEvent`、`AfterUIRenderEvent`、`PlayerJoinEvent`、`PlayerDisconnectEvent`、
+  `ServerLevelTickEvent`）的定义逐字节一致**，`EventId.h` / `EventBus.h` / `I18n.h` /
+  `TargetedBedrock.h` 也零差异。inline namespace 形态不变，SDK 仍由 MSVC 编译，
+  `EventIdBindings.h` 的 8 条绑定继续有效 —— 但按纪律仍做了 DLL 实测核对（见执行第 6 步）。
+- **SDK 的依赖集合逐条相同**（`entt v4.0.0`、`fmt 11.2.0`、`mimalloc`、`cpr`、`libhat`、
+  `demangler`、`rapidjson 2025.02.05` 等），`rapidjson` 覆盖依旧不需要。`bedrockdata` 跟着
+  SDK 走（26.40.6 是 `v26.40.8-server.9` / `v26.40.5-client.9`，26.51.6 是
+  `v26.51.1-server.7` / `v26.51.1-client.7`）。
+
+有内容差异但**与本项目无关**的头（下次迁移不必重查，已逐条确认未调用）：
+
+| 头 | 变化 | 为何不影响 |
+|---|---|---|
+| `ll/api/memory/MemoryOperators.h` | SDK 内部从 `allocate`/`release` 改名 `_allocate`/`_release`，并给 `operator delete` 加 null 检查 | 本项目只 `#define LL_MEMORY_OPERATORS` 后 include 该头、自己不实现分配器 |
+| `mc/client/game/ClientInstance.h` | `setServerPingTime` / `getServerPingTime` 等虚函数改签名，大批 `UntypedStorage` 成员改尺寸 | 用到的 `getFontHandle()` 完全未变 |
+| `mc/client/gui/screens/ScreenView.h` | 游戏内部私有方法被删/移动（`getInputAreas`、`reload` 等） | 用到的 `mSize` 未变 |
+| `mc/deps/application/AppPlatform.h` | pimpl `Members` 拆分，247 行差异 | `loadImage` 逐字节未变 |
+| `ServerNetworkHandler.h` / `NetworkIdentifier.h` | 大量增量（PubSub connector、`getCorrelationId` 移除） | 只用 `getServerNetworkHandler()` 取实例 |
+| `CommandOrigin.h` / `CommandOutput.h` / `ServerPlayer.h` / `Player.h` | `Random::generateUUID()` 加参数、`swing()` 加 `HandSlot` 参数、`isExternalCommunicationAllowed` 新增 | 均未调用 |
+| `Font.h` / `FontHandle.h` / `TextureGroup.h` / `PathView.h` / `Image.h` / `optional_ref.h` / `ResourceLocation.h` / `BinaryStream.h` | `T const&` → `T const` 风格改写、成员增删 | 语义等价或未使用 |
+
+`ll/` 下唯一被删的是 `io/DefaultSink.{h,cpp}`（改为 `ConsoleSink` / `DefaultSinks` /
+`RotatePolicy`），以及 `core/tweak` 与 `core/network` 下的内部实现文件，均非公开 API。
 
 ### 26.40.x 上的新发现
+
+> 下面四条是 26.40.x 首次引入并已在 26.51.x 上复核仍然成立（除 `Packet::getRuntimeId` 那条的
+> 前提见文末）。26.51.x 自身的差异见上面「26.51.x 上的新发现」。
 
 **事件 ID 必须去掉 inline 段（本次迁移最严重的一处）。** 26.40.6 的头里 `ll::event` 下所有子命名
 空间都是 inline，于是 `getEventId<T>` 的默认值在两侧算出不同字符串，双端全部事件监听静默失效。
@@ -217,11 +257,21 @@ rapidjson 钉回 `v1.1.0`——那时表现是
 ### 版本号与 MC 版本线的对应
 
 LeviLamina 的 `major.minor` 就是 MC 的 `major.minor`（`docs/main/contents/versions.md` 里
-`26.20.x ↔ MC 26.20.5`、`26.10.x ↔ MC 26.10.4`），第三段是 SDK 自己的补丁号。所以 MC 26.40
-这条线对应 `levilamina 26.40.x`，`bedrock-runtime-data` 的依赖 tag 是 `v26.40.8-server.9`。
+`26.20.x ↔ MC 26.20.5`、`26.10.x ↔ MC 26.10.4`），第三段是 SDK 自己的补丁号。已验证的对应关系：
+
+| MC 线 | levilamina pin | bedrock-runtime-data 依赖 tag |
+|---|---|---|
+| 26.10 | `26.10.14` | — |
+| 26.20 | `26.20.7` | — |
+| 26.40 | `26.40.6` | `v26.40.8-server.9` / `v26.40.5-client.9` |
+| 26.51 | `26.51.6` | `v26.51.1-server.7` / `v26.51.1-client.7` |
+
 `release.yml` 的 "Verify pinned levilamina matches MC line" 取 pin 的前两段与 tag 里的
-`-mc<...>` 比对，因此这条线的发布 tag 必须是 `v<version>-mc26.40` 而不是 `-mc26.4`，否则 CI 直接
-失败。
+`-mc<...>` 比对，因此 26.51 这条线的发布 tag 必须是 `v<version>-mc26.51` 而不是 `-mc26.5`，
+否则 CI 直接失败。
+
+注意 `xmake-repo` 的 `levilamina/versions/` 里 **没有 `26_51_3`**（该 patch 号上游没发），
+可用的是 `26_51_0/1/2/4/5/6`。确认某版本存在时看 `versions/versions.txt`，比翻 tag 可靠。
 
 ### 不要动的东西
 

@@ -131,7 +131,7 @@ The server speech-to-text configuration supports `libraryPath` for the sherpa-on
 
 | Dependency | Purpose |
 |---|---|
-| LeviLamina `26.40.6` | Mod loader SDK (server or client flavor) |
+| LeviLamina `26.51.6` | Mod loader SDK (server or client flavor) |
 | Opus (`libopus` v1.5.2) | Audio encode/decode (static link) |
 | nlohmann-json | JSON configuration parsing (header-only) |
 | sherpa-onnx + ONNX Runtime | Server-side streaming Zipformer speech-to-text (server build) |
@@ -144,7 +144,7 @@ The server speech-to-text configuration supports `libraryPath` for the sherpa-on
 > pulls rapidjson into every translation unit that touches an MC type, so `MemoryOperators.cpp` failed
 > first. This used to be worked around by overriding the SDK's dependency from `xmake.lua`.
 >
-> That override is gone: LeviLamina `26.40.6` itself declares `add_requires("rapidjson 2025.02.05")`,
+> That override is gone: LeviLamina `26.51.6` itself declares `add_requires("rapidjson 2025.02.05")`,
 > so the broken pin no longer applies. Removing the override and doing a clean `xmake f -c` still
 > compiles, and `xmake show -t bschat` still resolves the include path to the `2025.02.05` package.
 > If a future SDK line reintroduces the old pin, restore the override rather than hand-editing the

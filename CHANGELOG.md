@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.3-mc26.51] - 2026-10-01
+
+Moves both builds onto the LeviLamina 26.51 line (MC 26.51.x). Same feature version as
+`0.1.3-mc26.40`, different MC line. Voice behaviour, the wire protocol and the configuration format
+are unchanged — only the host version moved, and this time no code changes were needed.
+
+### Changed
+
+- 开发基线从 LeviLamina `26.40.6` 升到 `26.51.6`（`xmake.lua` / `tooth.json` 两个 variant /
+  README 中英双版 / building.md / getting-started.md / THIRD_PARTY_NOTICES.md 同步）。服务端与
+  客户端两个 target 均在 26.51.6 下编译链接通过，零错误零警告。
+- 迁移前把项目 include 的全部 59 个 SDK 头在 `v26.40.6` 与 `v26.51.6` 之间逐文件做了内容比对，
+  结论是本项目实际使用到的 API 全部未变，因此 `src/` 与 `tests/` 零改动。核对细节见
+  `docs/upgrading-levilamina.md` 的「26.51.x 上的新发现」一节，含 8 个有差异但与本项目无关的头
+  的逐条说明（`MemoryOperators.h` 的 `_allocate` 改名、`AppPlatform` 的 pimpl 拆分等）。
+
+### Verified
+
+- 构建 flavor：server 产物不引用任何客户端事件符号，client 产物链接正确。
+- 事件 ID：模组产物与 SDK `LeviLamina.dll` 的 `ll::event::*` 字符串逐条比对，client 侧 5 个、
+  server 侧 3 个全部命中且不带 inline 段，`src/shared/event/EventIdBindings.h` 的绑定继续有效。
+- 依赖集合与 `rapidjson 钉版逐条相同，`add_requireconfs` 覆盖依旧不需要。
+
 ## [0.1.3-mc26.40] - 2026-10-01
 
 Moves both builds onto the LeviLamina 26.40 line (MC 26.40.x). Voice behaviour, the wire protocol
