@@ -256,6 +256,8 @@ function Show-DownloadProgress {
     param([System.Diagnostics.Process]$Process, [string]$OutFile, [long]$ExpectedBytes)
 
     $lastPercent = -1
+    # 进度轮询只负责画条，不负责判定成败；成败一律由 WaitForExit 后的
+    # 文件大小校验决定。
     while (-not $Process.HasExited) {
         Start-Sleep -Milliseconds 400
         if (-not (Test-Path -LiteralPath $OutFile)) { continue }
@@ -291,34 +293,50 @@ function Invoke-Download {
             try {
                 if (Test-Path -LiteralPath $OutFile) { Remove-Item -LiteralPath $OutFile -Force }
 
+$curlExit = $null
+                $curlLog = $null
                 if ($curl) {
+                    $curlLog = "$OutFile.curl.log"
                     $arguments = @(
                         '-L', '--fail', '--silent', '--show-error',
                         '--retry', '3', '--retry-delay', '2', '--connect-timeout', '30',
                         '-o', $OutFile, $Url
                     )
-                    $process = Start-Process -FilePath $curl -ArgumentList $arguments -NoNewWindow -PassThru
+                    $process = Start-Process -FilePath $curl -ArgumentList $arguments `
+                        -NoNewWindow -PassThru -RedirectStandardError $curlLog
                     if ($ShowProgress -and $ExpectedBytes -gt 0) {
                         Show-DownloadProgress -Process $process -OutFile $OutFile -ExpectedBytes $ExpectedBytes
                     }
-                    else {
-                        $process.WaitForExit()
-                    }
-                    if ($process.ExitCode -ne 0) { throw "curl 退出码 $($process.ExitCode)" }
+                    $process.WaitForExit()
+                    # Start-Process -PassThru 的 Process 对象在本环境下 WaitForExit
+                    # 之后 ExitCode 仍为 $null，无法据此判成败（实测）。因此成败一律
+                    # 以「文件存在且大小正确」为准，退出码只在报错时附上。
+                    $curlExit = $process.ExitCode
                 }
                 else {
                     $ProgressPreference = 'SilentlyContinue'
                     Invoke-WebRequest -Uri $Url -OutFile $OutFile -UseBasicParsing
                 }
 
-                if (-not (Test-Path -LiteralPath $OutFile)) { throw '下载完成但文件不存在' }
+                $curlDetail = ''
+                if ($curlLog -and (Test-Path -LiteralPath $curlLog)) {
+                    $tail = (Get-Content -LiteralPath $curlLog -Tail 2 -ErrorAction SilentlyContinue) -join ' '
+                    if ($tail) { $curlDetail = "：$tail" }
+                }
+                $exitText = if ($null -eq $curlExit) { '未知' } else { "$curlExit" }
+
+                # 成功判据：文件存在且大小正确。
+                if (-not (Test-Path -LiteralPath $OutFile)) {
+                    throw "未下载到文件（curl 退出码 $exitText）$curlDetail"
+                }
                 if ($ExpectedBytes -gt 0) {
                     $actual = (Get-Item -LiteralPath $OutFile).Length
                     if ($actual -ne $ExpectedBytes) {
-                        throw "大小不符：期望 $ExpectedBytes 字节，实际 $actual 字节"
+                        throw "大小不符：期望 $ExpectedBytes 字节，实际 $actual 字节（curl 退出码 $exitText）$curlDetail"
                     }
                 }
                 if ($ShowProgress) { Write-Host '' }
+                if ($curlLog) { Remove-Item -LiteralPath $curlLog -Force -ErrorAction SilentlyContinue }
                 return
             }
             catch {
