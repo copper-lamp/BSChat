@@ -4,7 +4,7 @@
   <p><strong>进服开麦，即刻畅聊。</strong></p>
   <p>面向 LeviLamina 的开源 Minecraft 基岩版游戏内实时语音聊天模组，服务端混音、客户端收发，可选实时语音转写字幕。</p>
   <p>
-    <img src="https://img.shields.io/badge/release-v0.1.2-4c8bf5?style=flat-square" alt="BSChat v0.1.2">
+    <img src="https://img.shields.io/badge/release-v0.1.3--mc26.40-4c8bf5?style=flat-square" alt="BSChat v0.1.3-mc26.40">
     <img src="https://img.shields.io/badge/Minecraft%20Bedrock-Windows%20x64-62b47a?style=flat-square" alt="Windows x64 Minecraft 基岩版">
     <a href="LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0-blue?style=flat-square" alt="AGPL-3.0 许可证"></a>
   </p>
@@ -54,7 +54,7 @@ Better Speech Chat 将你在游戏里的语音带到身边——按住按键说�
 
 ## 本版更新
 
-`v0.1.2` 把语音转文字的模型选择权交给服主：服务端包内新增 `Install-SttModel.cmd`，运行后交互式选择档位，脚本自动下载 sherpa-onnx 运行时与所选模型并写入配置，提供纯中文（极速/标准/高配）与中英、中英粤三语共五档，全部为 sherpa-onnx 在线识别器的真流式模型。服务端不再把识别模型写死为 transducer，新增 `sttModel.modelType` 支持全部在线模型族，旧配置无需改动即可继续使用。`v0.1.1` 把语音协议固定为 **v1** 稳定契约并采用只追加的演进方式，同时补齐双端能力协商：客户端声明自身能力，服务端回传双方共同支持的子集，只有协商通过的功能才会启用，因此新旧版本可以互相连通，可选功能不可用时基础语音照常工作。完整历史见[更新日志](CHANGELOG.md)。
+`v0.1.3-mc26.40` 把双端构建迁到 LeviLamina 26.40 线（MC 26.40.x）。语音行为、线路协议与配置格式均未改变，本次只换宿主版本，安装步骤与此前一致，只有 LeviLamina 基线要求变了。同时修掉四处会在这条新线上让模组失效的 SDK 行为变化：事件监听改为绑定 SDK 侧的规范事件 ID（原有绑定根本匹配不到任何条目，双端监听都会静默注册失败）；`Packet::getRuntimeId` 的手写兜底实现已删除，SDK 现在自己导出该函数；HUD 文字与图标绘制链路适配了收窄后的 `RectangleArea`、`AppPlatform::loadImage` 与 `TexturePtr` 接口。`v0.1.2` 把语音转文字的模型选择权交给服主：服务端包内新增 `Install-SttModel.cmd`，运行后交互式选择档位，脚本自动下载 sherpa-onnx 运行时与所选模型并写入配置，提供纯中文（极速/标准/高配）与中英、中英粤三语共五档，全部为 sherpa-onnx 在线识别器的真流式模型。服务端不再把识别模型写死为 transducer，新增 `sttModel.modelType` 支持全部在线模型族，旧配置无需改动即可继续使用。`v0.1.1` 把语音协议固定为 **v1** 稳定契约并采用只追加的演进方式，同时补齐双端能力协商：客户端声明自身能力，服务端回传双方共同支持的子集，只有协商通过的功能才会启用，因此新旧版本可以互相连通，可选功能不可用时基础语音照常工作。完整历史见[更新日志](CHANGELOG.md)。
 
 > [!IMPORTANT]
 > 目前发布的仍是测试版本，配置项与新增功能仍可能调整；但语音协议已固定为 v1，只做向下兼容的追加式扩展，不会在 v1 内做破坏性变更。请在使用后及时关注更新日志。
@@ -67,6 +67,9 @@ Better Speech Chat 将你在游戏里的语音带到身边——按住按键说�
 | 客户端（基岩版） | 客户端构建 | `mods/bschat/` |
 
 以上均面向 **Windows x64** 平台，运行于 **LeviLamina 26.40.6**。
+
+发布按 MC 版本线分开，版本号后缀标明这份构建适配哪条线：`v0.1.3-mc26.40` 对应 **MC 26.40.x**。
+换一条线的构建无法在本线上加载——一次语音会话的两端必须跑同一条线。
 
 > [!TIP]
 > 语音无需开放独立端口，也不用配置 UDP 通道——它复用游戏自带的连接。

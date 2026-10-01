@@ -4,7 +4,7 @@
   <p><strong>Join the world and Start talking.</strong></p>
   <p>An open-source in-game real-time voice chat mod for Minecraft Bedrock on LeviLamina — server-side mixing, client-side capture and playback, with optional live speech-to-text subtitles.</p>
   <p>
-    <img src="https://img.shields.io/badge/release-v0.1.2-4c8bf5?style=flat-square" alt="BSChat v0.1.2">
+    <img src="https://img.shields.io/badge/release-v0.1.3--mc26.40-4c8bf5?style=flat-square" alt="BSChat v0.1.3-mc26.40">
     <img src="https://img.shields.io/badge/Minecraft%20Bedrock-Windows%20x64-62b47a?style=flat-square" alt="Windows x64 Minecraft Bedrock">
     <a href="LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0-blue?style=flat-square" alt="AGPL-3.0 License"></a>
   </p>
@@ -72,17 +72,25 @@ Full installation and configuration steps are in the [Getting Started guide](../
 
 ## This Release
 
-`v0.1.2` hands speech-to-text model selection to the server operator. The server package now ships
-`Install-SttModel.cmd`; run it, pick a tier, and it downloads the sherpa-onnx runtime plus the chosen
-model and writes the resulting configuration. Five tiers are offered — Chinese at three size/accuracy
-points, plus Chinese-English and Chinese-English-Cantonese — all true streaming models from
-sherpa-onnx's online recognizer rather than VAD-simulated streaming. The server no longer hardcodes
-the transducer family: a new `sttModel.modelType` field selects any online model family, and existing
-configurations keep working unchanged. `v0.1.1` pinned the voice protocol to **v1** as a stable,
-append-only contract and completed capability negotiation on both ends: the client declares what it
-supports, the server answers with the common subset, and only negotiated features are enabled — so
-newer and older builds keep talking to each other, with base voice preserved whenever an optional
-feature is unavailable. Full history is in the [Changelog](CHANGELOG.md).
+`v0.1.3-mc26.40` moves both builds onto the LeviLamina 26.40 line (MC 26.40.x). Voice behaviour, the
+wire protocol and the configuration format are unchanged — this is a host-version migration, and the
+install steps are the same as before apart from the LeviLamina baseline. It also fixes four SDK
+behaviour changes that would otherwise break the mod on the new host: event listeners now bind to the
+SDK's canonical event IDs (the previous bindings resolved to nothing, so listeners failed to register
+silently on both ends), the hand-written `Packet::getRuntimeId` fallback is gone now that the SDK
+exports it, and the HUD text/icon drawing paths were ported to the narrowed `RectangleArea`,
+`AppPlatform::loadImage` and `TexturePtr` APIs. `v0.1.2` hands speech-to-text model selection to the
+server operator: the server package ships `Install-SttModel.cmd`; run it, pick a tier, and it
+downloads the sherpa-onnx runtime plus the chosen model and writes the resulting configuration. Five
+tiers are offered — Chinese at three size/accuracy points, plus Chinese-English and
+Chinese-English-Cantonese — all true streaming models from sherpa-onnx's online recognizer rather than
+VAD-simulated streaming. The server no longer hardcodes the transducer family: a new
+`sttModel.modelType` field selects any online model family, and existing configurations keep working
+unchanged. `v0.1.1` pinned the voice protocol to **v1** as a stable, append-only contract and
+completed capability negotiation on both ends: the client declares what it supports, the server
+answers with the common subset, and only negotiated features are enabled — so newer and older builds
+keep talking to each other, with base voice preserved whenever an optional feature is unavailable.
+Full history is in the [Changelog](CHANGELOG.md).
 
 > [!IMPORTANT]
 > This is still a test release and configuration or new features may still change, but the voice
@@ -97,6 +105,10 @@ feature is unavailable. Full history is in the [Changelog](CHANGELOG.md).
 | Client (Bedrock) | Client build | `mods/bschat/` |
 
 Both are built for **Windows x64** and run on **LeviLamina 26.40.6**.
+
+Releases are published per Minecraft version line, and the version suffix says which one a build
+targets: `v0.1.3-mc26.40` is the **MC 26.40.x** line. A build from another line will not load on this
+one — both ends of a voice session must run the same line.
 
 > [!TIP]
 > No separate port or UDP channel is required — voice reuses the game's built-in
