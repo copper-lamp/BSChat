@@ -51,12 +51,15 @@ rem Forward a caller-supplied tier id as an explicit -Model argument.
 rem Use goto labels rather than an if/else block: inside a parenthesised
 rem block cmd.exe expands every %VAR% at parse time and merges the
 rem adjacent -ModRoot value with the following argument.
+rem Model weights and config live beside this file, inside the bschat mod
+rem directory. ServerMod resolves relative sttModel paths against
+rem <configDir>/.. which is exactly this folder.
 if "%~1"=="" goto run_interactive
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%BSCHAT_CMD_TEMP%" -ModRoot "%SCRIPT_DIR%.." -Model "%~1"
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%BSCHAT_CMD_TEMP%" -ModRoot "%SCRIPT_DIR%" -Model "%~1"
 goto after_run
 
 :run_interactive
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%BSCHAT_CMD_TEMP%" -ModRoot "%SCRIPT_DIR%.."
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%BSCHAT_CMD_TEMP%" -ModRoot "%SCRIPT_DIR%"
 
 :after_run
 

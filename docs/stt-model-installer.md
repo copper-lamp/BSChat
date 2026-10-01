@@ -56,7 +56,8 @@ SttModelConfig
 ### 二、脚本与运行时目录
 
 ```
-<BDS>/plugins/bschat/
+<bschat 模组目录>/
+  ├─ Install-SttModel.cmd              # 本脚本，模组根即脚本所在目录
   ├─ stt/
   │   ├─ runtime/                      # sherpa DLL + onnxruntime（同目录，依赖解析需要）
   │   │   ├─ sherpa-onnx-c-api.dll
@@ -69,7 +70,7 @@ SttModelConfig
 
 `SherpaStt.cpp:72-73` 使用 `LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR`，因此 `sherpa-onnx-c-api.dll` 与 `onnxruntime.dll` **必须同目录**，否则依赖解析失败。
 
-相对路径基准为 `modRoot`（`ServerMod.cpp:391`，即 `config/` 的父目录），脚本写入相对路径以保证可移植。
+相对路径基准为 `modRoot`（`ServerMod.cpp:391`，即 `config/` 的父目录），脚本写入相对路径以保证可移植。脚本用 `%~dp0` 定位自身目录作为 `ModRoot`，与该基准一致——即模型落在 bschat 模组目录内，而不是它的上级目录。
 
 ### 三、模型菜单
 
