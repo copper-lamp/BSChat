@@ -16,6 +16,7 @@
 #include "mc/deps/core_graphics/ImageBuffer.h"
 #include "mc/deps/core_graphics/TextureSetLayerType.h"
 #include "mc/deps/minecraft_renderer/renderer/BedrockTexture.h"
+#include "mc/deps/minecraft_renderer/renderer/BedrockTextureData.h"
 
 namespace bsc::client::hud {
 namespace {
@@ -84,7 +85,10 @@ void StatusIcons::ensureLoaded() {
 
         std::filesystem::path const file =
             iconDirectory_ / (std::string("status_") + kIconSpecs[i].name + ".png");
-        mce::Image image = appPlatform->loadTexture(Core::Path(file));
+        // 26.40.x 起 AppPlatform::loadTexture / loadTextureFromStream 已从公开头移除，
+        // loadImage(out, path) 仍在，按扩展名分派解码，是现在唯一可用的入口。
+        mce::Image image;
+        appPlatform->loadImage(image, Core::Path(file));
         if (image.isEmpty()) {
             allLoaded = false;
             continue;
@@ -110,9 +114,10 @@ void StatusIcons::reset() {
 
 mce::ClientTexture const* StatusIcons::textureFor(AudioStatus status) const {
     auto const& texture = textures_[indexOf(status)];
-    // getClientTexture() 会解引用内部指针，空贴图必须先拦下，否则崩。
+    // TexturePtr::getClientTexture() 在 26.40.x 已从公开头移除，现在只能顺着
+    // shared_ptr<BedrockTextureData const> 取内层成员；空贴图必须先拦下，否则解引用崩。
     if (!texture.mClientTexture) return nullptr;
-    return &texture.getClientTexture();
+    return &texture.mClientTexture->mClientTexture.get();
 }
 
 } // namespace bsc::client::hud

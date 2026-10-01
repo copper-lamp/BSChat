@@ -6,6 +6,7 @@
 #include <filesystem>
 
 #include "mc/deps/minecraft_renderer/renderer/TexturePtr.h"
+#include "mc/deps/minecraft_renderer/resources/ClientTexture.h"
 
 #include "client/hud/StatusOverlay.h"
 
@@ -15,7 +16,7 @@ namespace bsc::client::hud {
 //
 // 贴图不走资源包：模组目录不在客户端资源包扫描范围内，玩家无法在「设置 -> 全局资源」里启用它，
 // 因此改为运行时自举，链路为：
-//   1. AppPlatform::loadTexture 从 <模组目录>/icons/status_*.png 解码出 mce::Image；
+//   1. AppPlatform::loadImage 从 <模组目录>/icons/status_*.png 解码出 mce::Image；
 //   2. ClientInstance::getTextureGroup()->uploadTexture 把像素直接上传进引擎纹理组；
 //   3. 缓存得到的 mce::TexturePtr 供绘制使用（不再回读资源包，避免拿到「缺失贴图」占位）。
 // 任一张解码或上传失败时 ready() 为 false，HUD 自动回落为纯文字状态。

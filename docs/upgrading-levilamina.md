@@ -27,24 +27,42 @@
 | `docs/getting-started.md` / `docs/building.md` | 前置条件表、依赖表 | 与 README 矛盾 |
 | `THIRD_PARTY_NOTICES.md` | LeviLamina 版本 + 许可证 | 第三方声明失准 |
 
-代码侧只有一处需要按SDK 版本审查：`src/client/entry/ClientEventIds.h`（见下）。
+代码侧只有一处需要按SDK 版本审查：`src/shared/event/EventIdBindings.h`（见下）。
 
 ### 为什么必须手工绑定事件 ID
 
-LeviLamina 发布包由 MSVC 编译，内置事件 ID 取自 MSVC 的 `__FUNCSIG__`，形如
-`ll::event::client::ClientJoinLevelEvent`，保留 inline namespace 前缀。本模组由 clang-cl 编译，
-`__PRETTY_FUNCTION__` 会省略 inline namespace，得到 `ll::event::ClientJoinLevelEvent`。两者 FNV1a
-哈希不同，EventBus 里不存在对应条目，`addListener` 直接返回 false，表现为"模组加载了但所有监听
-器静默失效"。
+EventBus 的条目键是 `getEventId<T>()`，其默认值取 `ll::reflection::type_unprefix_name_v<T>`，而它按
+编译器分叉取名：
 
-因此 `ClientEventIds.h` 把客户端用到的事件逐个显式绑定到 SDK 侧的规范 ID。**升级 SDK 后必须重新
-核对这份清单**：新增监听要登记，SDK 改了命名空间形态（inline / 非 inline）也要跟着改，否则绑定
-的字符串和 SDK 侧不一致，症状同样是监听器静默失效。
+- LeviLamina 发布包由 **MSVC** 编译，用 `__FUNCSIG__`。MSVC **不打印 inline namespace**，事件类型
+  即便声明在 `namespace ll::event::inline client` 里，得到的也是 `ll::event::ClientJoinLevelEvent`。
+- 本模组由 **clang-cl** 编译，用 `__PRETTY_FUNCTION__`。clang **会打印 inline namespace**，同样一个
+  类型得到 `ll::event::client::ClientJoinLevelEvent`。
+
+两者 FNV1a 哈希不同，EventBus 里不存在对应条目，`emplaceListener` 返回空监听器且不报错，表现为
+"模组加载了但所有监听器静默失效"。
+
+因此 `EventIdBindings.h` 把**双端**用到的事件逐个显式绑定到 SDK 侧的规范 ID（**去掉 inline 段**）。
+**升级 SDK 后必须重新核对这份清单**：新增监听要登记；SDK 若改了命名空间形态（inline / 非 inline）
+也要跟着改，否则字符串对不上，症状同样是监听器静默失效。
+
+校验方式只有一个，别靠推断——直接从 SDK 的 DLL 里读出 SDK 侧真实使用的名字：
+
+```powershell
+# LeviLamina.dll 在 xmake 包目录的 bin/ 下
+Select-String -Path <pkg>/bin/LeviLamina.dll -Pattern "ll::event::" -Encoding ascii -AllMatches |
+  ForEach-Object { $_.Matches.Value } | Sort-Object -Unique
+```
+
+26.40.6 的 client DLL 里全部是 `ll::event::PlayerJoinEvent` / `ll::event::KeyInputEvent` 这种**无子
+命名空间**的形式；任何带 `client::` / `world::` / `player::` 的写法都是错的。历史文档曾断言 MSVC
+会保留 inline namespace 前缀，与 DLL 实测相反，已按实测更正。
 
 ### inline namespace 是最容易漏的一处
 
-26.20.7 把 `ll::event::client` / `world` / `input` / `render` 改成了 inline namespace。
-`ClientEventIds.h` 里的前置声明如果还写成非inline，clang 会报：
+26.20.7 起 `ll::event` 下的所有子命名空间（`client` / `command` / `entity` / `input` / `io` /
+`player` / `render` / `server` / `world`）都是 inline namespace，不只是客户端那几个。`EventIdBindings.h`
+里的前置声明如果还写成非 inline，clang 会报：
 
 ```
 warning: inline namespace reopened as a non-inline namespace [-Winline-namespace-reopened-noninline]
@@ -120,11 +138,31 @@ server 产物不能引用客户端事件。反过来（client 产物当server �
 `The specified procedure could not be found`，并列出 `ll::event::client::ClientJoinLevelEvent` /
 `ll::event::input::KeyInputEvent`。看到这两个符号就说明 flavor 搞反了。
 
-### 6. 扫警告
+### 6. 核对产物里的事件 ID 字符串
+
+这一步不能省。编译通过只说明头文件对得上，**运行时监听能否注册取决于字符串**，而字符串在 SDK 里
+是什么只有 DLL 知道。改完 `EventIdBindings.h` 后，把产物和 SDK DLL 都读一遍对比：
+
+```powershell
+function Get-AsciiStrings($path, $pattern) {
+  $text = [System.Text.Encoding]::ASCII.GetString([System.IO.File]::ReadAllBytes($path))
+  [regex]::Matches($text, $pattern) | ForEach-Object { $_.Value } | Sort-Object -Unique
+}
+# 模组产物里绑定的 ID
+Get-AsciiStrings bin\bschat\bschat.dll 'll::event::[A-Za-z_:]*'
+# SDK 侧真实使用的 ID
+Get-AsciiStrings <levilamina包>/bin/LeviLamina.dll 'll::event::[A-Za-z_:]*'
+```
+
+两边必须逐条相等。任何只出现在模组产物里、或两边写法不一致的 ID，都会让对应监听静默失效，而且
+**不会产生任何日志**。
+
+### 7. 扫警告
 
 编译输出里逐条看 `warning:`。迁移引入的新警告通常意味着 SDK 行为变了，不能因为不影响构建就
-放过。`-Winline-namespace-reopened-noninline` 是本次迁移唯一的新警告，对应第2 节说的
-`ClientEventIds.h` 修正。
+放过。26.40.6 迁移的唯一新警告是 `-Winconsistent-dllimport`（来自 `Packet::getRuntimeId` 的重复
+兜底定义），改用 SDK 导出实现后消失；`-Winline-namespace-reopened-noninline` 对应第 2 节说的
+`EventIdBindings.h` 修正。
 
 ## 备注
 
@@ -133,18 +171,57 @@ server 产物不能引用客户端事件。反过来（client 产物当server �
 | 从 | 到 | 代码改动 | 结论 |
 |---|---|---|---|
 | 26.10.14 | 26.20.7 | `ClientEventIds.h` 四个命名空间补 `inline` | server / client 均编译链接通过，无缺失符号 |
+| 26.20.7 | 26.40.6 | 见下面「26.40.x 上的新发现」四条 | server / client 均编译链接通过，零警告，两边 flavor 与事件 ID 均已核对 |
 
-### 待验证
+### 26.40.x 上的新发现
 
-`xmake.lua` 里的 `add_requireconfs("levilamina.rapidjson", {version = "2025.02.05", override = true})`
-是为绕开旧版 SDK 把 rapidjson 钉在 `v1.1.0`（该版本 `GenericStringRef::operator=` 给const 成员
-赋值，clang 20+ 直接判错）而加的。MC 头文件链
-（`ll/api/memory/MemoryOperators.h` → `mc/deps/core/memory/IMemoryAllocator.h` →
-`mc/_HeaderOutputPredefine.h` → `rapidjson/document.h`）必然把 rapidjson 拉进每个含 MC 头的 TU。
+**事件 ID 必须去掉 inline 段（本次迁移最严重的一处）。** 26.40.6 的头里 `ll::event` 下所有子命名
+空间都是 inline，于是 `getEventId<T>` 的默认值在两侧算出不同字符串，双端全部事件监听静默失效。
+历史绑定（`ll::event::client::ClientJoinLevelEvent`、`ll::event::player::PlayerJoinEvent` …）全部
+是错的。已把 `src/client/entry/ClientEventIds.h` 扩成 `src/shared/event/EventIdBindings.h`，服务端与
+客户端共 8 个事件统一绑定到无 inline 段的规范 ID，并以 SDK DLL 实测为准。详见第 2 节与第 6 步。
 
-26.20.7 下这个 override 是否还有效**尚未实测**。判断方法：临时注释掉这一行，`xmake repo -u`
-后重编 server target。若通过，说明上游已修，可以删掉 override 和 `building.md` 里对应的说明；
-若仍报同一个 const 赋值错误，override 必须保留。
+**`RectangleArea` 不再提供 5 参构造。** 26.10.14 里
+`RectangleArea(float x0, float y0, float x1, float y1, bool checkForValidity)` 只在 `LL_PLAT_C` 下
+声明；26.40.6 整个构造函数和 `grow` / `translate` 一起从公开头消失，只剩 public 成员
+`_x0/_x1/_y0/_y1`（注意声明顺序是 x0,x1,y0,y1，不是 x0,y0,x1,y1）。`HudRenderer.cpp` 改为
+`makeRect()` 按成员赋值，等价于旧构造的 `checkForValidity=false`。
+
+**贴图加载与访问 API 被收窄。** `AppPlatform::loadTexture` / `loadTextureFromStream` 已移除，
+`loadImage(mce::Image&, Core::Path const&)` 仍在（按扩展名分派），是现在唯一可用的解码入口；
+`TexturePtr::getClientTexture()` / `operator*` 也被移除，而 `TexturePtr::mClientTexture` 是
+`shared_ptr<BedrockTextureData const>`，要取 `mce::ClientTexture` 得写成
+`texture.mClientTexture->mClientTexture.get()`，并且要额外包含
+`mc/deps/minecraft_renderer/renderer/BedrockTextureData.h`（否则是不完整类型）与
+`mc/deps/minecraft_renderer/resources/ClientTexture.h`（`TexturePtr.h` 已不再前置声明它）。
+`StatusIcons.cpp` / `StatusIcons.h` 按此改完，`drawImage` / `flushImages` 签名未变。
+
+**`Packet::getRuntimeId` 不再需要兜底。** 26.10.14 时代 SDK 头声明了这个虚函数但包导入库不含
+对应符号，clang-cl 为 `PacketBase` 实例化 vtable 时会留下未定义引用，只能在模组里手写一份。
+26.40.6 起它在头里带 `LLNDAPI`（`ll/api/network/packet/Packet.h:56`），导入库中能查到
+`?getRuntimeId@Packet@network@ll@@UEBA_KXZ`，SDK 源码 `src/ll/api/network/packet/Packet.cpp`
+的实现就是 `doHash(getName())`，与手写版语义一致。留着反而遮蔽 SDK 实现并触发
+`-Winconsistent-dllimport`。判断方法：
+`dumpbin /LINKERMEMBER:2 <levilamina>/lib/LeviLamina.lib | findstr getRuntimeId`，查得到就能删。
+
+**rapidjson 覆盖已失效。** 26.40.6 的 `xmake.lua` 自己写着 `add_requires("rapidjson 2025.02.05")`，
+`add_requireconfs` 覆盖不再需要，删掉后 `xmake f -c` 重新解析依然编过
+（`xmake show -t bschat` 里头路径仍指向 `2025.02.05`）。下次升级不必再验证这一项，除非 SDK 又把
+rapidjson 钉回 `v1.1.0`——那时表现是
+`rapidjson/document.h(319,82): error: cannot assign to non-static data member 'length'`，
+首当其冲的是 `src/shared/MemoryOperators.cpp`。
+
+**事件命名空间形态没变。** 26.40.6 的头仍是 `namespace ll::event::inline client`，inline 修正继续
+有效。
+
+### 版本号与 MC 版本线的对应
+
+LeviLamina 的 `major.minor` 就是 MC 的 `major.minor`（`docs/main/contents/versions.md` 里
+`26.20.x ↔ MC 26.20.5`、`26.10.x ↔ MC 26.10.4`），第三段是 SDK 自己的补丁号。所以 MC 26.40
+这条线对应 `levilamina 26.40.x`，`bedrock-runtime-data` 的依赖 tag 是 `v26.40.8-server.9`。
+`release.yml` 的 "Verify pinned levilamina matches MC line" 取 pin 的前两段与 tag 里的
+`-mc<...>` 比对，因此这条线的发布 tag 必须是 `v<version>-mc26.40` 而不是 `-mc26.4`，否则 CI 直接
+失败。
 
 ### 不要动的东西
 

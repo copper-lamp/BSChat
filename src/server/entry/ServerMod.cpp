@@ -19,28 +19,9 @@
 #include "mc/server/commands/CommandOutput.h"
 #include "mc/world/actor/player/Player.h"
 #include "ll/api/service/Bedrock.h"
+#include "shared/event/EventIdBindings.h"
 #include "shared/util/FileLog.h"
 #include "shared/util/PlayerIdUtils.h"
-
-// LeviLamina 发布包由 MSVC 编译，内置事件 ID 取自 MSVC 的 __FUNCSIG__，形如
-// "ll::event::player::PlayerJoinEvent"，保留 inline namespace 前缀（player/world/...）。
-// 本模组由 clang-cl 编译，__PRETTY_FUNCTION__ 会省略 inline namespace，得到
-// "ll::event::PlayerJoinEvent"。两者 FNV1a 哈希不同，EventBus 中不存在对应事件条目，
-// addListener 会直接返回 false，导致启用阶段所有监听器注册失败。
-// 这里把 getEventId 显式绑定到 SDK 侧的规范 ID，使 emplaceListener/removeListener
-// 命中 LeviLamina.dll 已注册的事件条目。事件条目本身仍由 SDK 的 hook 型 emitter
-// 创建并转发游戏事件，此处不做任何替代实现。
-namespace ll::event {
-template <>
-constexpr EventIdView getEventId<player::PlayerJoinEvent> =
-    EventIdView{"ll::event::player::PlayerJoinEvent"};
-template <>
-constexpr EventIdView getEventId<player::PlayerDisconnectEvent> =
-    EventIdView{"ll::event::player::PlayerDisconnectEvent"};
-template <>
-constexpr EventIdView getEventId<world::ServerLevelTickEvent> =
-    EventIdView{"ll::event::world::ServerLevelTickEvent"};
-} // namespace ll::event
 
 namespace bsc::server {
 

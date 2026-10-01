@@ -8,7 +8,7 @@
 #include <sstream>
 #include <utility>
 
-#include "client/entry/ClientEventIds.h"
+#include "shared/event/EventIdBindings.h"
 #include "client/input/KeyNames.h"
 #include "ll/api/event/EventBus.h"
 #include "ll/api/i18n/I18n.h"

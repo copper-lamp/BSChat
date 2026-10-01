@@ -34,6 +34,18 @@ HashedString const& imageMaterialName() {
     return name;
 }
 
+// 26.40.x 起 RectangleArea 不再提供 (x0, y0, x1, y1, checkForValidity) 构造，只剩 public
+// 成员 _x0/_x1/_y0/_y1（26.10.14 里那个构造只在 LL_PLAT_C 下声明）。这里按成员赋值，等价于
+// 旧构造的 checkForValidity=false：不做边界校验，越界交给引擎裁剪。
+RectangleArea makeRect(float x0, float y0, float x1, float y1) {
+    RectangleArea rect{};
+    rect._x0 = x0;
+    rect._y0 = y0;
+    rect._x1 = x1;
+    rect._y1 = y1;
+    return rect;
+}
+
 } // namespace
 
 bool HudRenderer::draw(ll::event::render::AfterUIRenderEvent& event, Frame const& frame, Layout const& layout) const {
@@ -79,7 +91,7 @@ bool HudRenderer::draw(ll::event::render::AfterUIRenderEvent& event, Frame const
         if (!frame.statusText.empty()) {
             std::string text = frame.statusText;
             // 左对齐：矩形从 textX 起，止于屏幕右边界；textX 不得越过右边界，否则矩形反转。
-            RectangleArea rect(std::min(textX, width), lineTop, width, lineBottom, false);
+            RectangleArea rect = makeRect(std::min(textX, width), lineTop, width, lineBottom);
             context.drawText(
                 font,
                 rect,
@@ -111,7 +123,7 @@ bool HudRenderer::draw(ll::event::render::AfterUIRenderEvent& event, Frame const
         std::string text = frame.subtitles[i].speakerName.empty()
             ? frame.subtitles[i].text
             : frame.subtitles[i].speakerName + "：" + frame.subtitles[i].text;
-        RectangleArea rect(rectX0, y0, rectX1, y1, false);
+        RectangleArea rect = makeRect(rectX0, y0, rectX1, y1);
         context.drawText(
             font,
             rect,

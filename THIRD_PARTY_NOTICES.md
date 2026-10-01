@@ -14,7 +14,7 @@ below, in addition to the AGPL-3.0 terms of the project itself.
 | [nlohmann/json](https://github.com/nlohmann/json) | latest | MIT | static (header-only) | `licenses/NLOHMANN-JSON-LICENSE.md` |
 | [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx) | 1.13.8 | Apache-2.0 | server build | `licenses/SHERPA-ONNX-LICENSE.md` |
 | [ONNX Runtime](https://github.com/microsoft/onnxruntime) | — | MIT | server build dependency | `licenses/ONNXRUNTIME-LICENSE.md` |
-| [LeviLamina](https://github.com/LiteLDev/LeviLamina) | 26.10.14 | LGPL-3.0 | dynamic (host loader) | `licenses/LEVILAMINA-LICENSE.md` |
+| [LeviLamina](https://github.com/LiteLDev/LeviLamina) | 26.40.6 | LGPL-3.0 | dynamic (host loader) | `licenses/LEVILAMINA-LICENSE.md` |
 
 ### Speech recognition models (optional, user-installed)
 

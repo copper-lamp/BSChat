@@ -5,6 +5,46 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+Moves both builds onto the LeviLamina 26.40 line (MC 26.40.x).
+
+### Changed
+
+- 开发基线从 LeviLamina `26.10.14` 升到 `26.40.6`（`xmake.lua` / `tooth.json` 两个 variant /
+  README 中英双版 / building.md / getting-started.md / THIRD_PARTY_NOTICES.md 同步）。服务端与
+  客户端两个 target 均在 26.40.6 下编译链接通过，零警告。
+- 删除 `xmake.lua` 里对 `levilamina.rapidjson` 的 `add_requireconfs` 覆盖。26.40.6 的 SDK 自己
+  就是 `add_requires("rapidjson 2025.02.05")`，被覆盖的 `v1.1.0` 钉版不再出现。删掉覆盖并
+  `xmake f -c` 重新解析后仍编译通过，编译命令行里的 rapidjson 头路径不变。
+- `src/client/entry/ClientEventIds.h` 扩为 `src/shared/event/EventIdBindings.h`，服务端与客户端的
+  事件 ID 绑定收敛到同一份清单，新增事件监听只需登记一处。
+
+### Fixed
+
+- **事件 ID 绑定去掉 inline 段（双端全部事件监听）**。26.40.6 把 `ll::event` 下所有子命名空间
+  （`client` / `command` / `entity` / `input` / `io` / `player` / `render` / `server` / `world`）
+  都定义成 inline namespace。SDK 由 MSVC 编译、`__FUNCSIG__` 不打印 inline namespace，本模组由
+  clang-cl 编译、`__PRETTY_FUNCTION__` 打印，于是同一个事件在两侧算出不同 ID，`emplaceListener`
+  静默返回空监听器且不产生任何日志。原绑定带 inline 段（`ll::event::client::ClientJoinLevelEvent`、
+  `ll::event::player::PlayerJoinEvent` 等），在 26.40.6 上是错的；现按 SDK 的 `LeviLamina.dll`
+  实测结果统一绑定为无 inline 段的规范 ID，8 个事件逐条核对通过。
+- 事件前置声明补上 `inline`。非 inline 的前置声明会被 clang 判为
+  `-Winline-namespace-reopened-noninline`，且与后续头文件的定义不匹配。
+- 删除 `GamePacketTransport.cpp` 里为 `ll::network::Packet::getRuntimeId` 手写的兜底实现。
+  26.40.6 起该函数在 SDK 头里带 `LLNDAPI` 并随 DLL 导出（导入库中可见
+  `?getRuntimeId@Packet@network@ll@@UEBA_KXZ`），26.10.14 的导入库则没有这个符号。留着这份
+  重复定义会遮蔽 SDK 实现（语义与 SDK 的 `doHash(getName())` 一致），并触发
+  `-Winconsistent-dllimport`。
+- HUD 文本绘制适配 `RectangleArea` 变更：26.40.6 移除了
+  `RectangleArea(x0, y0, x1, y1, checkForValidity)` 构造（26.10.14 里也只在 `LL_PLAT_C` 下声明），
+  现在只剩 public 成员 `_x0/_x1/_y0/_y1`，改由 `HudRenderer.cpp` 的 `makeRect()` 按成员赋值，
+  语义等价于旧的 `checkForValidity=false`。
+- 状态图标贴图链路适配 SDK 收窄的 API：`AppPlatform::loadTexture` / `loadTextureFromStream`
+  已移除，改用仍在的 `loadImage`；`TexturePtr::getClientTexture()` 已移除，改为取
+  `mClientTexture->mClientTexture.get()`，并补 `BedrockTextureData.h` / `ClientTexture.h` 头。
+  `drawImage` / `flushImages` 签名未变，绘制行为不变。
+
 ## [0.1.2] - 2026-10-01
 
 Lets server operators pick the speech-to-text model instead of shipping one fixed model, and fixes

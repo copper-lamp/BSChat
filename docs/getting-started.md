@@ -6,7 +6,7 @@ voice to work.
 
 Common prerequisites:
 
-- [LeviLamina](https://lamina.levimc.org/) `26.10.14` on both ends.
+- [LeviLamina](https://lamina.levimc.org/) `26.40.6` on both ends.
 - Windows x64.
 
 ## 1. Install the server build

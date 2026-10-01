@@ -10,7 +10,7 @@
 
 #include "mc/client/game/ClientInstance.h"
 
-#include "client/entry/ClientEventIds.h"
+#include "shared/event/EventIdBindings.h"
 
 namespace bsc::client::hud {
 namespace {

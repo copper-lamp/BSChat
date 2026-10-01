@@ -9,7 +9,7 @@
     <a href="LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0-blue?style=flat-square" alt="AGPL-3.0 License"></a>
   </p>
   <p>
-    <img src="https://img.shields.io/badge/LeviLamina-26.10.14-7b68ee?style=flat-square" alt="LeviLamina 26.10.14">
+    <img src="https://img.shields.io/badge/LeviLamina-26.40.6-7b68ee?style=flat-square" alt="LeviLamina 26.40.6">
   </p>
   <p>
     <a href="https://github.com/copper-lamp/BSChat/releases">Releases</a>
@@ -46,7 +46,7 @@ server plugin and a client mod, delivering a consistent experience from server t
 > BSChat ships as two independent builds — server and client. Both must be
 > installed and running on the same LeviLamina baseline, or the handshake will fail.
 
-1. Install [LeviLamina](https://lamina.levimc.org/) on your server (baseline 26.10.14).
+1. Install [LeviLamina](https://lamina.levimc.org/) on your server (baseline 26.40.6).
 2. Install LeviLamina client on each player's Bedrock client.
 3. Install the matching build: server → `plugins/bschat/`, client → `mods/bschat/`.
 4. Restart, join the world, and **hold V** to talk; release to go quiet. Press **J** to open the voice
@@ -96,7 +96,7 @@ feature is unavailable. Full history is in the [Changelog](CHANGELOG.md).
 | Server (BDS) | Server build | `plugins/bschat/` |
 | Client (Bedrock) | Client build | `mods/bschat/` |
 
-Both are built for **Windows x64** and run on **LeviLamina 26.10.14**.
+Both are built for **Windows x64** and run on **LeviLamina 26.40.6**.
 
 > [!TIP]
 > No separate port or UDP channel is required — voice reuses the game's built-in

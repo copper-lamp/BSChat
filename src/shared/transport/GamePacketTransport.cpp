@@ -21,14 +21,11 @@
 #include "mc/world/actor/player/Player.h"
 #include "shared/util/PlayerIdUtils.h"
 
-// LeviLamina 26.10.14's public packet header declares this virtual API but its
-// package import library does not export the fallback implementation. The
-// concrete packet below overrides it; this definition only satisfies the base
-// vtable emitted by clang-cl for PacketBase. 语义与 SDK 实现保持一致
-// （SDK: doHash(getName())），返回 0 会让未覆写该函数的包拿到非法 runtimeId。
-ll::network::PacketRuntimeId ll::network::Packet::getRuntimeId() const {
-    return ll::hash_utils::doHash(getName());
-}
+// 26.10.14 时代这里需要为 ll::network::Packet::getRuntimeId 补一份 SDK 未导出的兜底实现：
+// 那个版本的包导入库不含该符号，clang-cl 为 PacketBase 实例化 vtable 时会留下未定义引用。
+// 26.40.6 起 SDK 已把它标成 LLNDAPI 并随 DLL 导出（导入库中可见
+// ?getRuntimeId@Packet@network@ll@@UEBA_KXZ），这份重复定义只会遮蔽 SDK 实现并触发
+// -Winconsistent-dllimport，因此不再需要。
 
 namespace bsc::shared {
 

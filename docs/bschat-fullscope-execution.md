@@ -17,7 +17,7 @@
 2. `maxPending` 目前只在 ServerRuntime 装配混音器时生效；配置热加载未实现。
 3. `maxChatters` 仅保留配置字段，尚未实现按加入时间淘汰。
 4. 管理命令、OP/白名单权限来源和审计日志仍未接入；在此之前不能视为生产级封禁系统。
-5. LeviLamina 26.10.14 客户端生命周期、输入和世界事件已接入；客户端 target 与服务端/测试 target 均已成功构建，且已导出统一内存分配标记 `ll_memory_operator_overrided`，可进入真实客户端加载及双端音频测试。
+5. LeviLamina 26.40.6 客户端生命周期、输入和世界事件已接入；客户端 target 与服务端/测试 target 均已成功构建，且已导出统一内存分配标记 `ll_memory_operator_overrided`，可进入真实客户端加载及双端音频测试。
 6. Dear-OreUI 集成的历史调研（C ABI `DearOreUI_QueryApi`、`IDearOreUIApi`、`PageScope::Settings`、可选 DLL 加载与 Settings 面板注册）已被「原生表单 + 服务端中继」方案取代并**已删除**：`src/client/DearOreUiIntegration.*`、`docs/dear-oreui.md` 与 xmake 侧的 Dear-OreUI include / `BSCHAT_HAS_DEAR_OREUI` 宏均已移除，历史记录见 git。客户端 enable 失败时仍会输出前置对象和四类事件监听注册诊断。
 
 ## 验证
