@@ -1,7 +1,5 @@
 #pragma once
 
-#include <string_view>
-
 namespace bsc::client::hud {
 
 // 状态覆盖层要表达的状态。图标与文案分别由绘制层与 i18n 键决定。
@@ -22,12 +20,11 @@ struct StatusInputs {
 };
 
 // 纯状态推导：优先级 静音 > 说话 > 放音 > 会话中无声；未进会话一律空闲。
+// 状态覆盖层只用图标表达这些状态（文案不再上屏），静默状态不显示图标。
 class StatusOverlay final {
 public:
     void update(StatusInputs inputs) { inputs_ = inputs; }
     AudioStatus status() const;
-
-    static std::string_view i18nKey(AudioStatus status);
 
 private:
     StatusInputs inputs_{};

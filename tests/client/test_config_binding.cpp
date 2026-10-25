@@ -95,9 +95,42 @@ TEST(config_binding_reports_supported_keys) {
     EXPECT_TRUE(ConfigBinding::supported("playbackVolume"));
     EXPECT_TRUE(ConfigBinding::supported("subtitleEnabled"));
     EXPECT_TRUE(ConfigBinding::supported("maxSubtitleLines"));
+    EXPECT_TRUE(ConfigBinding::supported("subtitleMaxChars"));
+    EXPECT_TRUE(ConfigBinding::supported("subtitleFadeSeconds"));
     EXPECT_TRUE(ConfigBinding::supported("hudEnabled"));
     EXPECT_FALSE(ConfigBinding::supported("nope"));
     EXPECT_FALSE(ConfigBinding::supported(""));
+}
+
+TEST(config_binding_reads_and_applies_subtitle_detail_settings) {
+    config::ClientConfig c;
+    c.subtitleMaxChars = 30;
+    c.subtitleFadeMs = 2500;
+    EXPECT_NEAR(std::get<double>(ConfigBinding::read(c, "subtitleMaxChars")), 30.0, 1e-9);
+    // 配置以毫秒存储，面板按秒展示。
+    EXPECT_NEAR(std::get<double>(ConfigBinding::read(c, "subtitleFadeSeconds")), 2.5, 1e-9);
+
+    PanelValues values;
+    values["subtitleMaxChars"] = 40.0;
+    values["subtitleFadeSeconds"] = 3.0;
+    auto applied = ConfigBinding::apply(c, values);
+    EXPECT_EQ(applied, static_cast<std::size_t>(2));
+    EXPECT_EQ(c.subtitleMaxChars, 40);
+    EXPECT_EQ(c.subtitleFadeMs, 3000);
+}
+
+TEST(config_binding_rejects_out_of_range_subtitle_detail_settings) {
+    config::ClientConfig c;
+    c.subtitleMaxChars = 25;
+    c.subtitleFadeMs = 1000;
+
+    PanelValues values;
+    values["subtitleMaxChars"] = 1.0;     // 低于 5
+    values["subtitleFadeSeconds"] = 99.0; // 超过 30 秒
+    auto applied = ConfigBinding::apply(c, values);
+    EXPECT_EQ(applied, static_cast<std::size_t>(0));
+    EXPECT_EQ(c.subtitleMaxChars, 25);
+    EXPECT_EQ(c.subtitleFadeMs, 1000);
 }
 
 TEST(config_client_panel_fields_roundtrip) {
@@ -125,6 +158,25 @@ TEST(config_client_volume_clamped_on_load) {
     EXPECT_NEAR(config::clientConfigFromJson(R"({"playbackVolume": 5.0})").playbackVolume, 1.0f, 1e-6);
     EXPECT_NEAR(config::clientConfigFromJson(R"({"playbackVolume": -3.0})").playbackVolume, 0.0f, 1e-6);
     EXPECT_NEAR(config::clientConfigFromJson(R"({"playbackVolume": 0.4})").playbackVolume, 0.4f, 1e-6);
+}
+
+TEST(config_client_subtitle_settings_roundtrip_and_defaults) {
+    config::ClientConfig c;
+    c.subtitleMaxChars = 40;
+    c.subtitleFadeMs = 1500;
+    auto restored = config::clientConfigFromJson(config::clientConfigToJson(c));
+    EXPECT_EQ(restored.subtitleMaxChars, 40);
+    EXPECT_EQ(restored.subtitleFadeMs, 1500);
+
+    // 产品默认值：单行 25 个字符、说完 1 秒消失。
+    auto defaults = config::clientConfigFromJson(R"({})");
+    EXPECT_EQ(defaults.subtitleMaxChars, 25);
+    EXPECT_EQ(defaults.subtitleFadeMs, 1000);
+
+    // 手改越界值在加载时收敛，避免非法行长进入绘制层。
+    auto clamped = config::clientConfigFromJson(R"({"subtitleMaxChars": 0, "subtitleFadeMs": -1})");
+    EXPECT_EQ(clamped.subtitleMaxChars, 1);
+    EXPECT_EQ(clamped.subtitleFadeMs, 0);
 }
 
 TEST(config_binding_reads_key_names) {

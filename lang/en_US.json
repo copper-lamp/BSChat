@@ -1,9 +1,4 @@
 {
-  "bschat.status.idle": "Idle",
-  "bschat.status.speaking": "Speaking",
-  "bschat.status.muted": "Muted",
-  "bschat.status.playing": "Listening",
-  "bschat.status.silent": "Silent",
   "bschat.panel.settings.title": "BSChat Voice Settings",
   "bschat.panel.settings.submit": "Save",
   "bschat.panel.settings.audio": "Audio",
@@ -23,6 +18,8 @@
   "bschat.opt.settingsKey": "Settings panel key",
   "bschat.opt.subtitleEnabled": "Show subtitles",
   "bschat.opt.subtitleLines": "Subtitle lines",
+  "bschat.opt.subtitleMaxChars": "Max characters per subtitle line",
+  "bschat.opt.subtitleFadeTime": "Subtitle display time (seconds)",
   "bschat.opt.hudEnabled": "Show status overlay",
   "bschat.panel.admin.title": "BSChat Admin Panel",
   "bschat.panel.admin.audio": "Server voice",

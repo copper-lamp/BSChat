@@ -11,6 +11,10 @@ constexpr double kBalanceStrengthMin = 0.0;
 constexpr double kBalanceStrengthMax = 100.0;
 constexpr double kSubtitleLinesMin = 1.0;
 constexpr double kSubtitleLinesMax = 8.0;
+constexpr double kSubtitleCharsMin = 5.0;
+constexpr double kSubtitleCharsMax = 100.0;
+constexpr double kSubtitleFadeSecondsMin = 0.0;
+constexpr double kSubtitleFadeSecondsMax = 30.0;
 
 constexpr char const* kTalkModeDisabled = "disabled";
 constexpr char const* kTalkModePushToTalk = "pushToTalk";
@@ -28,7 +32,8 @@ std::string talkModeOf(config::ClientConfig const& config) {
 bool ConfigBinding::supported(std::string const& key) {
     return key == "voiceEnabled" || key == "talkMode" || key == "captureEnabled" || key == "playbackVolume"
         || key == "volumeBalanceEnabled" || key == "volumeBalanceStrength"
-        || key == "subtitleEnabled" || key == "maxSubtitleLines" || key == "hudEnabled" || key == "pttKeyName"
+        || key == "subtitleEnabled" || key == "maxSubtitleLines" || key == "subtitleMaxChars"
+        || key == "subtitleFadeSeconds" || key == "hudEnabled" || key == "pttKeyName"
         || key == "settingsKeyName";
 }
 
@@ -41,6 +46,9 @@ PanelValue ConfigBinding::read(config::ClientConfig const& config, std::string c
     if (key == "volumeBalanceStrength") return static_cast<double>(config.volumeBalanceStrength) * kBalanceStrengthMax;
     if (key == "subtitleEnabled") return flag(config.subtitleEnabled);
     if (key == "maxSubtitleLines") return static_cast<double>(config.maxSubtitleLines);
+    if (key == "subtitleMaxChars") return static_cast<double>(config.subtitleMaxChars);
+    // 配置存毫秒，面板按秒展示。
+    if (key == "subtitleFadeSeconds") return static_cast<double>(config.subtitleFadeMs) / 1000.0;
     if (key == "hudEnabled") return flag(config.hudEnabled);
     if (key == "pttKeyName" || key == "settingsKeyName") {
         // 当前键不在收录表里时返回 monostate，面板只显示 placeholder 而不塞一个错名字。
@@ -121,6 +129,18 @@ std::size_t ConfigBinding::apply(config::ClientConfig& config, PanelValues const
             if (auto const* number = std::get_if<double>(&value);
                 number && *number >= kSubtitleLinesMin && *number <= kSubtitleLinesMax) {
                 config.maxSubtitleLines = static_cast<int>(*number + 0.5);
+                accepted = true;
+            }
+        } else if (key == "subtitleMaxChars") {
+            if (auto const* number = std::get_if<double>(&value);
+                number && *number >= kSubtitleCharsMin && *number <= kSubtitleCharsMax) {
+                config.subtitleMaxChars = static_cast<int>(*number + 0.5);
+                accepted = true;
+            }
+        } else if (key == "subtitleFadeSeconds") {
+            if (auto const* number = std::get_if<double>(&value);
+                number && *number >= kSubtitleFadeSecondsMin && *number <= kSubtitleFadeSecondsMax) {
+                config.subtitleFadeMs = static_cast<int>(*number * 1000.0 + 0.5);
                 accepted = true;
             }
         } else if (
