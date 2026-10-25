@@ -12,6 +12,7 @@
 
 #include "core/audio/AudioTypes.h"
 #include "core/audio/JitterBuffer.h"
+#include "core/audio/VolumeBalancer.h"
 #include "core/codec/OpusCodec.h"
 
 namespace bsc::server {
@@ -95,6 +96,29 @@ public:
     bool updatePosition(const protocol::PosUpdateMessage& update, int64_t receivedAtMs);
     SpatialState spatialState() const;
 
+    // 本会话是否协商到近距离语音能力。未协商的旧客户端不参与距离衰减与字幕门控，
+    // 由混音器按会话降级为全局混音。握手时由网络线程写入，音频线程读取。
+    void setProximityEnabled(bool enabled) { proximityEnabled_.store(enabled); }
+    bool proximityEnabled() const { return proximityEnabled_.load(); }
+
+    // 听者上报的音量平衡参数（VolumeBalance）。网络线程写入，音频线程读取；
+    // 与位置状态共用同一把锁即可，更新频率只有「面板改设置」级别。
+    void setVolumeBalance(const protocol::VolumeBalanceMessage& settings) {
+        std::lock_guard lock(mutex_);
+        volumeBalance_ = audio::VolumeBalanceSettings{
+            settings.enabled, settings.strength, settings.targetRms};
+        hasVolumeBalance_ = true;
+    }
+    // 未上报过时返回缺省的「关闭」，即服务端不改变音量平衡。
+    audio::VolumeBalanceSettings volumeBalance() const {
+        std::lock_guard lock(mutex_);
+        return volumeBalance_;
+    }
+    bool hasVolumeBalance() const {
+        std::lock_guard lock(mutex_);
+        return hasVolumeBalance_;
+    }
+
 private:
     bool allowFrameLocked(int64_t nowMs);
 
@@ -102,11 +126,14 @@ private:
     Options options_;
     mutable std::mutex mutex_;
     std::atomic<uint8_t> clientCapabilities_{0};
+    std::atomic<bool> proximityEnabled_{false};
 
     std::deque<int64_t> arrivals_; // 限速滑动窗口（1s）
     audio::JitterBuffer jitter_;
     codec::OpusDecoder decoder_;
     SpatialState spatial_;
+    audio::VolumeBalanceSettings volumeBalance_{};
+    bool hasVolumeBalance_ = false;
 };
 
 } // namespace bsc::server

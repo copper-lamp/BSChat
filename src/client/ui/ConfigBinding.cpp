@@ -7,6 +7,8 @@ namespace {
 
 constexpr double kVolumeMin = 0.0;
 constexpr double kVolumeMax = 100.0;
+constexpr double kBalanceStrengthMin = 0.0;
+constexpr double kBalanceStrengthMax = 100.0;
 constexpr double kSubtitleLinesMin = 1.0;
 constexpr double kSubtitleLinesMax = 8.0;
 
@@ -25,6 +27,7 @@ std::string talkModeOf(config::ClientConfig const& config) {
 
 bool ConfigBinding::supported(std::string const& key) {
     return key == "voiceEnabled" || key == "talkMode" || key == "captureEnabled" || key == "playbackVolume"
+        || key == "volumeBalanceEnabled" || key == "volumeBalanceStrength"
         || key == "subtitleEnabled" || key == "maxSubtitleLines" || key == "hudEnabled" || key == "pttKeyName"
         || key == "settingsKeyName";
 }
@@ -34,6 +37,8 @@ PanelValue ConfigBinding::read(config::ClientConfig const& config, std::string c
     if (key == "talkMode") return talkModeOf(config);
     if (key == "captureEnabled") return flag(config.captureEnabled);
     if (key == "playbackVolume") return static_cast<double>(config.playbackVolume) * kVolumeMax;
+    if (key == "volumeBalanceEnabled") return flag(config.volumeBalanceEnabled);
+    if (key == "volumeBalanceStrength") return static_cast<double>(config.volumeBalanceStrength) * kBalanceStrengthMax;
     if (key == "subtitleEnabled") return flag(config.subtitleEnabled);
     if (key == "maxSubtitleLines") return static_cast<double>(config.maxSubtitleLines);
     if (key == "hudEnabled") return flag(config.hudEnabled);
@@ -106,6 +111,12 @@ std::size_t ConfigBinding::apply(config::ClientConfig& config, PanelValues const
                 config.playbackVolume = static_cast<float>(*number / kVolumeMax);
                 accepted = true;
             }
+        } else if (key == "volumeBalanceStrength") {
+            if (auto const* number = std::get_if<double>(&value);
+                number && *number >= kBalanceStrengthMin && *number <= kBalanceStrengthMax) {
+                config.volumeBalanceStrength = static_cast<float>(*number / kBalanceStrengthMax);
+                accepted = true;
+            }
         } else if (key == "maxSubtitleLines") {
             if (auto const* number = std::get_if<double>(&value);
                 number && *number >= kSubtitleLinesMin && *number <= kSubtitleLinesMax) {
@@ -114,12 +125,14 @@ std::size_t ConfigBinding::apply(config::ClientConfig& config, PanelValues const
             }
         } else if (
             key == "voiceEnabled" || key == "captureEnabled" || key == "subtitleEnabled" || key == "hudEnabled"
+            || key == "volumeBalanceEnabled"
         ) {
             if (auto const* number = std::get_if<uint64_t>(&value)) {
                 bool const on = *number != 0;
                 if (key == "voiceEnabled") config.voiceEnabled = on;
                 else if (key == "captureEnabled") config.captureEnabled = on;
                 else if (key == "subtitleEnabled") config.subtitleEnabled = on;
+                else if (key == "volumeBalanceEnabled") config.volumeBalanceEnabled = on;
                 else config.hudEnabled = on;
                 accepted = true;
             }

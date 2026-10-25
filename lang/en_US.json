@@ -17,6 +17,8 @@
   "bschat.opt.talkMode.vad": "Voice activity",
   "bschat.opt.captureEnabled": "Microphone capture",
   "bschat.opt.volume": "Playback volume",
+  "bschat.opt.volumeBalance": "Automatic volume balance",
+  "bschat.opt.volumeBalanceStrength": "Balance strength",
   "bschat.opt.pttKey": "Talk key",
   "bschat.opt.settingsKey": "Settings panel key",
   "bschat.opt.subtitleEnabled": "Show subtitles",

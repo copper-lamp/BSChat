@@ -16,10 +16,13 @@ TEST(admin_policy_admission_and_gain) {
 }
 
 TEST(admin_store_round_trip) {
-    auto path = std::filesystem::temp_directory_path() / "bschat-admin-test.json";
+    // 与 WavBytes::writeTempWav 一致：受限运行环境下系统 temp 目录可能不可写。
+    auto path = std::filesystem::current_path() / "bschat-admin-test.json";
     std::error_code ec; std::filesystem::remove(path, ec);
     AdminPolicy source; auto a = id(3); source.setWhitelistEnabled(true); source.addWhitelist(a); source.setGain(a, 0.5f);
     AdminStore store(path); std::string error; EXPECT_TRUE(store.save(source, &error));
-    AdminPolicy loaded; EXPECT_TRUE(store.load(loaded, &error)); EXPECT_TRUE(loaded.whitelistEnabled()); EXPECT_TRUE(loaded.isWhitelisted(a)); EXPECT_NEAR(loaded.gain(a), 0.5f, 0.001);
+    if (!error.empty()) std::fprintf(stderr, "    admin save error: %s\n", error.c_str());
+    AdminPolicy loaded; error.clear(); EXPECT_TRUE(store.load(loaded, &error));
+    if (!error.empty()) std::fprintf(stderr, "    admin load error: %s\n", error.c_str()); EXPECT_TRUE(loaded.whitelistEnabled()); EXPECT_TRUE(loaded.isWhitelisted(a)); EXPECT_NEAR(loaded.gain(a), 0.5f, 0.001);
     std::filesystem::remove(path, ec);
 }
