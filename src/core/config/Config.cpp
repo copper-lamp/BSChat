@@ -159,7 +159,12 @@ ClientConfig clientConfigFromJson(const std::string& json) {
         if (c.volumeBalanceTargetRms < 0.02f) c.volumeBalanceTargetRms = 0.02f;
         if (c.volumeBalanceTargetRms > 0.40f) c.volumeBalanceTargetRms = 0.40f;
         c.maxSubtitleLines = valueOr(j, "maxSubtitleLines", c.maxSubtitleLines);
+        c.subtitleMaxChars = valueOr(j, "subtitleMaxChars", c.subtitleMaxChars);
         c.subtitleFadeMs = valueOr(j, "subtitleFadeMs", c.subtitleFadeMs);
+        // 手改配置兜底：行长至少 1 个字符，消失时间不允许负数。
+        if (c.subtitleMaxChars < 1) c.subtitleMaxChars = 1;
+        if (c.subtitleMaxChars > 200) c.subtitleMaxChars = 200;
+        if (c.subtitleFadeMs < 0) c.subtitleFadeMs = 0;
         c.hudEnabled = valueOr(j, "hudEnabled", c.hudEnabled);
         c.jitterMaxDepthFrames = valueOr(j, "jitterMaxDepthFrames", c.jitterMaxDepthFrames);
         c.jitterMaxWaitMs = valueOr(j, "jitterMaxWaitMs", c.jitterMaxWaitMs);
@@ -184,6 +189,7 @@ std::string clientConfigToJson(const ClientConfig& c) {
     j["volumeBalanceStrength"] = c.volumeBalanceStrength;
     j["volumeBalanceTargetRms"] = c.volumeBalanceTargetRms;
     j["maxSubtitleLines"] = c.maxSubtitleLines;
+    j["subtitleMaxChars"] = c.subtitleMaxChars;
     j["subtitleFadeMs"] = c.subtitleFadeMs;
     j["hudEnabled"] = c.hudEnabled;
     j["jitterMaxDepthFrames"] = c.jitterMaxDepthFrames;

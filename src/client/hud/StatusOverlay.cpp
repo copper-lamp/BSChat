@@ -10,20 +10,4 @@ AudioStatus StatusOverlay::status() const {
     return AudioStatus::Silent;
 }
 
-std::string_view StatusOverlay::i18nKey(AudioStatus status) {
-    switch (status) {
-    case AudioStatus::Idle:
-        return "bschat.status.idle";
-    case AudioStatus::Speaking:
-        return "bschat.status.speaking";
-    case AudioStatus::Muted:
-        return "bschat.status.muted";
-    case AudioStatus::Playing:
-        return "bschat.status.playing";
-    case AudioStatus::Silent:
-        return "bschat.status.silent";
-    }
-    return "bschat.status.idle";
-}
-
 } // namespace bsc::client::hud

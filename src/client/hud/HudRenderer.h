@@ -31,17 +31,13 @@ public:
         float subtitleSideMargin = 20.0f;
         float statusX = 10.0f;
         float statusBottomOffset = 16.0f;
-        // 状态图标：12x12 与文字行高（subtitleLineHeight）一致，图标底与文字行底对齐；
-        // 文字左边界 = statusX + statusIconSize + statusIconGap（无图标时仍是 statusX）。
-        // 均为 UI 缩放坐标常量，未按不同 GUI 缩放真机校准。
+        // 状态图标：12x12，左下方对齐；状态覆盖层只画图标，不再画文字。
         float statusIconSize = 12.0f;
-        float statusIconGap = 4.0f;
     };
 
     struct Frame {
         std::vector<SubtitleLine> subtitles; // 按时间先后，最后一条在最下方
-        std::string statusText;              // 已本地化的状态文案，空表示不画
-        // 状态图标贴图；为空（资源包未启用或加载失败）时状态只画文字。
+        // 状态图标贴图；为空表示本帧不显示状态（静默状态或图标加载失败）。
         mce::ClientTexture const* statusIcon = nullptr;
     };
 
