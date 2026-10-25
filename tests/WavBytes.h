@@ -69,7 +69,9 @@ inline std::vector<uint8_t> buildWavBytes(
 }
 
 inline std::filesystem::path writeTempWav(const std::vector<uint8_t>& bytes, const char* name) {
-    auto path = std::filesystem::temp_directory_path() / name;
+    // 写到当前工作目录（xmake run 时即项目根目录）：部分受限运行环境里
+    // temp_directory_path() 对被测进程不可写，测试文件放这里更稳。
+    auto path = std::filesystem::current_path() / name;
     std::ofstream file(path, std::ios::binary | std::ios::trunc);
     file.write(reinterpret_cast<const char*>(bytes.data()), static_cast<std::streamsize>(bytes.size()));
     file.close();

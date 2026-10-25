@@ -36,8 +36,11 @@ ServerMixer::Config mixerConfigFrom(const config::ServerConfig& config) {
     mixerConfig.spatial.mode = config.spatialMode == "proximity"
         ? audio::MixMode::Proximity : audio::MixMode::Global;
     mixerConfig.spatial.attenuationRadiusBlocks = config.spatialRadius;
-    mixerConfig.spatial.maxAudibleRadiusBlocks = config.spatialRadius > 0.0f
-        ? config.spatialRadius * 2.0f : 0.0f;
+    // 未显式配置最大传播距离时沿用旧行为（衰减半径的 2 倍），避免老配置文件升级后
+    // 突然变成「半径外全聋」。
+    mixerConfig.spatial.maxDistanceBlocks = config.spatialMaxDistance > 0.0f
+        ? config.spatialMaxDistance
+        : config.spatialRadius * 2.0f;
     mixerConfig.maxTalkers = config.spatialMaxTalkers;
     mixerConfig.maxChatters = config.spatialMaxChatters;
     mixerConfig.staleMs = config.spatialStaleMs;
@@ -168,6 +171,9 @@ void ServerRuntime::handleMessage(const protocol::PlayerId& peerId, const protoc
                 if (session && typedMessage.playerId == peerId && std::isfinite(typedMessage.x) && std::isfinite(typedMessage.y) && std::isfinite(typedMessage.z)) {
                     session->updatePosition(typedMessage, steadyNowMs());
                 }
+            } else if constexpr (std::is_same_v<MessageType, protocol::VolumeBalanceMessage>) {
+                // 只接受已握手会话上报的参数；数值区间在解码阶段已校验。
+                if (auto session = sessions_.find(peerId)) session->setVolumeBalance(typedMessage);
             } else if constexpr (std::is_same_v<MessageType, protocol::UiFormMessage>) {
                 if (uiFormHandler_) uiFormHandler_(peerId, typedMessage);
             }
@@ -197,14 +203,22 @@ void ServerRuntime::handleHello(const protocol::PlayerId& peerId, const protocol
     welcome.sampleRate = static_cast<uint16_t>(config_.audio.sampleRate);
     welcome.frameSizeMs = static_cast<uint8_t>(config_.audio.frameSizeMs);
     welcome.sttEnabled = config_.sttEnabled && stt_ && stt_->available();
-    // 服务端本会话支持的可选能力：PTT 是基础能力（必支持），字幕跟随 STT 可用性。
-    // 协商只保留客户端声明且服务端支持的共同位，结果同时用于后续下行裁剪。
+    // 服务端本会话支持的可选能力：PTT 是基础能力（必支持），字幕跟随 STT 可用性，
+    // 近距离语音跟随服务端配置（mode=proximity）。未声明该能力的旧客户端协商不到，
+    // 混音器会按会话降级为全局混音，而不是让它突然听不到远处的人。
     const uint8_t serverSupportedCapabilities = static_cast<uint8_t>(
-        protocol::CapabilityPtt | (welcome.sttEnabled ? protocol::CapabilitySubtitle : protocol::CapabilityNone));
+        protocol::CapabilityPtt
+        | (welcome.sttEnabled ? protocol::CapabilitySubtitle : protocol::CapabilityNone)
+        | (config_.spatialMode == "proximity" ? protocol::CapabilityProximity : protocol::CapabilityNone));
     welcome.serverCapabilities = protocol::negotiateCapabilities(hello.capabilities, serverSupportedCapabilities);
     {
         std::lock_guard lock(negotiatedCapabilitiesMutex_);
         negotiatedCapabilities_[peerId] = welcome.serverCapabilities;
+    }
+    const bool proximityEnabled = (welcome.serverCapabilities & protocol::CapabilityProximity) != 0;
+    {
+        auto session = sessions_.find(peerId);
+        if (session) session->setProximityEnabled(proximityEnabled);
     }
     transport_.send(peerId, welcome);
     logInfo(
@@ -212,9 +226,15 @@ void ServerRuntime::handleHello(const protocol::PlayerId& peerId, const protocol
         + " sampleRate=" + std::to_string(welcome.sampleRate)
         + " frameSizeMs=" + std::to_string(welcome.frameSizeMs)
         + " stt=" + (welcome.sttEnabled ? "on" : "off")
+        + " proximity=" + (proximityEnabled ? "on" : "off")
         + " caps=0x" + std::to_string(static_cast<unsigned>(welcome.serverCapabilities))
         + ")"
     );
+    // 配置开启近距离但客户端没声明能力：这是「服务端想开、客户端不认」的降级路径，
+    // 必须留日志，否则现场只会看到「距离衰减没生效」而无从判断原因。
+    if (config_.spatialMode == "proximity" && !proximityEnabled) {
+        logWarn("[spatial] client did not negotiate proximity voice; falling back to global mix for this session");
+    }
 }
 void ServerRuntime::handleAudio(const protocol::PlayerId& peerId, const protocol::AudioDataMessage& audio) {
     const int64_t nowMs = steadyNowMs();

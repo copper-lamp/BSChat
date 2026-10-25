@@ -101,6 +101,10 @@ ServerConfig serverConfigFromJson(const std::string& json) {
         c.jitterMaxWaitMs = valueOr(j, "jitterMaxWaitMs", c.jitterMaxWaitMs);
         c.spatialMode = valueOr(j, "mode", c.spatialMode);
         c.spatialRadius = valueOr(j, "radius", c.spatialRadius);
+        c.spatialMaxDistance = valueOr(j, "maxDistance", c.spatialMaxDistance);
+        // 手填配置兜底：负半径/负距离没有物理意义，钳到 0（由混音器再决定降级行为）。
+        if (c.spatialRadius < 0.0f) c.spatialRadius = 0.0f;
+        if (c.spatialMaxDistance < 0.0f) c.spatialMaxDistance = 0.0f;
         c.spatialMaxTalkers = valueOr(j, "maxTalkers", c.spatialMaxTalkers);
         c.spatialMaxChatters = valueOr(j, "maxChatters", c.spatialMaxChatters);
         c.spatialStaleMs = valueOr(j, "staleMs", c.spatialStaleMs);
@@ -122,6 +126,7 @@ std::string serverConfigToJson(const ServerConfig& c) {
     j["jitterMaxWaitMs"] = c.jitterMaxWaitMs;
     j["mode"] = c.spatialMode;
     j["radius"] = c.spatialRadius;
+    j["maxDistance"] = c.spatialMaxDistance;
     j["maxTalkers"] = c.spatialMaxTalkers;
     j["maxChatters"] = c.spatialMaxChatters;
     j["staleMs"] = c.spatialStaleMs;
@@ -145,6 +150,14 @@ ClientConfig clientConfigFromJson(const std::string& json) {
         if (c.playbackVolume < 0.0f) c.playbackVolume = 0.0f;
         if (c.playbackVolume > 1.0f) c.playbackVolume = 1.0f;
         c.subtitleEnabled = valueOr(j, "subtitleEnabled", c.subtitleEnabled);
+        c.volumeBalanceEnabled = valueOr(j, "volumeBalanceEnabled", c.volumeBalanceEnabled);
+        c.volumeBalanceStrength = valueOr(j, "volumeBalanceStrength", c.volumeBalanceStrength);
+        c.volumeBalanceTargetRms = valueOr(j, "volumeBalanceTargetRms", c.volumeBalanceTargetRms);
+        // 手改配置可能写出非法平衡参数：加载即收敛到协议允许区间，避免非法值上行后被拒收。
+        if (c.volumeBalanceStrength < 0.0f) c.volumeBalanceStrength = 0.0f;
+        if (c.volumeBalanceStrength > 1.0f) c.volumeBalanceStrength = 1.0f;
+        if (c.volumeBalanceTargetRms < 0.02f) c.volumeBalanceTargetRms = 0.02f;
+        if (c.volumeBalanceTargetRms > 0.40f) c.volumeBalanceTargetRms = 0.40f;
         c.maxSubtitleLines = valueOr(j, "maxSubtitleLines", c.maxSubtitleLines);
         c.subtitleFadeMs = valueOr(j, "subtitleFadeMs", c.subtitleFadeMs);
         c.hudEnabled = valueOr(j, "hudEnabled", c.hudEnabled);
@@ -167,6 +180,9 @@ std::string clientConfigToJson(const ClientConfig& c) {
     j["captureEnabled"] = c.captureEnabled;
     j["playbackVolume"] = c.playbackVolume;
     j["subtitleEnabled"] = c.subtitleEnabled;
+    j["volumeBalanceEnabled"] = c.volumeBalanceEnabled;
+    j["volumeBalanceStrength"] = c.volumeBalanceStrength;
+    j["volumeBalanceTargetRms"] = c.volumeBalanceTargetRms;
     j["maxSubtitleLines"] = c.maxSubtitleLines;
     j["subtitleFadeMs"] = c.subtitleFadeMs;
     j["hudEnabled"] = c.hudEnabled;

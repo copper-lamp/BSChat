@@ -1,5 +1,6 @@
 #include "core/protocol/MessageCodec.h"
 
+#include <cmath>
 #include <cstring>
 #include <limits>
 
@@ -226,6 +227,13 @@ std::pair<MessageType, std::vector<uint8_t>> MessageCodec::serializePayload(cons
                 w.u64(m.sendAtMs);
                 return {MessageType::PosUpdate, std::move(w).take()};
 
+            } else if constexpr (std::is_same_v<M, VolumeBalanceMessage>) {
+                BufferWriter w;
+                w.u8(m.enabled ? 1 : 0);
+                w.f32(m.strength);
+                w.f32(m.targetRms);
+                return {MessageType::VolumeBalance, std::move(w).take()};
+
             } else if constexpr (std::is_same_v<M, UiFormMessage>) {
                 BufferWriter w;
                 if (m.payload.size() > kUiFormPayloadMaxBytes) return {MessageType::UiForm, {}};
@@ -313,6 +321,20 @@ std::optional<Message> MessageCodec::deserializePayload(MessageType type, std::s
         if (!r.i32(m.dimensionId)) return std::nullopt;
         if (!r.u8(m.envFlags)) return std::nullopt;
         if (!r.u64(m.sendAtMs)) return std::nullopt;
+        return m;
+    }
+    case MessageType::VolumeBalance: {
+        VolumeBalanceMessage m;
+        uint8_t enabled = 0;
+        if (!r.u8(enabled)) return std::nullopt;
+        m.enabled = enabled != 0;
+        if (!r.f32(m.strength)) return std::nullopt;
+        if (!r.f32(m.targetRms)) return std::nullopt;
+        // 手改配置/异常载荷不能让 NaN 或越界值进入混音器：拒收非法值而不是静默夹取，
+        // 免得「参数明明填了却没生效」无从定位。
+        if (!std::isfinite(m.strength) || !std::isfinite(m.targetRms)) return std::nullopt;
+        if (m.strength < kVolumeBalanceStrengthMin || m.strength > kVolumeBalanceStrengthMax) return std::nullopt;
+        if (m.targetRms < kVolumeBalanceTargetMin || m.targetRms > kVolumeBalanceTargetMax) return std::nullopt;
         return m;
     }
     case MessageType::UiForm: {

@@ -33,10 +33,14 @@ public:
     // 清空指定接收者的全部增益（常用于每 tick 重建矩阵前）。
     void clearGain(protocol::PlayerId listener);
 
-    // 把该接收者的各路加权求和归一化到 out（长度 frameSamples），并限幅 [-1,1]。
-    // 归一化策略参照 GlobalMixer 的 1/sqrt(N) 功率归一，N 为该接收者实际参与的非零
-    // 增益说话者数（既有帧又有非零增益），逐路再叠加各自 gain，最后限幅。
+    // 把该接收者的各路加权求和到 out（长度 frameSamples），再经固定阈值软限幅。
+    // 求和阶段不做 1/sqrt(N) 功率归一：归一化会让「两个人同时说话 → 每个人都被
+    // 悄悄压低」，与逐说话者响度平衡/逐人音量设置相互打架。改为固定裕量软限幅：
+    // |x| <= kSoftLimitThreshold 原样通过，超出部分按 tanh 曲线压到 1.0 以内。
     void computeMix(protocol::PlayerId listener, float* out) const;
+
+    // 固定限幅阈值（线性幅度）：低于该值不做任何压缩，保留语音动态。
+    static constexpr float kSoftLimitThreshold = 0.7f;
 
     // 是否有活跃说话者（存在帧数据）。
     bool hasActiveTalker() const;

@@ -48,8 +48,9 @@ struct ServerConfig {
     SttModelConfig sttModel;
     int jitterMaxDepthFrames = 6; // 6 × 60ms = 360ms
     int64_t jitterMaxWaitMs = 200;
-    std::string spatialMode = "global";
-    float spatialRadius = 24.0f;
+    std::string spatialMode = "global";   // "global" | "proximity"（近距离语音总开关）
+    float spatialRadius = 24.0f;          // 衰减半径（方块）：半径内满音量
+    float spatialMaxDistance = 0.0f;      // 最大传播距离（方块）：0 表示按 radius*2 兜底
     size_t spatialMaxTalkers = 0;
     size_t spatialMaxChatters = 0;
     int64_t spatialStaleMs = 2000;
@@ -68,6 +69,11 @@ struct ClientConfig {
     bool captureEnabled = true;   // 采集开关：关闭后只收听
     float playbackVolume = 1.0f;  // 播放音量 0..1
     bool subtitleEnabled = true;
+    // 音量平衡（听者侧，服务端混音时生效）：服务端把各说话者响度向 targetRms 拉平。
+    // 与 playbackVolume（本地播放音量）相互独立，二者会相乘。
+    bool volumeBalanceEnabled = true;
+    float volumeBalanceStrength = 1.0f;  // 0..1
+    float volumeBalanceTargetRms = 0.12f; // 0.02..0.40
     int maxSubtitleLines = 4;
     int subtitleFadeMs = 5000;
     bool hudEnabled = true; // 状态覆盖层开关
