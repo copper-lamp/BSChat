@@ -34,7 +34,7 @@ public:
     // 状态图标所在目录（模组目录下的 icons/），由装配层在初始化时注入。
     void setIconDirectory(std::filesystem::path directory) { statusIcons_.setIconDirectory(std::move(directory)); }
 
-    // 配置热生效：字幕开关/行数/淡出、覆盖层总开关。
+    // 配置热生效：字幕开关/行数/单行长度/消失时间、覆盖层总开关。
     void applyConfig(config::ClientConfig const& config);
 
     // 网络线程：收到一条 STT 文本
@@ -45,7 +45,6 @@ public:
 
 private:
     void onAfterUIRender(ll::event::render::AfterUIRenderEvent& event);
-    std::string statusText(AudioStatus status) const;
 
     std::shared_ptr<ll::event::Listener<ll::event::render::AfterUIRenderEvent>> renderListener_;
     SubtitleOverlay subtitles_;
