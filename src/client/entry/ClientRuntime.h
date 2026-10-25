@@ -60,6 +60,8 @@ public:
     uint64_t sentAudioFrames() const { return sentAudioFrames_; }
 private:
     void sendHello(); void drainPlayback();
+    // 上报听者音量平衡参数（仅协商到近距离能力时发送）；握手完成与面板改动后调用。
+    void sendVolumeBalance();
     // 按当前 config_.audio 重建编解码器与帧缓冲（首次构造与协商帧长后共用）
     void rebuildCodecs();
     // 采用服务端协商的帧长（服务端是音频格式权威）：重建编解码器与帧缓冲，

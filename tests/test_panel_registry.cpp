@@ -36,7 +36,8 @@ constexpr char const* kAdminPanel = R"({
 })";
 
 std::filesystem::path makeTempDir(std::string const& name) {
-    auto dir = std::filesystem::temp_directory_path() / name;
+    // 受限运行环境下系统 temp 目录可能对被测进程不可写，测试文件放在工作目录下。
+    auto dir = std::filesystem::current_path() / name;
     std::error_code error;
     std::filesystem::remove_all(dir, error);
     std::filesystem::create_directories(dir, error);

@@ -99,8 +99,10 @@ public:
 TEST(mixer_produces_mix_stream_when_active) {
     SessionManager sessions;
     auto id = makePlayerId(1);
+    auto listener = makePlayerId(9);
     PlayerSession::Options opts;
     sessions.addSession(id, opts);
+    sessions.addSession(listener, opts);
     ServerMixer mixer(sessions, {});
 
     auto data = encodeTone();
@@ -110,8 +112,12 @@ TEST(mixer_produces_mix_stream_when_active) {
     mixer.tickOnce(1000);
     auto out = collect(mixer);
 
-    // 120ms tick = 2 × 60ms 混音帧，活跃时每 tick 2 条 MixStream
+    // 每帧上行各混一路：活跃时每帧一条 MixStream，且只发给能听见的接收者。
+    // 说话者本人自我抑制，不会收到自己的语音。
     EXPECT_EQ(out.size(), 2u);
+    if (out.size() < 2) return;
+    EXPECT_TRUE(out[0].first == listener);
+    EXPECT_TRUE(out[1].first == listener);
     auto seq1 = std::get_if<MixStreamMessage>(&out[0].second);
     auto seq2 = std::get_if<MixStreamMessage>(&out[1].second);
     EXPECT_TRUE(seq1 != nullptr && seq2 != nullptr);
@@ -134,7 +140,9 @@ TEST(mixer_silent_when_no_talker) {
 TEST(mixer_drives_stt_and_broadcasts_text) {
     SessionManager sessions;
     auto id = makePlayerId(3);
+    auto listener = makePlayerId(30);
     sessions.addSession(id, {});
+    sessions.addSession(listener, {});
     ServerMixer mixer(sessions, {});
     RecordStt stt; // 声明于 mixer 之后 → 先于 mixer 析构，符合生命周期契约
     mixer.setStt(&stt);
@@ -152,7 +160,7 @@ TEST(mixer_drives_stt_and_broadcasts_text) {
     EXPECT_EQ(stt.feeds[0], id);
     EXPECT_EQ(stt.ends.size(), 1u);
 
-    // STT 结果（部分 + 最终）→ 广播 SttText
+    // STT 结果（部分 + 最终）→ 发给说话者本人与能听见他的接收者
     stt.emit(id, false, "部分");
     stt.emit(id, true, "最终");
     auto out = collect(mixer);
@@ -171,9 +179,10 @@ TEST(mixer_drives_stt_and_broadcasts_text) {
             }
         }
     }
-    // 3 帧上行 → 3 个下行帧（每个子帧各取一帧、不重复编码）；队列取空后不再出帧
+    // 3 帧上行 → 3 个下行帧（每个子帧各取一帧、不重复编码）；队列取空后不再出帧。
+    // 每条识别结果发给 2 个会话（说话者本人 + 听者）。
     EXPECT_EQ(mixCount, 3u);
-    EXPECT_EQ(textCount, 2u);
+    EXPECT_EQ(textCount, 4u);
 }
 
 // 字幕前缀（说话人名字）必须跟着识别结果一起下发，并且每条结果都要落日志：
@@ -242,7 +251,9 @@ TEST(mixer_stt_unavailable_keeps_voice_path) {
     // STT 不可用（如引擎缺失）→ 混音链路不受影响，仅跳过 STT 驱动
     SessionManager sessions;
     auto id = makePlayerId(4);
+    auto listener = makePlayerId(40);
     sessions.addSession(id, {});
+    sessions.addSession(listener, {});
     ServerMixer mixer(sessions, {});
     RecordStt stt; // available() 恒 true，这里验证 setStt(nullptr) 分支
     mixer.setStt(nullptr);
@@ -332,8 +343,7 @@ TEST(mixer_tick_gated_by_configured_period) {
 }
 
 // 同一 tick 内的多个子帧必须各用一段不同音频：此前 drain 后覆盖式喂入会把同一帧编码多次。
-TEST(mixer_sub_frames_use_distinct_audio) {
-    SessionManager sessions;
+TEST(mixer_sub_frames_use_distinct_audio) {    SessionManager sessions;
     sessions.addSession(makePlayerId(1), {});
     ServerMixer mixer(sessions, {});
 
@@ -359,4 +369,155 @@ TEST(mixer_sub_frames_use_distinct_audio) {
     if (payloads.size() == framesPerTick) EXPECT_TRUE(payloads[0] != payloads[1]);
 
     std::filesystem::remove(path);
+}
+
+namespace {
+
+void setPosition(SessionManager& sessions, PlayerId id, float x, int32_t dimensionId, int64_t atMs) {
+    PosUpdateMessage pos;
+    pos.playerId = id;
+    pos.x = x;
+    pos.y = 0.0f;
+    pos.z = 0.0f;
+    pos.dimensionId = dimensionId;
+    pos.sendAtMs = 0;
+    sessions.find(id)->updatePosition(pos, atMs);
+}
+
+ServerMixer::Config proximityConfig() {
+    ServerMixer::Config config;
+    config.spatial.mode = MixMode::Proximity;
+    config.spatial.attenuationRadiusBlocks = 8.0f;
+    config.spatial.maxDistanceBlocks = 16.0f;
+    config.spatial.dimensionIsolation = true;
+    // 字幕门控用的是真实稳态时钟，测试里把位置新鲜度阈值放宽到不会过期。
+    config.staleMs = 1'000'000'000'000;
+    return config;
+}
+
+} // namespace
+
+// 超出最大传播距离：听不到语音，也收不到该说话者的字幕；说话者本人仍能看到自己的字幕。
+TEST(mixer_proximity_gates_audio_and_subtitles) {
+    SessionManager sessions;
+    auto listener = makePlayerId(1);
+    auto speaker = makePlayerId(2);
+    sessions.addSession(listener, {});
+    sessions.addSession(speaker, {});
+    sessions.find(listener)->setProximityEnabled(true);
+    sessions.find(speaker)->setProximityEnabled(true);
+    setPosition(sessions, listener, 0.0f, 0, 1000);
+    setPosition(sessions, speaker, 40.0f, 0, 1000);
+
+    ServerMixer mixer(sessions, proximityConfig());
+    RecordStt stt;
+    mixer.setStt(&stt);
+
+    auto data = encodeTone();
+    sessions.find(speaker)->pushAudio(makeAudio(1, AudioFlagStart, data), 1000);
+    sessions.find(speaker)->pushAudio(makeAudio(2, AudioFlagNone, data), 1000);
+    mixer.tickOnce(1000);
+
+    stt.emit(speaker, true, "远处的字");
+    auto out = collect(mixer);
+
+    for (auto const& [peer, message] : out) {
+        EXPECT_FALSE(peer == listener); // 听不见 → 既无混音也无字幕
+        if (auto const* text = std::get_if<SttTextMessage>(&message)) {
+            EXPECT_TRUE(peer == speaker);
+            EXPECT_EQ(text->text, std::string("远处的字"));
+        }
+    }
+}
+
+// 距离在衰减半径内：听者收到混音流与字幕；说话者本人不收到自己的混音（自我抑制）。
+TEST(mixer_proximity_nearby_delivers_audio_and_subtitles) {
+    SessionManager sessions;
+    auto listener = makePlayerId(1);
+    auto speaker = makePlayerId(2);
+    sessions.addSession(listener, {});
+    sessions.addSession(speaker, {});
+    sessions.find(listener)->setProximityEnabled(true);
+    sessions.find(speaker)->setProximityEnabled(true);
+    setPosition(sessions, listener, 0.0f, 0, 1000);
+    setPosition(sessions, speaker, 4.0f, 0, 1000);
+
+    ServerMixer mixer(sessions, proximityConfig());
+    RecordStt stt;
+    mixer.setStt(&stt);
+
+    auto data = encodeTone();
+    sessions.find(speaker)->pushAudio(makeAudio(1, AudioFlagStart, data), 1000);
+    mixer.tickOnce(1000);
+    stt.emit(speaker, false, "近处的字");
+    auto out = collect(mixer);
+
+    bool listenerHasMix = false;
+    bool listenerHasText = false;
+    bool speakerHasOwnText = false;
+    for (auto const& [peer, message] : out) {
+        if (std::holds_alternative<MixStreamMessage>(message)) {
+            if (peer == listener) listenerHasMix = true;
+            EXPECT_FALSE(peer == speaker);
+        }
+        if (auto const* text = std::get_if<SttTextMessage>(&message)) {
+            if (peer == listener) listenerHasText = true;
+            if (peer == speaker) speakerHasOwnText = true;
+            EXPECT_EQ(text->text, std::string("近处的字"));
+        }
+    }
+    EXPECT_TRUE(listenerHasMix);
+    EXPECT_TRUE(listenerHasText);
+    EXPECT_TRUE(speakerHasOwnText);
+}
+
+// 跨维度：即便距离为 0 也听不到，字幕不下发。
+TEST(mixer_proximity_isolates_dimensions) {
+    SessionManager sessions;
+    auto listener = makePlayerId(1);
+    auto speaker = makePlayerId(2);
+    sessions.addSession(listener, {});
+    sessions.addSession(speaker, {});
+    sessions.find(listener)->setProximityEnabled(true);
+    sessions.find(speaker)->setProximityEnabled(true);
+    setPosition(sessions, listener, 0.0f, 0, 1000);
+    setPosition(sessions, speaker, 0.0f, 1, 1000);
+
+    ServerMixer mixer(sessions, proximityConfig());
+    RecordStt stt;
+    mixer.setStt(&stt);
+    auto data = encodeTone();
+    sessions.find(speaker)->pushAudio(makeAudio(1, AudioFlagStart, data), 1000);
+    mixer.tickOnce(1000);
+    stt.emit(speaker, true, "异界");
+
+    auto out = collect(mixer);
+    for (auto const& [peer, message] : out) {
+        EXPECT_FALSE(peer == listener);
+        (void)message;
+    }
+}
+
+// 未协商到近距离能力的旧会话按全局混音降级：不能因为服务端开了近距离就让它听不到远处玩家。
+TEST(mixer_proximity_falls_back_to_global_for_legacy_session) {
+    SessionManager sessions;
+    auto listener = makePlayerId(1);
+    auto speaker = makePlayerId(2);
+    sessions.addSession(listener, {});
+    sessions.addSession(speaker, {});
+    sessions.find(listener)->setProximityEnabled(false); // 旧客户端
+    sessions.find(speaker)->setProximityEnabled(true);
+    setPosition(sessions, listener, 0.0f, 0, 1000);
+    setPosition(sessions, speaker, 400.0f, 0, 1000);
+
+    ServerMixer mixer(sessions, proximityConfig());
+    auto data = encodeTone();
+    sessions.find(speaker)->pushAudio(makeAudio(1, AudioFlagStart, data), 1000);
+    mixer.tickOnce(1000);
+
+    bool listenerHasMix = false;
+    for (auto const& [peer, message] : collect(mixer)) {
+        if (peer == listener && std::holds_alternative<MixStreamMessage>(message)) listenerHasMix = true;
+    }
+    EXPECT_TRUE(listenerHasMix);
 }

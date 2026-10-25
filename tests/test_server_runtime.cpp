@@ -219,6 +219,7 @@ TEST(server_runtime_audio_reaches_mixer_without_stt) {
     config.sttEnabled = true;
     ServerRuntime runtime(transport, config);
     auto id = makePlayerId(2);
+    auto listener = makePlayerId(20);
 
     HelloMessage hello;
     hello.playerId = id;
@@ -226,6 +227,14 @@ TEST(server_runtime_audio_reaches_mixer_without_stt) {
     hello.sampleRate = bsc::audio::kDefaultSampleRate;
     hello.frameSizeMs = bsc::audio::kDefaultFrameSizeMs;
     transport.inject(id, hello);
+
+    // 单机没有听者时不会产生下行（自我抑制）；这里加一个听者验证混音链路。
+    HelloMessage listenerHello;
+    listenerHello.playerId = listener;
+    listenerHello.protocolVersion = kProtocolVersion;
+    listenerHello.sampleRate = bsc::audio::kDefaultSampleRate;
+    listenerHello.frameSizeMs = bsc::audio::kDefaultFrameSizeMs;
+    transport.inject(listener, listenerHello);
     transport.sent.clear();
 
     auto data = encodeTone();
@@ -238,7 +247,7 @@ TEST(server_runtime_audio_reaches_mixer_without_stt) {
     runtime.tickOnce(1000);
     runtime.drainPending();
 
-    EXPECT_TRUE(runtime.sessionCount() == 1u);
+    EXPECT_TRUE(runtime.sessionCount() == 2u);
     EXPECT_TRUE(transport.sent.size() >= 1u);
     bool hasMix = false;
     for (const auto& [peer, message] : transport.sent) {
