@@ -137,3 +137,55 @@ TEST(SubtitleFollowsNegotiatedCapability) {
         EXPECT_EQ(subtitles, 1);
     }
 }
+
+// 近距离：握手协商到能力位后，客户端必须立即上报听者的音量平衡参数；
+// 面板改参数要重发；旧服务端（未协商）不得发送该消息。
+TEST(ProximityReportsVolumeBalanceSettings) {
+    {
+        T t; P p; C c;
+        config::ClientConfig config;
+        client::ClientRuntime r(t, p, c, config);
+        r.start();
+        t.h({}, protocol::WelcomeMessage{1, 48000, 60, false,
+            protocol::CapabilityPtt | protocol::CapabilityProximity});
+
+        int reports = 0;
+        for (auto const& message : t.out) {
+            if (auto const* balance = std::get_if<protocol::VolumeBalanceMessage>(&message)) {
+                ++reports;
+                EXPECT_TRUE(balance->enabled);
+                EXPECT_NEAR(balance->strength, 1.0f, 1e-6f);
+                EXPECT_NEAR(balance->targetRms, 0.12f, 1e-6f);
+            }
+        }
+        EXPECT_EQ(reports, 1);
+
+        // 面板调低平衡强度 → 重新上报（只检查最新一条，历史条目仍是旧值）
+        config.volumeBalanceEnabled = false;
+        config.volumeBalanceStrength = 0.4f;
+        r.applyConfig(config);
+        const protocol::VolumeBalanceMessage* latest = nullptr;
+        int after = 0;
+        for (auto const& message : t.out) {
+            if (auto const* balance = std::get_if<protocol::VolumeBalanceMessage>(&message)) {
+                ++after;
+                latest = balance;
+            }
+        }
+        EXPECT_EQ(after, 2);
+        EXPECT_TRUE(latest != nullptr);
+        if (latest) {
+            EXPECT_FALSE(latest->enabled);
+            EXPECT_NEAR(latest->strength, 0.4f, 1e-6f);
+        }
+    }
+    {
+        // 服务端未协商到近距离（例如 mode=global）：不发参数，避免无意义的包。
+        T t; P p; C c; client::ClientRuntime r(t, p, c, {});
+        r.start();
+        t.h({}, protocol::WelcomeMessage{1, 48000, 60, false, protocol::CapabilityPtt});
+        for (auto const& message : t.out) {
+            EXPECT_FALSE(std::holds_alternative<protocol::VolumeBalanceMessage>(message));
+        }
+    }
+}

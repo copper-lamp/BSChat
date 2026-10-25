@@ -28,6 +28,7 @@ enum class MessageType : uint8_t {
     Control    = 6, // 双向控制
     PosUpdate  = 7, // C→S 位置/环境更新（空间混音选路输入）
     UiForm     = 8, // 双向：面板表单中继（客户端构表单 JSON，服务端投递并回传结果）
+    VolumeBalance = 9, // C→S 音量平衡参数（听者的响度平衡偏好）
 };
 
 // 客户端能力位（Hello.capabilities）
@@ -36,13 +37,17 @@ enum Capability : uint8_t {
     CapabilityPtt       = 1 << 0, // 支持按键说话
     CapabilityVad       = 1 << 1, // 支持自动语音检测（v1 声明但默认关闭）
     CapabilitySubtitle  = 1 << 2, // 支持字幕显示
+    // 支持近距离语音：理解按会话启用的距离混音，并通过 VolumeBalance 上报听者
+    // 音量平衡参数。服务端只对协商到该位的会话启用距离衰减/字幕门控，未声明的
+    // 旧客户端回落到全局混音。
+    CapabilityProximity = 1 << 3,
 };
 
 // 需要服务端协同的能力位：只有这些位参与 Hello→Welcome 的双方协商并在
 // Welcome.serverCapabilities 回传。CapabilityVad 是客户端本地行为（不涉及网络
 // 约束），服务端不参与，也不在协商结果里回传，避免新版服务端误关旧端 VAD。
 inline constexpr uint8_t kServerNegotiableCapabilities =
-    static_cast<uint8_t>(CapabilityPtt | CapabilitySubtitle);
+    static_cast<uint8_t>(CapabilityPtt | CapabilitySubtitle | CapabilityProximity);
 
 // 协商标记：Welcome.serverCapabilities 为 0 表示对端是未参与协商的旧服务端。
 // 此时接收端回落到 v1 既有行为（不做可选能力裁剪），保证新客户端连旧服务端时
@@ -133,6 +138,20 @@ struct PosUpdateMessage {
     uint64_t sendAtMs = 0;          // 客户端发送时刻（服务器时钟）
 };
 
+// 听者的音量平衡参数（C→S）。语义是「收听端的响度平衡偏好」：服务端在把某个
+// 说话者混给这个听者之前，先按该参数把说话者的响度向 targetRms 拉平。参数是
+// 全局的（不区分说话者），与本地播放音量、服务端管理员的 per-user gain 相互独立。
+inline constexpr float kVolumeBalanceStrengthMin = 0.0f;
+inline constexpr float kVolumeBalanceStrengthMax = 1.0f;
+inline constexpr float kVolumeBalanceTargetMin = 0.02f;  // -34 dBFS，防止把噪声抬成语音
+inline constexpr float kVolumeBalanceTargetMax = 0.40f;  // -8 dBFS，留足混音余量
+
+struct VolumeBalanceMessage {
+    bool enabled = false;          // 听者是否启用自动响度平衡
+    float strength = 1.0f;         // 平衡强度 0..1：最终增益 = 1 + strength * (目标增益 - 1)
+    float targetRms = 0.12f;       // 目标帧 RMS（0..1 线性幅度）
+};
+
 // 面板表单中继方向。表单本身只能由服务端下发给客户端（Bedrock 表单走
 // ModalFormRequest/Response 网络包），因此客户端设置面板经服务端中继。
 enum class UiFormKind : uint8_t {
@@ -158,6 +177,7 @@ using Message = std::variant<
     SttTextMessage,
     ControlMessage,
     PosUpdateMessage,
+    VolumeBalanceMessage,
     UiFormMessage>;
 
 } // namespace bsc::protocol

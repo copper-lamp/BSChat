@@ -14,6 +14,8 @@
       ] },
     { "type": "toggle", "key": "captureEnabled", "text": "bschat.opt.captureEnabled", "default": true },
     { "type": "slider", "key": "playbackVolume", "text": "bschat.opt.volume", "min": 0, "max": 100, "step": 5, "default": 80 },
+    { "type": "toggle", "key": "volumeBalanceEnabled", "text": "bschat.opt.volumeBalance", "default": true },
+    { "type": "slider", "key": "volumeBalanceStrength", "text": "bschat.opt.volumeBalanceStrength", "min": 0, "max": 100, "step": 10, "default": 100 },
     { "type": "divider" },
     { "type": "header", "text": "bschat.panel.settings.keys" },
     { "type": "input", "key": "pttKeyName", "text": "bschat.opt.pttKey", "placeholder": "V" },

@@ -4,6 +4,21 @@
 #include <cmath>
 
 namespace bsc::audio {
+namespace {
+
+// 固定裕量软限幅：阈值以下原样通过；阈值以上用 tanh 把剩余动态压进
+// (threshold, 1.0] 区间。曲线在阈值处一阶连续（tanh(0)=0、导数=1），
+// 不会像硬削波那样在波形上留下折点。
+float softLimit(float sample) {
+    constexpr float kThreshold = MixerCore::kSoftLimitThreshold;
+    const float magnitude = std::fabs(sample);
+    if (magnitude <= kThreshold) return sample;
+    const float headroom = 1.0f - kThreshold;
+    const float limited = kThreshold + headroom * std::tanh((magnitude - kThreshold) / headroom);
+    return std::copysign(std::min(limited, 1.0f), sample);
+}
+
+} // namespace
 
 MixerCore::MixerCore(int frameSamples, int sampleRate)
     : frameSamples_(frameSamples), sampleRate_(sampleRate) {}
@@ -27,29 +42,19 @@ void MixerCore::computeMix(protocol::PlayerId listener, float* out) const {
     auto lit = gains_.find(listener);
     if (lit == gains_.end()) return; // 无增益配置 → 全 0
 
-    // 统计本接收者实际参与的非零增益说话者数
-    size_t activeCount = 0;
-    for (auto const& [speaker, gain] : lit->second) {
-        if (gain > 0.0f && frames_.count(speaker)) ++activeCount;
-    }
-    if (activeCount == 0) return;
-
-    // 功率归一：随参与说话者数降低单位增益，避免叠加削波（与 GlobalMixer 一致）
-    const float norm = 1.0f / std::sqrt(static_cast<float>(activeCount));
-
     for (auto const& [speaker, gain] : lit->second) {
         if (gain <= 0.0f) continue;
         auto fit = frames_.find(speaker);
         if (fit == frames_.end()) continue;
         size_t n = std::min(fit->second.size(), frameSize);
         for (size_t i = 0; i < n; ++i) {
-            out[i] += fit->second[i] * gain * norm;
+            out[i] += fit->second[i] * gain;
         }
     }
 
-    // 限幅保护
+    // 固定裕量限幅保护
     for (size_t i = 0; i < frameSize; ++i) {
-        out[i] = std::clamp(out[i], -1.0f, 1.0f);
+        out[i] = softLimit(out[i]);
     }
 }
 

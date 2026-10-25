@@ -17,6 +17,8 @@
   "bschat.opt.talkMode.vad": "自动检测",
   "bschat.opt.captureEnabled": "启用麦克风采集",
   "bschat.opt.volume": "播放音量",
+  "bschat.opt.volumeBalance": "自动音量平衡",
+  "bschat.opt.volumeBalanceStrength": "音量平衡强度",
   "bschat.opt.pttKey": "说话键",
   "bschat.opt.settingsKey": "设置面板键",
   "bschat.opt.subtitleEnabled": "显示字幕",

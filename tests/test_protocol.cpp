@@ -343,3 +343,47 @@ TEST(protocol_v1_tail_extension_and_envelope_trailing_data) {
     EXPECT_TRUE(out.sttEnabled);
     EXPECT_EQ(out.frameSizeMs, 60);
 }
+
+TEST(protocol_volume_balance_roundtrip) {
+    VolumeBalanceMessage message;
+    message.enabled = true;
+    message.strength = 0.65f;
+    message.targetRms = 0.12f;
+
+    const auto packed = MessageCodec::pack(message, 7, 1234);
+    EXPECT_FALSE(packed.empty());
+    auto unpacked = MessageCodec::unpack(packed);
+    EXPECT_TRUE(unpacked.has_value());
+    if (!unpacked) return;
+    EXPECT_EQ(unpacked->first.type, MessageType::VolumeBalance);
+    EXPECT_EQ(unpacked->first.seq, 7u);
+    auto& out = std::get<VolumeBalanceMessage>(unpacked->second);
+    EXPECT_TRUE(out.enabled);
+    EXPECT_NEAR(out.strength, 0.65f, 1e-6);
+    EXPECT_NEAR(out.targetRms, 0.12f, 1e-6);
+}
+
+TEST(protocol_volume_balance_rejects_out_of_range_values) {
+    VolumeBalanceMessage message;
+    message.enabled = true;
+    message.strength = 1.5f; // 超过 0..1
+    auto packed = MessageCodec::pack(message, 0, 0);
+    EXPECT_FALSE(MessageCodec::unpack(packed).has_value());
+
+    message.strength = 1.0f;
+    message.targetRms = 0.001f; // 低于可听目标下限
+    packed = MessageCodec::pack(message, 0, 0);
+    EXPECT_FALSE(MessageCodec::unpack(packed).has_value());
+}
+
+// 近距离能力位参与协商：客户端声明 + 服务端支持才有交集；未声明不协商。
+TEST(protocol_capability_proximity_is_negotiable) {
+    EXPECT_EQ(
+        negotiateCapabilities(CapabilityPtt | CapabilityProximity, CapabilityPtt | CapabilityProximity),
+        static_cast<uint8_t>(CapabilityPtt | CapabilityProximity));
+    EXPECT_EQ(
+        negotiateCapabilities(CapabilityPtt, CapabilityPtt | CapabilityProximity),
+        static_cast<uint8_t>(CapabilityPtt));
+    // 未协商（0）时按旧端语义放行基础能力
+    EXPECT_TRUE(capabilityEnabled(kCapabilitiesNotNegotiated, CapabilityProximity));
+}

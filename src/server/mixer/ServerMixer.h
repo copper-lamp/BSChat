@@ -17,6 +17,7 @@
 #include "core/audio/AudioTypes.h"
 #include "core/audio/MixerCore.h"
 #include "core/audio/SpatialPolicy.h"
+#include "core/audio/VolumeBalancer.h"
 #include "core/codec/OpusCodec.h"
 #include "core/pipeline/IStt.h"
 #include "core/protocol/Message.h"
@@ -74,8 +75,13 @@ public:
 private:
     void threadMain();
     bool feedFilePlaybackFrame(int frameSamples);
-    void enqueueToAll(const protocol::Message& message);
     void enqueueTo(const protocol::PlayerId& peerId, const protocol::Message& message);
+    // 字幕下行：只发给此刻能听见该说话者的接收者（说话者本人始终可见自己的字幕）。
+    // 判定口径与混音一致：维度隔离 + 位置新鲜度 + 距离；未协商近距离的会话按全局处理。
+    void enqueueSttToAudible(const protocol::SttTextMessage& message, int64_t nowMs);
+    bool audibleFor(const PlayerSession& receiver, const PlayerSession& speaker, int64_t nowMs) const;
+    // 本会话是否应用距离衰减（服务端配置近距 + 会话协商到近距离能力）。
+    bool proximityFor(const PlayerSession& session) const;
     void flushSttEnd(const protocol::PlayerId& speakerId);
 
     SessionManager& sessions_;
@@ -91,8 +97,12 @@ private:
     // 每个说话者的待混音帧队列：同一 tick 内 framesPerTick 个子帧各取一段不同音频
     // （直接 addSpeakerFrame 是覆盖语义，会把同一帧编码多次且丢掉其余上行帧）。
     std::map<protocol::PlayerId, std::deque<std::vector<float>>> uploadQueues_;
+    // 本子帧各说话者的帧 RMS：音量平衡只依赖它，不必逐样本重复计算。
+    std::map<protocol::PlayerId, float> frameRms_;
     audio::MixerCore mixer_;
     audio::SpatialPolicy spatialPolicy_;
+    // 每个听者一份响度平衡器：参数来自该听者上报的 VolumeBalance，作用范围仅该听者的混音。
+    std::map<protocol::PlayerId, audio::VolumeBalancer> balancers_;
     FilePlaybackSource filePlayback_;
     std::map<protocol::PlayerId, std::unique_ptr<codec::OpusEncoder>> encoders_;
     std::map<protocol::PlayerId, uint64_t> mixSeqs_;

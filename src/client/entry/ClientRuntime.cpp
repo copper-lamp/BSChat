@@ -103,10 +103,18 @@ void ClientRuntime::applyConfig(config::ClientConfig const& config) {
     config_.subtitleEnabled  = config.subtitleEnabled;
     config_.handshakeRetryMs = config.handshakeRetryMs;
     config_.playbackVolume   = config.playbackVolume;
+    const bool volumeBalanceChanged =
+        config_.volumeBalanceEnabled != config.volumeBalanceEnabled
+        || config_.volumeBalanceStrength != config.volumeBalanceStrength
+        || config_.volumeBalanceTargetRms != config.volumeBalanceTargetRms;
+    config_.volumeBalanceEnabled   = config.volumeBalanceEnabled;
+    config_.volumeBalanceStrength  = config.volumeBalanceStrength;
+    config_.volumeBalanceTargetRms = config.volumeBalanceTargetRms;
 
     vadEnabled_.store(config_.vadEnabled);
     talkMode_.store(config_.vadEnabled ? 1 : 0);
     setOutputVolume(config_.playbackVolume);
+    if (volumeBalanceChanged) sendVolumeBalance();
 
     // 说话模式变化时让采集线程重置检测器（此处只置标志，不跨线程直接碰 vad_）：
     //  - 切回按键说话：检测器可能正把麦克风按在开启状态，而下一次 PTT 按键的 setTalking(true)
@@ -130,11 +138,24 @@ void ClientRuntime::sendHello() {
     hello.sampleRate = checkedSampleRate(config_.audio.sampleRate);
     hello.frameSizeMs = checkedFrameSize(config_.audio.frameSizeMs);
     hello.capabilities = protocol::CapabilityPtt
+        | protocol::CapabilityProximity
         | (vadEnabled_.load() ? protocol::CapabilityVad : 0)
         | (config_.subtitleEnabled ? protocol::CapabilitySubtitle : 0);
     declaredCapabilities_ = hello.capabilities;
     transport_.send({}, hello);
     nextHelloMs_ = clock_.nowMs() + std::max<int64_t>(1, config_.handshakeRetryMs);
+}
+
+void ClientRuntime::sendVolumeBalance() {
+    if (state_ != State::Ready) return;
+    // 未协商到近距离能力（旧服务端或服务端未开启近距离）时不上报：该参数只在
+    // 服务端按距离混音时生效，发了也只会被忽略。
+    if ((negotiatedCapabilities_ & protocol::CapabilityProximity) == 0) return;
+    protocol::VolumeBalanceMessage message;
+    message.enabled = config_.volumeBalanceEnabled;
+    message.strength = config_.volumeBalanceStrength;
+    message.targetRms = config_.volumeBalanceTargetRms;
+    transport_.send({}, message);
 }
 
 void ClientRuntime::tick() {
@@ -205,6 +226,9 @@ void ClientRuntime::onMessage(const protocol::PlayerId& peerId, const protocol::
         negotiatedSttEnabled_ = welcome->sttEnabled;
         state_ = State::Ready;
         nextPositionMs_ = 0;
+        // 握手后立即上报一次听者音量平衡参数：服务端只在收到参数后才按听者偏好混音，
+        // 迟报会让第一句话按「不改变音量」混出去。
+        sendVolumeBalance();
     }
 }
 
