@@ -1,6 +1,7 @@
 #include "client/hud/HudRenderer.h"
 
 #include <algorithm>
+#include <memory>
 #include <optional>
 #include <utility>
 
@@ -34,16 +35,24 @@ HashedString const& imageMaterialName() {
     return name;
 }
 
+// 26.40.x 起 RectangleArea 不再提供 (x0, y0, x1, y1, checkForValidity) 构造，只剩 public
+// 成员 _x0/_x1/_y0/_y1（26.10.14 里那个构造只在 LL_PLAT_C 下声明）。这里按成员赋值，等价于
+// 旧构造的 checkForValidity=false：不做边界校验，越界交给引擎裁剪。
+
 } // namespace
 
 bool HudRenderer::draw(ll::event::render::AfterUIRenderEvent& event, Frame const& frame, Layout const& layout) const {
-    if (frame.subtitles.empty() && frame.statusText.empty() && frame.statusIcon == nullptr) return false;
+    if (frame.subtitles.empty() && frame.statusIcon == nullptr) return false;
 
     auto client = ll::service::getClientInstance();
     if (!client) return false;
-    FontHandle fontHandle = client->getFontHandle();
-    if (!fontHandle.mDefaultFont) return false;
-    Font& font = *fontHandle.mDefaultFont;
+
+    // 字体只在有字幕时才需要：状态图标不依赖默认字体，字体缺失也应能显示图标。
+    std::shared_ptr<Font> font;
+    if (!frame.subtitles.empty()) {
+        font = client->getFontHandle().mDefaultFont;
+        if (!font) return false;
+    }
 
     auto& context = event.uiRenderContext();
     // mSize 是 UI 缩放后的逻辑尺寸，用它做底部锚定，避免固定坐标在不同分辨率/GUI 缩放下漂移。
@@ -55,42 +64,19 @@ bool HudRenderer::draw(ll::event::render::AfterUIRenderEvent& event, Frame const
     float const alpha = 1.0f;
     bool        drewImage = false;
 
-    // 状态：左下角，图标 + 间距 + 文字
-    if (!frame.statusText.empty() || frame.statusIcon != nullptr) {
-        float const lineTop    = height - layout.statusBottomOffset - layout.subtitleLineHeight;
-        float const lineBottom = height - layout.statusBottomOffset;
-        float       textX      = layout.statusX;
-
-        if (frame.statusIcon != nullptr) {
-            // 图标 12x12 与文字行同高（subtitleLineHeight），底边对齐文字行底边。
-            glm::vec2 const iconSize(layout.statusIconSize, layout.statusIconSize);
-            context.drawImage(
-                *frame.statusIcon,
-                glm::vec2(layout.statusX, lineTop),
-                iconSize,
-                glm::vec2(0.0f, 0.0f),
-                glm::vec2(1.0f, 1.0f),
-                false
-            );
-            drewImage = true;
-            textX += layout.statusIconSize + layout.statusIconGap;
-        }
-
-        if (!frame.statusText.empty()) {
-            std::string text = frame.statusText;
-            // 左对齐：矩形从 textX 起，止于屏幕右边界；textX 不得越过右边界，否则矩形反转。
-            RectangleArea rect(std::min(textX, width), lineTop, width, lineBottom, false);
-            context.drawText(
-                font,
-                rect,
-                std::move(text),
-                mce::Color(0.85f, 0.92f, 1.0f, 1.0f),
-                alpha,
-                ui::TextAlignment::Left,
-                TextMeasureData{layout.fontSize, 0.0f, true, false, false, ui::TextAlignment::Left},
-                CaretMeasureData{0, false}
-            );
-        }
+    // 状态：左下角，只画图标。静默/图标缺失时 frame.statusIcon 为空，整段跳过。
+    if (frame.statusIcon != nullptr) {
+        float const iconTop = height - layout.statusBottomOffset - layout.statusIconSize;
+        glm::vec2 const iconSize(layout.statusIconSize, layout.statusIconSize);
+        context.drawImage(
+            *frame.statusIcon,
+            glm::vec2(layout.statusX, iconTop),
+            iconSize,
+            glm::vec2(0.0f, 0.0f),
+            glm::vec2(1.0f, 1.0f),
+            false
+        );
+        drewImage = true;
     }
 
     // 字幕：水平居中 + 底部堆叠，越新的行越靠下
@@ -108,12 +94,10 @@ bool HudRenderer::draw(ll::event::render::AfterUIRenderEvent& event, Frame const
         float const distanceFromBottom = layout.subtitleBottomOffset + static_cast<float>(count - 1 - i) * layout.subtitleLineHeight;
         float const y0 = height - distanceFromBottom - layout.subtitleLineHeight;
         float const y1 = y0 + layout.subtitleLineHeight;
-        std::string text = frame.subtitles[i].speakerName.empty()
-            ? frame.subtitles[i].text
-            : frame.subtitles[i].speakerName + "：" + frame.subtitles[i].text;
+        std::string text = frame.subtitles[i].text;
         RectangleArea rect(rectX0, y0, rectX1, y1, false);
         context.drawText(
-            font,
+            *font,
             rect,
             std::move(text),
             mce::Color(1.0f, 1.0f, 1.0f, 1.0f),

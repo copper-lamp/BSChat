@@ -3,7 +3,6 @@
 #include <chrono>
 
 #include "ll/api/event/EventBus.h"
-#include "ll/api/i18n/I18n.h"
 #include "ll/api/mod/NativeMod.h"
 #include "ll/api/service/TargetedBedrock.h"
 #include "shared/util/FileLog.h"
@@ -64,6 +63,7 @@ void HudLayer::applyConfig(config::ClientConfig const& config) {
     enabled_ = config.hudEnabled;
     SubtitleOverlay::Options options;
     options.maxLines = config.maxSubtitleLines;
+    options.maxCharsPerLine = config.subtitleMaxChars;
     options.fadeMs = config.subtitleFadeMs;
     options.enabled = config.subtitleEnabled;
     subtitles_.setOptions(options);
@@ -82,13 +82,6 @@ void HudLayer::pushSttText(protocol::SttTextMessage const& text, int64_t timesta
 void HudLayer::clearSubtitles() { subtitles_.clear(); }
 
 void HudLayer::setStatusInputs(StatusInputs inputs) { status_.update(inputs); }
-
-std::string HudLayer::statusText(AudioStatus status) const {
-    auto const key = StatusOverlay::i18nKey(status);
-    auto const translated = ll::i18n::getInstance().get(key, ll::i18n::getDefaultLocaleCode());
-    // 未配置语言文件时回落到键名本身，便于在屏幕上直接看出漏配的键。
-    return translated.empty() ? std::string(key) : std::string(translated);
-}
 
 void HudLayer::onAfterUIRender(ll::event::render::AfterUIRenderEvent& event) {
     if (!enabled_) return;
@@ -121,9 +114,9 @@ void HudLayer::onAfterUIRender(ll::event::render::AfterUIRenderEvent& event) {
 
     AudioStatus const status = status_.status();
     HudRenderer::Frame frame;
-    frame.subtitles   = subtitles_.visibleLines(nowMs());
-    frame.statusText  = statusText(status);
-    frame.statusIcon  = statusIcons_.textureFor(status);
+    frame.subtitles = subtitles_.visibleLines(nowMs());
+    // 状态覆盖层只画图标：静默不画任何东西；图标缺失时也不回落文字。
+    frame.statusIcon = status == AudioStatus::Silent ? nullptr : statusIcons_.textureFor(status);
     renderer_.draw(event, frame, layout_);
 }
 

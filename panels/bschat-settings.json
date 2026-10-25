@@ -24,6 +24,8 @@
     { "type": "header", "text": "bschat.panel.settings.subtitle" },
     { "type": "toggle", "key": "subtitleEnabled", "text": "bschat.opt.subtitleEnabled", "default": true },
     { "type": "slider", "key": "maxSubtitleLines", "text": "bschat.opt.subtitleLines", "min": 1, "max": 8, "step": 1, "default": 4 },
+    { "type": "slider", "key": "subtitleMaxChars", "text": "bschat.opt.subtitleMaxChars", "min": 10, "max": 60, "step": 5, "default": 25 },
+    { "type": "slider", "key": "subtitleFadeSeconds", "text": "bschat.opt.subtitleFadeTime", "min": 0, "max": 10, "step": 1, "default": 1 },
     { "type": "toggle", "key": "hudEnabled", "text": "bschat.opt.hudEnabled", "default": true },
     { "type": "label", "text": "bschat.panel.settings.hint" }
   ]

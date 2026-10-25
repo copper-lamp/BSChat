@@ -75,7 +75,8 @@ struct ClientConfig {
     float volumeBalanceStrength = 1.0f;  // 0..1
     float volumeBalanceTargetRms = 0.12f; // 0.02..0.40
     int maxSubtitleLines = 4;
-    int subtitleFadeMs = 5000;
+    int subtitleMaxChars = 25;  // 一行字幕最多字符数（含「名字：」前缀），超长自动换行
+    int subtitleFadeMs = 1000;  // 一句话说完后多少毫秒消失（默认 1 秒）
     bool hudEnabled = true; // 状态覆盖层开关
     int jitterMaxDepthFrames = 6;
     int64_t jitterMaxWaitMs = 200;

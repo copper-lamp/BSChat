@@ -1,9 +1,4 @@
 {
-  "bschat.status.idle": "空闲",
-  "bschat.status.speaking": "正在说话",
-  "bschat.status.muted": "已静音",
-  "bschat.status.playing": "正在收听",
-  "bschat.status.silent": "无声",
   "bschat.panel.settings.title": "BSChat 语音设置",
   "bschat.panel.settings.submit": "保存",
   "bschat.panel.settings.audio": "音频",
@@ -23,6 +18,8 @@
   "bschat.opt.settingsKey": "设置面板键",
   "bschat.opt.subtitleEnabled": "显示字幕",
   "bschat.opt.subtitleLines": "字幕显示行数",
+  "bschat.opt.subtitleMaxChars": "字幕单行最大长度",
+  "bschat.opt.subtitleFadeTime": "字幕消失时间（秒）",
   "bschat.opt.hudEnabled": "显示状态覆盖层",
   "bschat.panel.admin.title": "BSChat 管理面板",
   "bschat.panel.admin.audio": "服务器语音",

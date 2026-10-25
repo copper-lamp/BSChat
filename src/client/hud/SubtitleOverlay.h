@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <mutex>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "core/protocol/Message.h"
@@ -25,9 +26,10 @@ struct SubtitleLine {
 class SubtitleOverlay final {
 public:
     struct Options {
-        int maxLines = 4;      // 同时显示的行数上限
-        int64_t fadeMs = 5000; // 一行从出现到消失的时长
-        bool enabled = true;   // 字幕开关（关闭时不入队也不显示）
+        int maxLines = 4;          // 同时显示的屏幕行数上限（换行后的行）
+        int maxCharsPerLine = 25;  // 一行最多多少个字符（含「名字：」前缀）
+        int64_t fadeMs = 1000;     // 一句话说完后多少毫秒消失
+        bool enabled = true;       // 字幕开关（关闭时不入队也不显示）
     };
 
     SubtitleOverlay() = default;
@@ -39,11 +41,18 @@ public:
     void setEnabled(bool enabled);
     bool enabled() const;
 
-    // 网络线程：入队一条字幕。同一说话者的连续部分结果会覆盖上一行，最终结果开启新行。
+    // 网络线程：入队一条字幕。同一说话者同一句话的部分结果会覆盖已有行；
+    // 每收到一次更新都会重置该行的显示计时（说话过程中不消失）。
     void push(SubtitleLine line, int64_t nowMs);
 
-    // 渲染线程：返回当前应显示的行（按时间先后），并顺手清理已过期行。
+    // 渲染线程：返回当前应显示的行（按时间先后，最后一行在最下方），并顺手清理已过期行。
+    // 返回的是「换行后的屏幕行」：超长文本按 maxCharsPerLine 切分，说话者前缀只出现在第一段，
+    // 总行数不超过 maxLines（超出时优先保留最新的话）。
     std::vector<SubtitleLine> visibleLines(int64_t nowMs);
+
+    // 把一条字幕按 maxCharsPerLine 切成若干显示行（含「名字：」前缀，前缀计入长度）。
+    // 公开为静态函数便于 host 单测；UTF-8 按码点切分，不会切坏多字节字符。
+    static std::vector<std::string> wrapForDisplay(const SubtitleLine& line, int maxCharsPerLine);
 
     void clear();
 
