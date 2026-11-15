@@ -11,7 +11,7 @@ Common prerequisites:
 
 > [!IMPORTANT]
 > Releases are cut per MC version line, and the tag suffix states which line a build targets
-> (`v0.1.3-mc26.20` covers MC 26.20.x). A build for another line will not load, so the server and
+> (`v0.1.4-mc26.20` covers MC 26.20.x). A build for another line will not load, so the server and
 > the client must both come from the release whose suffix matches your MC version.
 
 ## 1. Install the server build
