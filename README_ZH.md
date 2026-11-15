@@ -4,7 +4,7 @@
   <p><strong>进服开麦，即刻畅聊。</strong></p>
   <p>面向 LeviLamina 的开源 Minecraft 基岩版游戏内实时语音聊天模组，服务端混音、客户端收发，可选实时语音转写字幕。</p>
   <p>
-    <img src="https://img.shields.io/badge/release-v0.1.4--mc26.40-4c8bf5?style=flat-square" alt="BSChat v0.1.3-mc26.40">
+    <img src="https://img.shields.io/badge/release-v0.1.4--mc26.40-4c8bf5?style=flat-square" alt="BSChat v0.1.4-mc26.40">
     <img src="https://img.shields.io/badge/Minecraft%20Bedrock-Windows%20x64-62b47a?style=flat-square" alt="Windows x64 Minecraft 基岩版">
     <a href="LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0-blue?style=flat-square" alt="AGPL-3.0 许可证"></a>
   </p>
