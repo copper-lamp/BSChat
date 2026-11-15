@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.1.4-mc26.60] - 2026-11-15
+
+- 将服务端与客户端构建适配到 LeviLamina 26.60 线，锁定 SDK `26.60.7`；保留 26.5 线已发布的 proximity voice、listener volume balance、字幕换行与 HUD 状态图标功能。
+- 本次适配未改变语音协议、配置格式或业务逻辑；SDK 头文件、事件绑定与双端构建验证结果待 CI 确认。
+
+
 ## [0.1.4-mc26.51] - 2026-11-15
 
 - 合并 26.5 的 proximity voice、listener volume balance、字幕换行与 HUD 状态图标功能，保留 26.51.6 SDK 适配。
