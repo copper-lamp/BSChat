@@ -4,7 +4,7 @@
   <p><strong>Join the world and Start talking.</strong></p>
   <p>An open-source in-game real-time voice chat mod for Minecraft Bedrock on LeviLamina — server-side mixing, client-side capture and playback, with optional live speech-to-text subtitles.</p>
   <p>
-    <img src="https://img.shields.io/badge/release-v0.1.4--mc26.20-4c8bf5?style=flat-square" alt="BSChat v0.1.3-mc26.20">
+    <img src="https://img.shields.io/badge/release-v0.1.4--mc26.20-4c8bf5?style=flat-square" alt="BSChat v0.1.4-mc26.20">
     <img src="https://img.shields.io/badge/Minecraft%20Bedrock-Windows%20x64-62b47a?style=flat-square" alt="Windows x64 Minecraft Bedrock">
     <a href="LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0-blue?style=flat-square" alt="AGPL-3.0 License"></a>
   </p>
