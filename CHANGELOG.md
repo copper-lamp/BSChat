@@ -1,8 +1,8 @@
 # Changelog
 
-## [0.1.4-mc26.20] - 2026-11-15
+## [0.1.4-mc26.51] - 2026-11-15
 
-- 合并 26.5 的 proximity voice、listener volume balance、字幕换行与 HUD 状态图标功能，保留 26.20.7 SDK 适配。
+- 合并 26.5 的 proximity voice、listener volume balance、字幕换行与 HUD 状态图标功能，保留 26.51.6 SDK 适配。
 
 All notable changes to this project will be documented in this file.
 
