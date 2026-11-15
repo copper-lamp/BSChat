@@ -4,7 +4,7 @@
   <p><strong>Join the world and Start talking.</strong></p>
   <p>An open-source in-game real-time voice chat mod for Minecraft Bedrock on LeviLamina — server-side mixing, client-side capture and playback, with optional live speech-to-text subtitles.</p>
   <p>
-    <img src="https://img.shields.io/badge/release-v0.1.3--mc26.40-4c8bf5?style=flat-square" alt="BSChat v0.1.3-mc26.40">
+    <img src="https://img.shields.io/badge/release-v0.1.4--mc26.40-4c8bf5?style=flat-square" alt="BSChat v0.1.3-mc26.40">
     <img src="https://img.shields.io/badge/Minecraft%20Bedrock-Windows%20x64-62b47a?style=flat-square" alt="Windows x64 Minecraft Bedrock">
     <a href="LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0-blue?style=flat-square" alt="AGPL-3.0 License"></a>
   </p>
@@ -72,7 +72,7 @@ Full installation and configuration steps are in the [Getting Started guide](../
 
 ## This Release
 
-`v0.1.3-mc26.40` moves both builds onto the LeviLamina 26.40 line (MC 26.40.x). Voice behaviour, the
+`v0.1.4-mc26.40` moves both builds onto the LeviLamina 26.40 line (MC 26.40.x). Voice behaviour, the
 wire protocol and the configuration format are unchanged — this is a host-version migration, and the
 install steps are the same as before apart from the LeviLamina baseline. It also fixes four SDK
 behaviour changes that would otherwise break the mod on the new host: event listeners now bind to the
@@ -107,7 +107,7 @@ Full history is in the [Changelog](CHANGELOG.md).
 Both are built for **Windows x64** and run on **LeviLamina 26.40.6**.
 
 Releases are published per Minecraft version line, and the version suffix says which one a build
-targets: `v0.1.3-mc26.40` is the **MC 26.40.x** line. A build from another line will not load on this
+targets: `v0.1.4-mc26.40` is the **MC 26.40.x** line. A build from another line will not load on this
 one — both ends of a voice session must run the same line.
 
 > [!TIP]

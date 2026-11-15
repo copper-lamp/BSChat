@@ -10,7 +10,7 @@ Common prerequisites:
 - Windows x64.
 
 Releases are published per Minecraft version line, and the version suffix names the line a build
-targets — `v0.1.3-mc26.40` is the **MC 26.40.x** line. Pick the release whose suffix matches the
+targets — `v0.1.4-mc26.40` is the **MC 26.40.x** line. Pick the release whose suffix matches the
 Minecraft version you run; a build from another line will not load.
 
 ## 1. Install the server build
