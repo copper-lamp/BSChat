@@ -4,7 +4,7 @@
   <p><strong>Join the world and Start talking.</strong></p>
   <p>An open-source in-game real-time voice chat mod for Minecraft Bedrock on LeviLamina — server-side mixing, client-side capture and playback, with optional live speech-to-text subtitles.</p>
   <p>
-    <img src="https://img.shields.io/badge/release-v0.1.2-4c8bf5?style=flat-square" alt="BSChat v0.1.2">
+    <img src="https://img.shields.io/badge/release-v0.1.4-mc26.10-4c8bf5?style=flat-square" alt="BSChat v0.1.4-mc26.10">
     <img src="https://img.shields.io/badge/Minecraft%20Bedrock-Windows%20x64-62b47a?style=flat-square" alt="Windows x64 Minecraft Bedrock">
     <a href="LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0-blue?style=flat-square" alt="AGPL-3.0 License"></a>
   </p>
@@ -72,7 +72,7 @@ Full installation and configuration steps are in the [Getting Started guide](../
 
 ## This Release
 
-`v0.1.2` hands speech-to-text model selection to the server operator. The server package now ships
+`v0.1.4-mc26.10` hands speech-to-text model selection to the server operator. The server package now ships
 `Install-SttModel.cmd`; run it, pick a tier, and it downloads the sherpa-onnx runtime plus the chosen
 model and writes the resulting configuration. Five tiers are offered — Chinese at three size/accuracy
 points, plus Chinese-English and Chinese-English-Cantonese — all true streaming models from
